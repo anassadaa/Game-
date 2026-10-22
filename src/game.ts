@@ -2,7 +2,7 @@ import {newWorld, tickWorld, chooseStory, queueFollowup, encounter, revenueFacto
 import type {World} from './world.ts';
 import {newExtra,tickExtra,validExtra} from './extras.ts';
 import type {Extra} from './extras.ts';
-import {newDiplomacy,tickDiplomacy,validDiplomacy,priceFactor} from './diplomacy.ts';
+import {newDiplomacy,tickDiplomacy,validDiplomacy,priceFactor,launchRaid} from './diplomacy.ts';
 import type {Diplomacy} from './diplomacy.ts';
 export * from './diplomacy.ts';
 export * from './extras.ts';
@@ -184,3 +184,4 @@ export function restore(text:string):Game {
  if(!validWorld(s.world)||!validExtra(s.extra,s)||!validDiplomacy(s.diplomacy))return fail();
  return s as Game;
 }
+export function raidNeighbour(s:Game,i:number,team:number[]){return launchRaid(s,i,team,rand);}

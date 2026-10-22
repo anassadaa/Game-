@@ -1,6 +1,7 @@
 // Everstead v2 systems: raids, rival rankings, resident requests, families, era goals and town rank.
 // Deterministic: randomness only through the injected rand(s).
 import type {Game, Resource, Cost, BuildingKind} from './game.ts';
+import {allyDefence,raidSource,status} from './diplomacy.ts';
 export type Request = {id:string;person:number;kind:'deliver'|'build';resource?:Resource;amount?:number;building?:BuildingKind;base?:number;reward:Cost;morale:number;due:number;text:string};
 export type Extra = {nextRaid:number;raidFrom:number;raidsWon:number;raidsLost:number;requests:Request[];nextRequest:number;nextBirth:number;births:number;eraClaimed:string[];pactDay:number};
 type Rand = (s:Game)=>number;
@@ -15,12 +16,12 @@ export function buildingCounts(s:Game){const m:Partial<Record<BuildingKind,numbe
 /** Clarity: when the next settler can arrive and why not. */
 export function settlerStatus(s:Game){const left=6-(s.day%6);const reasons:string[]=[];if(homeBeds(s)<=s.people.length)reasons.push('needs a free bed (build a Cottage)');if(s.morale<65)reasons.push(`morale ${Math.round(s.morale)}% is below 65%`);return {days:left,ok:reasons.length===0,reasons,leaving:s.morale<30&&s.people.length>4};}
 /** Defence */
-export function defence(s:Game){return Math.round(s.buildings.filter(b=>b.kind==='watch').reduce((n,b)=>n+4*b.level+staffed(s,b.id)*7,0)+s.people.filter(p=>p.away===null&&p.injury===0).length*.6+s.age*3);}
+export function defence(s:Game){return Math.round(s.buildings.filter(b=>b.kind==='watch').reduce((n,b)=>n+4*b.level+staffed(s,b.id)*7,0)+s.people.filter(p=>p.away===null&&p.injury===0).length*.6+s.age*3+allyDefence(s));}
 export function raidStrength(s:Game,day=s.extra.nextRaid){return Math.round((5+day*.09+s.age*4+s.rivalGrowth[s.extra.raidFrom]*.05)*(s.difficulty==='explorer'?.8:s.difficulty==='survival'?1.2:1)*(s.relations[s.extra.raidFrom]>70?.7:1));}
-function raid(s:Game,rand:Rand){const x=s.extra,from=RIVAL_NAMES[x.raidFrom]==='The Wayfarers'?'Outlaws on the Wayfarer road':`Raiders backed by ${RIVAL_NAMES[x.raidFrom]}`;const atk=raidStrength(s),def=defence(s);
+function raid(s:Game,rand:Rand){const x=s.extra,src=raidSource(s,rand,x.raidFrom);if(src<0){x.nextRaid=s.day+14+Math.floor(rand(s)*7);note(s,'Your treaties kept the valley quiet: no neighbour dared to raid.');return;}x.raidFrom=src;const from=RIVAL_NAMES[x.raidFrom]==='The Wayfarers'?'Outlaws on the Wayfarer road':`Raiders backed by ${RIVAL_NAMES[x.raidFrom]}`;const atk=raidStrength(s),def=defence(s);
  if(def>=atk){x.raidsWon++;s.stock.coins+=25+s.age*15;s.morale=cap(s.morale+4,0,100);note(s,`${from} struck at dawn, but your defenders (${def} vs ${atk}) drove them off. Morale rises.`);}
  else{x.raidsLost++;const loss:Cost={};for(const r of ['food','wood','coins'] as Resource[]){const n=Math.floor(s.stock[r]*.12);s.stock[r]-=n;loss[r]=n;}s.morale=cap(s.morale-6,0,100);note(s,`${from} overran your outskirts (${def} vs ${atk}) and carried off ${Object.entries(loss).map(([k,v])=>`${v} ${k}`).join(', ')}. Build and staff Watchtowers.`);}
- const lowest=s.relations.indexOf(Math.min(...s.relations));x.raidFrom=rand(s)<.6?lowest:Math.floor(rand(s)*3);x.nextRaid=s.day+14+Math.floor(rand(s)*7);}
+ const lowest=s.relations.indexOf(Math.min(...s.relations));x.raidFrom=rand(s)<.6?lowest:Math.floor(rand(s)*3);x.nextRaid=s.day+(status(s,x.raidFrom)==='war'?7:14)+Math.floor(rand(s)*7);}
 const REQ_DELIVER:[Resource,number,string][]=[['food',20,'wants to host supper for the neighbours'],['wood',25,'hopes to mend the family roof'],['water',20,'is planting a herb patch'],['tools',3,'needs proper tools for an apprentice'],['knowledge',10,'wants books for the children']];
 const REQ_BUILD:[BuildingKind,string][]=[['garden','dreams of a garden to sit in at dusk'],['cottage','is getting married and needs a home'],['farm','worries the harvest will not stretch']];
 function newRequest(s:Game,rand:Rand){const home=s.people.filter(p=>p.away===null);if(!home.length)return;const p=home[Math.floor(rand(s)*home.length)];const id=`r${s.day}-${p.id}`;const coins=30+s.age*20;

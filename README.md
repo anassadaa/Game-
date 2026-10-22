@@ -24,6 +24,16 @@ The Product Design mobile runtime is preserved. App code lives in `src/Prototype
 
 `npm run build` produces the standalone web client in `dist/client`. A Site-bound checkout additionally contains its private `.openai/hosting.json` and packages the Worker for Sites publication; that project-specific manifest is not needed to clone, develop or build this repository.
 
+## Deploy on Cloudflare Workers
+
+The game can also run as a Cloudflare Worker with static assets. The checked-in `wrangler.jsonc` serves `dist/client` through the existing Worker, with single-page navigation support. No account keys or game data belong in this repository.
+
+1. In a trusted environment with Node.js 24, clone this repository and run `npm ci`.
+2. Run `npx wrangler login` and authorize the Cloudflare account in your browser, or configure Cloudflare's supported deployment credentials in your own CI environment.
+3. Run `npm run deploy:cloudflare`. Wrangler reports the `workers.dev` URL after deployment. If your account has more than one account, select the intended one when prompted.
+
+To connect a custom domain, use the Cloudflare dashboard after deployment. Game saves live in each browser's local storage; use the game's export/import controls when moving between the Site and Cloudflare URLs or between phones. A Cloudflare login is required to publish the Worker; this repository by itself does not create a public Cloudflare deployment.
+
 ## Design and gameplay research
 
 These references informed general mechanics; no franchise artwork or characters are copied:

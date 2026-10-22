@@ -1,4 +1,6 @@
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
+import { sharpness, weeklyTraining } from './training.ts';
+import type { TrainingReport } from './training.ts';
 import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 import type { DeepTactics } from './tactics.ts';
@@ -44,6 +46,9 @@ export type Player = {
   ratingSum?: number;
   motm?: number;
   wonderkid?: boolean;
+  focus?: AttrKey;
+  retrain?: { to: Position; progress: number };
+  sharp?: number;
 };
 export type Instalment = { name: string; amount: number; weeks: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
@@ -167,6 +172,8 @@ export type GameState = {
   cup?: Cup;
   euro?: Cup;
   youth?: Player[];
+  drills?: string[];
+  trainingReport?: TrainingReport;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -422,6 +429,7 @@ export function migrate(s: GameState): GameState {
   s.cup ??= newCup(s, []);
   s.euro ??= newEuro(s, true);
   s.youth ??= [];
+  s.drills ??= [];
   return s;
 }
 function story(s: GameState): Story {
@@ -522,6 +530,7 @@ export function newGame(
   s.cup = newCup(s, []);
   s.euro = newEuro(s, true);
   s.youth = [];
+  s.drills = [];
   return s;
 }
 export function club(s: GameState) {
@@ -876,7 +885,7 @@ function strength(s: GameState, ourSide: boolean): number {
   if (!ourSide) return opponent(s).rating + 2;
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
   const quality =
-    starters.reduce((sum, p) => sum + p.rating * (p.injured ? 0.65 : 1), 0) /
+    starters.reduce((sum, p) => sum + p.rating * (p.injured ? 0.65 : 1) * (0.95 + 0.05 * sharpness(p) / 100), 0) /
     Math.max(1, starters.length);
   const fitness =
     starters.reduce((sum, p) => sum + p.fitness, 0) /
@@ -1315,7 +1324,9 @@ export function advanceWeek(s: GameState): GameState {
   }
   b.trust = clamp(b.trust + (m.us > m.them ? 3 : m.us < m.them ? -3 : 0));
   b.fans = clamp(b.fans + (m.us > m.them ? 2 : m.us < m.them ? -2 : 0));
+  const played = new Set(Object.keys(m.ratings ?? {}));
   train(b);
+  weeklyTraining(b, played);
   transferWeek(b);
   b.headlines = [
     `${m.home ? 'Home' : 'Away'} to ${opp.name}: ${m.us}–${m.them}. ${m.us > m.them ? 'Three points banked.' : m.us < m.them ? 'Time to regroup.' : 'A point to build on.'}`,
@@ -1546,6 +1557,9 @@ function makeOffers(s: GameState, better: boolean) {
   const mine = club(s);
   const pool = s.clubs.filter((c) => c.id !== s.clubId && (better ? c.rating > mine.rating : c.rating <= mine.rating + 2));
   pool.sort(() => next(s) - 0.5);
+  // Never leave a sacked manager without a way back into the game.
+  if (!pool.length && !better)
+    pool.push(...s.clubs.filter((c) => c.id !== s.clubId).sort((a, b) => a.rating - b.rating).slice(0, 3));
   s.offers = pool.slice(0, better ? 2 : 3).map((c) => c.id);
 }
 function boardWeek(s: GameState) {

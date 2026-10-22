@@ -60,6 +60,7 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { TrainingPanel } from './Training.tsx';
 import { YouthPanel } from './Youth.tsx';
 import { Highlights } from './Highlights.tsx';
 import { simToEnd, avgRating } from './highlights.ts';
@@ -1236,6 +1237,7 @@ export default function App() {
                       ))}
                     </div>
                   </section>
+                  <TrainingPanel state={state} onUpdate={update} />
                 </div>
               )}
               {tab === 'recruitment' && (

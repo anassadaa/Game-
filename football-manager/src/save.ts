@@ -191,6 +191,12 @@ export function decodeSave(raw: string): GameState | null {
     )
       return null;
     if (!Array.isArray(s.youth) || s.youth.length > 12 || !s.youth.every((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && [p.age, p.rating, p.potential].every(Number.isFinite))) s.youth = [];
+    if (!Array.isArray(s.drills) || s.drills.length > 3 || !s.drills.every((d) => typeof d === 'string')) s.drills = [];
+    for (const p of s.players) {
+      if (p.focus !== undefined && !ATTRS.includes(p.focus)) delete p.focus;
+      if (p.retrain !== undefined && (!['GK', 'DF', 'MF', 'FW'].includes(p.retrain?.to) || !Number.isFinite(p.retrain.progress))) delete p.retrain;
+      if (p.sharp !== undefined && !Number.isFinite(p.sharp)) delete p.sharp;
+    }
     const own = s.players.filter((p) => p.clubId === s.clubId),
       ids = new Set(s.players.map((p) => p.id));
     if (

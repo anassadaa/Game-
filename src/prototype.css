@@ -12,3 +12,17 @@
 .theme-town .game-scroll{background:#102c24}
 
 .world-status{display:flex;justify-content:space-between;gap:8px;border-top:1px solid #ffffff20;padding:3px 0 6px}.world-status button{display:flex;align-items:center;gap:5px;min-height:24px;background:none;color:inherit;border:0;font-size:10px;padding:0}.world-status svg{width:13px;height:13px}.town-scene{height:310px}.colony-scene{height:300px}.frontier-scene{height:280px}.market-signals{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}.market-signals>span{padding:9px;border:1px solid #bfb59b;font-size:12px}.market-signals b{display:block;font-size:10px;margin-top:3px}.goal-row progress{width:100%;height:9px;accent-color:#315e52}.goal-row>small{display:block;margin:5px 0 8px}.story-pending,.save-warning{padding:12px;border:1px solid #ac8b4a;background:#eee2c6}.theme-frontier .world-status,.theme-research .world-status{border-color:#897e6233}
+
+/* On a real phone, use the browser viewport as the game screen. The device
+   shells remain available for desktop design preview. */
+@media (max-width:600px){
+ .phone-stage{display:block;padding:0;width:100vw;height:100dvh}
+ .device-menu-bar,.phone-bezel,.device-camera,.status-bar,.home-indicator-svg,.android-navigation-bar{display:none!important}
+ .phone-scale-box,.phone-device{width:100%!important;height:100%!important}
+ .phone-device{transform:none!important}
+ .device-screen{left:0!important;top:0!important;width:100%!important;height:100%!important;border-radius:0!important}
+ .mobile-app-viewport[data-platform="android"][data-keyboard-visible="false"]{bottom:0}
+ .game-header{padding-top:max(10px,env(safe-area-inset-top))}
+ .bottom-nav,.mobile-app-viewport[data-platform="android"] .bottom-nav{padding-bottom:max(8px,env(safe-area-inset-bottom))}
+ .bottom-sheet{bottom:env(safe-area-inset-bottom)!important;max-height:90dvh!important}
+}

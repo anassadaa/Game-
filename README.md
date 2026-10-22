@@ -20,7 +20,7 @@ This first version uses illustrated scenes with interactive district/room/locati
 - `npm run build`
 - `npm run test:sites`
 
-The Product Design mobile runtime is preserved. App code lives in `src/Prototype.tsx`, `src/prototype.css`, `src/game.ts`, `src/world.ts` and `src/save.ts`. Generated art is in `public/art`. Both iPhone and Pixel preview shells remain supported. A corrupted local save is offered for download before a fresh start; imports are validated and autosave stops when storage fails. No backend persistence or multiplayer is claimed.
+The Product Design mobile runtime is preserved. App code lives in `src/Prototype.tsx`, `src/prototype.css`, `src/game.ts`, `src/world.ts` and `src/save.ts`. Generated art is in `public/art`. Desktop offers iPhone and Pixel preview shells; a real phone uses its full browser viewport. A corrupted local save is offered for download before a fresh start; imports are validated and autosave stops when storage fails. No backend persistence or multiplayer is claimed.
 
 ## Design and gameplay research
 

@@ -8,6 +8,8 @@ The new two-part HUD, market panel and seasonal ambition entry were checked in t
 
 The completion engine suite covers market phases, story follow-ups, encounter variants, rotating goals and corrupt-save recovery. Three legal scripted campaigns reached the Great Beacon on day 107 for seeds 17, 314 and 919, without injecting resources. Those automated journeys establish reachability under one strategy; they are not a claim that a human has played for days or that authored content is endless. Browser-local save persistence is not cross-device sync.
 
+After the user identified a Realme GT Neo 3T as their device, the browser view was adapted to occupy a real phone viewport without a preview bezel or simulated system bars. A temporary 360 × 800 CSS-pixel iframe, matching the display's 20:9 aspect ratio at a plausible Android scaling, showed Town with the primary action and all persistent controls visible. Its Build sheet was checked open and scrollable. This is a viewport simulation, not a physical Realme hardware test; Android display-size and browser settings can alter CSS pixel dimensions. The temporary harness is not part of the release.
+
 ## Visual truth and scope
 
 The user's final direction is to keep all three original designs equally, each for a different situation, and permit additional event scenes. This is an interactive adaptation of those three concepts, not a pixel-identical static mock. No concept is a master design. The rejected combined revision was not used as visual truth.

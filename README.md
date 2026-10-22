@@ -1,48 +1,29 @@
-# Everstead — A Living Frontier
+# Game collection
 
-An original browser strategy game with three equal visual modes: a green riverside town, a navy and amber cutaway colony, and a parchment frontier atlas. They share one deterministic simulation and one save. An additional storm scene supports contextual story events.
+Two independent browser games, kept in separate folders.
 
-## Playing
+| Game | Folder | Description |
+| --- | --- | --- |
+| Everstead — A Living Frontier | [everstead/](everstead/) | City, colony and frontier strategy with a shared persistent world. |
+| Touchline — Club Architect | [football-manager/](football-manager/) | Football management with squads, tactics, recruitment, youth development and multi-season leagues. |
 
-Start paused on day 1. Build a cottage, assign people, inspect production by tapping the HUD, and choose your first expedition. Next day advances manually; Play supports 1×, 3× and 8×. Events pause time. Closing or hiding the browser does not advance the world.
+Each game has its own package manifest, lockfile, tests, source and README. No game source is shared between the folders.
 
-There are 13 building types, 3 districts with location bonuses and road requirements, 14 technologies across 4 eras, 5 expedition destinations, 3 neighbours, 16 town events, linked story follow-ups and varied expedition encounters, 8 charters and 3 crafting recipes. A Great Beacon unlocks a new frontier with a small legacy bonus. All content is finite and authored, with seeded variation; the simulation has no fixed ending.
+## Run either game
 
-Newcomers require housing and morale. Workers gain skills. Expeditions remove their production while they are away. Production chains consume inputs. Winter affects harvests; weather and district location change output. Contracts expire, regional demand shifts over six market phases, rival sales affect prices, and trade spreads prevent immediate buy/sell arbitrage. Renewing seasonal ambitions give concrete goals and claimable rewards. Residents can leave after hardship; emergency gathering offers recovery.
+Use Node.js 24. From this repository, enter the game folder, then run:
 
-This first version uses illustrated scenes with interactive district/room/location controls. It does not simulate free-form road geometry, 3D construction, individual walking animations or real-time battles. Rival influence is a simplified regional model, not an AI opponent building an independent city. Saves are local to a browser; export/import JSON transfers progress. No accounts, analytics, ads, purchases or external API keys are used by gameplay.
+```sh
+npm ci
+npm run dev
+```
 
-## Development
+Run the simulation tests with `node --test tests/*.test.mjs` inside either folder. Run `npm run build` inside a game folder to prepare its website.
 
-- `npm ci`
-- `npm run dev -- --host 0.0.0.0 --port 4173 --strictPort`
-- `node --test tests/*.test.mjs` (Node 24 supports the erasable TypeScript engine)
-- `npm run build`
-- `npm run test:sites`
+## Hosting
 
-The Product Design mobile runtime is preserved. App code lives in `src/Prototype.tsx`, `src/prototype.css`, `src/game.ts`, `src/world.ts` and `src/save.ts`. Generated art is in `public/art`. Desktop offers iPhone and Pixel preview shells; a real phone uses its full browser viewport. A corrupted local save is offered for download before a fresh start; imports are validated and autosave stops when storage fails. No backend persistence or multiplayer is claimed.
+- Everstead: set the hosting project's root directory to `everstead`. Its build output is `dist/client`. Its Cloudflare configuration remains inside that folder.
+- Touchline: set the root directory to `football-manager`, build with `npm run build`, and publish `dist` on a static host.
+- The existing live Everstead Site is independent of this GitHub folder reorganization and is not replaced by Touchline.
 
-`npm run build` produces the standalone web client in `dist/client`. A Site-bound checkout additionally contains its private `.openai/hosting.json` and packages the Worker for Sites publication; that project-specific manifest is not needed to clone, develop or build this repository.
-
-## Deploy on Cloudflare Workers
-
-The game can also run as a Cloudflare Worker with static assets. The checked-in `wrangler.jsonc` serves `dist/client` through the existing Worker, with single-page navigation support. No account keys or game data belong in this repository.
-
-1. In a trusted environment with Node.js 24, clone this repository and run `npm ci`.
-2. Run `npx wrangler login` and authorize the Cloudflare account in your browser, or configure Cloudflare's supported deployment credentials in your own CI environment.
-3. Run `npm run deploy:cloudflare`. Wrangler reports the `workers.dev` URL after deployment. If your account has more than one account, select the intended one when prompted.
-
-To connect a custom domain, use the Cloudflare dashboard after deployment. Game saves live in each browser's local storage; use the game's export/import controls when moving between the Site and Cloudflare URLs or between phones. A Cloudflare login is required to publish the Worker; this repository by itself does not create a public Cloudflare deployment.
-
-## Design and gameplay research
-
-These references informed general mechanics; no franchise artwork or characters are copied:
-
-- Cities: Skylines II — interconnected economy and production: https://www.paradoxinteractive.com/games/cities-skylines-ii/features/economy-production
-- Cities: Skylines II — city services: https://www.paradoxinteractive.com/games/cities-skylines-ii/features/city-services-districts-policies
-- Age of Empires II — advancing through ages and unlocking technology: https://www.ageofempires.com/learn-to-play/advancing-aoe2/
-- Age of Empires II — expansion and worker allocation: https://www.ageofempires.com/learn-to-play/expanding-your-empire-aoe2/
-- Fallout Shelter — skill-based crafting and recovered recipes: https://help.bethesda.net/app/answers/detail/a_id/34931/
-- Fallout Shelter — quest progression: https://help.bethesda.net/app/answers/detail/a_id/34926/
-
-Research checked 22 October 2026. Fonts: Cinzel and Lora (Fontsource). Icons: Phosphor. Art generated for this game.
+The repository was reorganized on 23 October 2026. The complete previous root tree, including its latest diplomacy changes, is preserved under `everstead/`. See each game's README for controls, research, limitations and save backup instructions.

@@ -6,11 +6,11 @@ An original football management game built for phones and desktop browsers. Choo
 
 1. Choose a club and take the manager’s seat.
 2. Read the story **On your desk**. Decisions affect morale, fitness, finances, supporters, facilities or board confidence.
-3. Select your starting eleven in **Squad**. Starting a reserve replaces the lowest-rated starter in that natural position, or a non-goalkeeper if no position matches. Injured reserves cannot start.
+3. Select your starting eleven in **Squad**. Starting a reserve replaces an injured starter first, then the lowest-rated starter in that natural position, or a non-goalkeeper if no position matches. Injured reserves cannot start.
 4. Choose formation, mentality, pressing, tempo and weekly training in **Tactics**.
 5. Use **Scouting** to sign players or sell reserves. The market refreshes every three matchweeks. Fees and weekly wages matter; the squad limit is 25 and sales cannot reduce it below 14.
 6. Go to matchday. Play six 15-minute passages, adjusting tactics between them. The score, expected goals and commentary update as play advances. Continue after full-time to settle league results, wages, income, training and recovery.
-7. Repeat across 18-match seasons. The top two National League teams are promoted; the bottom two Premier League teams are relegated. Prize funding, aging, retirements, three academy recruits and changing rival strengths carry the story into the next season.
+7. Repeat across 18-match seasons. The top two National League teams are promoted; the bottom two Premier League teams are relegated. Prize funding, aging, retirements, at least three academy recruits and changing rival strengths carry the story into the next season. Additional youth players keep retirement-heavy squads above the 14-player minimum, and the starting eleven retains exactly one goalkeeper.
 
 ## What changes the game
 

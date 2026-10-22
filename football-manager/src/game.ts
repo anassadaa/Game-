@@ -301,6 +301,7 @@ const STORY_TEMPLATES = [
     outcomes: ['The bond with supporters grows.', 'The budget stays healthy.'],
   },
 ];
+export const storyIds = STORY_TEMPLATES.map((t) => t.id);
 const clamp = (n: number, min = 0, max = 100) =>
   Math.max(min, Math.min(max, Math.round(n)));
 const copy = (s: GameState): GameState => structuredClone(s);
@@ -504,10 +505,16 @@ export function toggleStarter(s: GameState, id: string): GameState {
   const toReplace =
     starters
       .filter((p) => p.position === target.position)
-      .sort((a, b) => a.rating - b.rating)[0] ??
+      .sort(
+        (a, b) =>
+          Number(!!b.injured) - Number(!!a.injured) || a.rating - b.rating,
+      )[0] ??
     starters
       .filter((p) => p.position !== 'GK')
-      .sort((a, b) => a.rating - b.rating)[0];
+      .sort(
+        (a, b) =>
+          Number(!!b.injured) - Number(!!a.injured) || a.rating - b.rating,
+      )[0];
   if (!toReplace || (target.position !== 'GK' && toReplace.position === 'GK'))
     return s;
   const b = copy(s);
@@ -516,7 +523,13 @@ export function toggleStarter(s: GameState, id: string): GameState {
   return b;
 }
 export function chooseEvent(s: GameState, choice: 0 | 1): GameState {
-  if (!s.inbox || s.inbox.resolved || ![0, 1].includes(choice)) return s;
+  if (
+    !s.inbox ||
+    s.inbox.resolved ||
+    ![0, 1].includes(choice) ||
+    !storyIds.includes(s.inbox.id)
+  )
+    return s;
   const b = copy(s),
     id = b.inbox!.id,
     yes = choice === 0;
@@ -596,6 +609,7 @@ export function signPlayer(s: GameState, id: string): GameState {
   const b = copy(s);
   const recruit = b.market.find((p) => p.id === id)!;
   recruit.clubId = b.clubId;
+  recruit.starting = false;
   recruit.morale = 75;
   b.players.push(recruit);
   b.market = b.market.filter((p) => p.id !== id);
@@ -869,7 +883,7 @@ function train(s: GameState) {
       if (next(s) < 0.28 && p.rating < p.potential) p.rating++;
     } else if (
       p.age < 24 &&
-      next(s) < 0.06 + s.academy * 0.015 &&
+      next(s) < (s.training === 'fitness' ? 0.02 : 0.06) + s.academy * 0.015 &&
       p.rating < p.potential
     )
       p.rating++;
@@ -922,29 +936,47 @@ function rollSeason(s: GameState) {
     return p.age <= 36;
   });
   const needsKeeper = !s.players.some((p) => p.position === 'GK');
-  const recruits = Array.from({ length: 3 }, (_, i) =>
-    makePlayer(
-      s,
-      s.clubId,
-      20 + i,
-      needsKeeper && i === 0 ? 'GK' : pick(s, ['DF', 'MF', 'FW']),
-      44 + s.academy * 3,
-      true,
-    ),
+  const recruits = Array.from(
+    { length: Math.max(3, 14 - s.players.length) },
+    (_, i) =>
+      makePlayer(
+        s,
+        s.clubId,
+        20 + i,
+        needsKeeper && i === 0 ? 'GK' : pick(s, ['DF', 'MF', 'FW']),
+        44 + s.academy * 3,
+        true,
+      ),
   );
   recruits.forEach((p) => (p.starting = false));
   s.players.push(...recruits);
+  const keeper =
+    s.players.find((p) => p.starting && p.position === 'GK') ??
+    s.players
+      .filter((p) => p.position === 'GK')
+      .sort((a, b) => b.rating - a.rating)[0]!;
+  s.players
+    .filter((p) => p.position === 'GK')
+    .forEach((p) => (p.starting = p.id === keeper.id));
+  while (s.players.filter((p) => p.starting).length > 11) {
+    const p = s.players
+      .filter((p) => p.starting && p.position !== 'GK')
+      .sort((a, b) => a.rating - b.rating)[0]!;
+    p.starting = false;
+  }
+  while (s.players.filter((p) => p.starting).length < 11) {
+    const p = s.players
+      .filter((p) => !p.starting && p.position !== 'GK')
+      .sort((a, b) => b.rating - a.rating)[0];
+    if (!p) break;
+    p.starting = true;
+  }
   while (s.players.length > 25) {
     const reserve = s.players
-      .filter((p) => !p.starting)
+      .filter((p) => !p.starting && p.id !== keeper.id)
       .sort((a, b) => a.rating - b.rating)[0];
     if (!reserve) break;
     s.players = s.players.filter((p) => p.id !== reserve.id);
-  }
-  while (s.players.filter((p) => p.starting).length < 11) {
-    const p = s.players.find((p) => !p.starting);
-    if (!p) break;
-    p.starting = true;
   }
   s.players.forEach((p) => {
     p.fitness = clamp(p.fitness + 25);
@@ -959,7 +991,7 @@ function rollSeason(s: GameState) {
   refreshMarket(s);
   s.inbox = story(s);
   s.headlines = [
-    `Season ${s.season - 1}: ${outcome.toLowerCase()}! You finished ${pos}${pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th'}. Three academy prospects join the squad.`,
+    `Season ${s.season - 1}: ${outcome.toLowerCase()}! You finished ${pos}${pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th'}. ${recruits.length} academy prospects join the squad.`,
     ...s.headlines,
   ].slice(0, 6);
 }

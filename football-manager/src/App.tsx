@@ -633,7 +633,7 @@ export default function App() {
                   : tab === 'home'
                     ? `${team.name}. A new week. A chance to write the next chapter.`
                     : tab === 'squad'
-                      ? 'Choose a reserve to replace the lowest-rated starter in the same position.'
+                      ? 'Start a reserve to replace an injured teammate first, then the lowest-rated starter in the same position.'
                       : tab === 'tactics'
                         ? 'Balance risk, preparation and the strengths of the opposition.'
                         : tab === 'recruitment'
@@ -1470,8 +1470,8 @@ export default function App() {
               </li>
               <li>
                 <b>Think long term.</b> Recruit within your funds, sell
-                reserves, improve facilities and develop youth. Three academy
-                players arrive every season.
+                reserves, improve facilities and develop youth. At least three
+                academy players arrive every season.
               </li>
               <li>
                 <b>Climb the pyramid.</b> Each season has 18 fixtures. The top

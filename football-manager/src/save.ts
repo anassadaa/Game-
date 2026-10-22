@@ -1,4 +1,5 @@
 import type { GameState } from './game.ts';
+import { storyIds } from './game.ts';
 
 export const SAVE_KEY = 'touchline-career-v1';
 export const encodeSave = (state: GameState) => JSON.stringify(state);
@@ -22,7 +23,16 @@ export function decodeSave(raw: string): GameState | null {
       !Number.isFinite(s.trust) ||
       !Number.isFinite(s.fans) ||
       !Number.isInteger(s.academy) ||
-      !Number.isInteger(s.scouting)
+      !Number.isInteger(s.scouting) ||
+      s.academy < 1 ||
+      s.academy > 5 ||
+      s.scouting < 1 ||
+      s.scouting > 5 ||
+      !Number.isInteger(s.careerGames) ||
+      !Number.isInteger(s.careerWins) ||
+      s.careerGames < 0 ||
+      s.careerWins < 0 ||
+      s.careerWins > s.careerGames
     )
       return null;
     const validPlayer = (p: GameState['players'][number]) =>
@@ -51,7 +61,9 @@ export function decodeSave(raw: string): GameState | null {
       p.wage >= 0 &&
       p.price >= 0;
     if (
-      !s.market.every(validPlayer) ||
+      !s.market.every(
+        (p) => validPlayer(p) && p.clubId === 'market' && !p.starting,
+      ) ||
       !s.players.every(validPlayer) ||
       !s.headlines.every((n) => typeof n === 'string') ||
       !s.history.every(
@@ -103,7 +115,16 @@ export function decodeSave(raw: string): GameState | null {
           typeof c.id === 'string' &&
           typeof c.name === 'string' &&
           [1, 2].includes(c.division) &&
-          [c.rating, c.played, c.points, c.gf, c.ga].every(Number.isFinite),
+          [
+            c.rating,
+            c.played,
+            c.points,
+            c.gf,
+            c.ga,
+            c.wins,
+            c.draws,
+            c.losses,
+          ].every((n) => Number.isInteger(n) && n >= 0),
       )
     )
       return null;
@@ -113,6 +134,9 @@ export function decodeSave(raw: string): GameState | null {
       own.length < 14 ||
       own.filter((p) => p.starting).length !== 11 ||
       ids.size !== s.players.length ||
+      new Set([...s.players, ...s.market].map((p) => p.id)).size !==
+        s.players.length + s.market.length ||
+      own.filter((p) => p.starting && p.position === 'GK').length !== 1 ||
       !s.players.every(
         (p) =>
           typeof p.id === 'string' &&
@@ -171,7 +195,9 @@ export function decodeSave(raw: string): GameState | null {
       (!Array.isArray(s.inbox.options) ||
         s.inbox.options.length !== 2 ||
         typeof s.inbox.title !== 'string' ||
-        typeof s.inbox.id !== 'string' ||
+        !storyIds.includes(s.inbox.id) ||
+        (s.inbox.outcome !== undefined &&
+          typeof s.inbox.outcome !== 'string') ||
         typeof s.inbox.body !== 'string' ||
         typeof s.inbox.resolved !== 'boolean' ||
         !s.inbox.options.every((o) => typeof o === 'string'))

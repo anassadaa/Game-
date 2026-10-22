@@ -145,3 +145,45 @@ test('high pressing and quick tempo consume more energy during a match', () => {
       patient.players.find((p) => p.starting).fitness,
   );
 });
+
+test('retirement vacancies retain exactly one starting goalkeeper', () => {
+  let state = newGame(1);
+  for (let week = 0; week < 18 * 20; week++) {
+    state = startMatch(state);
+    for (let phase = 0; phase < 6; phase++) state = advanceMatch(state);
+    state = advanceWeek(state);
+    assert.equal(
+      state.players.filter((p) => p.starting && p.position === 'GK').length,
+      1,
+    );
+  }
+  assert.equal(
+    state.players.filter((p) => p.starting && p.position === 'GK').length,
+    1,
+  );
+  assert.ok(state.players.length >= 14);
+});
+
+test('selling to the squad minimum remains safe across retirement-heavy seasons', () => {
+  let state = newGame(10);
+  for (let week = 0; week < 18 * 18; week++) {
+    for (const p of [...state.players])
+      if (!p.starting) state = sellPlayer(state, p.id);
+    state = startMatch(state);
+    for (let phase = 0; phase < 6; phase++) state = advanceMatch(state);
+    state = advanceWeek(state);
+    assert.ok(state.players.length >= 14);
+  }
+});
+
+test('a same-position reserve replaces an injured starter before a healthy one', () => {
+  const state = newGame(1);
+  const injured = state.players
+    .filter((p) => p.starting && p.position === 'DF')
+    .sort((a, b) => b.rating - a.rating)[0];
+  injured.injured = 2;
+  const reserve = state.players.find((p) => !p.starting && p.position === 'DF');
+  const after = toggleStarter(state, reserve.id);
+  assert.equal(after.players.find((p) => p.id === injured.id).starting, false);
+  assert.equal(after.players.filter((p) => p.starting).length, 11);
+});

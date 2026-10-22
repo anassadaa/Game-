@@ -3830,3 +3830,14 @@ th:last-child {
 .league-select { width: 100%; min-height: 42px; font-size: 16px; margin: 8px 0; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,0.25); color: inherit; border: 1px solid rgba(255,255,255,0.15); }
 .league-select option, .tm-filters option { color: #111; }
 .club-pick-list { max-height: 46vh; overflow-y: auto; display: grid; gap: 8px; margin-bottom: 10px; }
+.seg { margin: 8px 0; } .seg small { display: block; opacity: .7; margin-bottom: 4px; }
+.seg-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg-row button { flex: 1 1 auto; min-height: 38px; padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.05); color: inherit; text-transform: capitalize; }
+.seg-row button.on { background: #d9f06f; color: #111; font-weight: 700; }
+.tac-impact { margin-top: 8px; font-size: 14px; } .tac-impact small { opacity: .75; }
+.scout-tips { margin: 8px 0 10px 18px; font-size: 14px; }
+.role-list { display: grid; gap: 8px; } .role-row { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.role-row .fit { font-size: 12px; opacity: .7; }
+.role-selects, .sp-row { display: flex; gap: 6px; margin-top: 4px; align-items: center; }
+.role-selects select, .sp-row select { flex: 1; min-width: 0; min-height: 38px; font-size: 14px; border-radius: 8px; background: rgba(0,0,0,.25); color: inherit; border: 1px solid rgba(255,255,255,.15); }
+.sp-row span { width: 90px; font-size: 14px; } select option { color: #111; }

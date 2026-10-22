@@ -60,6 +60,8 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { DeepTacticsPanel } from './TacticsPanel.tsx';
+import { FORMATIONS } from './tactics.ts';
 import { CupPanel } from './Cup.tsx';
 import { BoardRoom, SackedModal } from './Board.tsx';
 import { askingPrice } from './game.ts';
@@ -1117,15 +1119,15 @@ export default function App() {
                     <TacticChoice
                       label="Formation"
                       value={state.tactics.formation}
-                      values={['4-3-3', '4-4-2', '3-5-2']}
+                      values={[...FORMATIONS]}
                       change={(v) =>
                         update(setTactics(state, { formation: v as Formation }))
                       }
                     />
                     <p className="control-hint">
-                      4-3-3 stretches cautious teams. 3-5-2 helps against
-                      attacking sides. 4-4-2 is solid against balanced
-                      opponents.
+                      Attacking shapes (4-3-3, 3-4-3) stretch cautious teams;
+                      5-3-2, 4-1-4-1 and 3-5-2 blunt attacking sides; 4-2-3-1
+                      and 4-4-2 suit balanced games. Match your XI to the shape.
                     </p>
                     <TacticChoice
                       label="Mentality"
@@ -1162,6 +1164,7 @@ export default function App() {
                       </p>
                     </div>
                   </section>
+                  <DeepTacticsPanel state={state} onUpdate={update} />
                   <section className="card training-card">
                     <SectionTitle
                       eyebrow="WORK ON THE TRAINING GROUND"

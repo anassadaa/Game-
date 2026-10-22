@@ -1,3 +1,4 @@
+import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, WIDTHS } from './tactics.ts';
 import type { GameState } from './game.ts';
 import { LEAGUES } from './world.ts';
 import { ATTRS, PERSONALITIES, migrate, storyIds } from './game.ts';
@@ -217,7 +218,14 @@ export function decodeSave(raw: string): GameState | null {
       return null;
     if (
       !s.tactics ||
-      !['4-3-3', '4-4-2', '3-5-2'].includes(s.tactics.formation) ||
+      !(FORMATIONS as readonly string[]).includes(s.tactics.formation) ||
+      (s.tactics.width !== undefined && !(WIDTHS as readonly string[]).includes(s.tactics.width)) ||
+      (s.tactics.line !== undefined && !(LINES as readonly string[]).includes(s.tactics.line)) ||
+      (s.tactics.passing !== undefined && !(PASSING as readonly string[]).includes(s.tactics.passing)) ||
+      (s.tactics.counter !== undefined && typeof s.tactics.counter !== 'boolean') ||
+      (s.tactics.roles !== undefined && (typeof s.tactics.roles !== 'object' || Object.values(s.tactics.roles).some((r) => typeof r !== 'string'))) ||
+      (s.tactics.instr !== undefined && (typeof s.tactics.instr !== 'object' || Object.values(s.tactics.instr).some((r) => !(INSTRUCTIONS as readonly string[]).includes(r)))) ||
+      [s.tactics.pens, s.tactics.corners, s.tactics.freekicks].some((x) => x !== undefined && typeof x !== 'string') ||
       !['cautious', 'balanced', 'attacking'].includes(s.tactics.mentality) ||
       !['low', 'normal', 'high'].includes(s.tactics.press) ||
       !['patient', 'normal', 'quick'].includes(s.tactics.tempo) ||

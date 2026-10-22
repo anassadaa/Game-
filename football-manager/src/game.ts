@@ -1,9 +1,11 @@
+import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
+import type { DeepTactics } from './tactics.ts';
 import { EURO_QUOTA, LEAGUES, WORLD, starsFor, league, sameCountry } from './world.ts';
 export type Position = 'GK' | 'DF' | 'MF' | 'FW';
 export type Mentality = 'cautious' | 'balanced' | 'attacking';
 export type Press = 'low' | 'normal' | 'high';
 export type Tempo = 'patient' | 'normal' | 'quick';
-export type Formation = '4-3-3' | '4-4-2' | '3-5-2';
+export type Formation = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '5-3-2' | '4-1-4-1' | '3-4-3';
 export type Training =
   'balanced' | 'fitness' | 'attack' | 'defence' | 'bonding';
 export type Tab = 'home' | 'squad' | 'tactics' | 'recruitment' | 'club';
@@ -12,7 +14,7 @@ export type Tactics = {
   mentality: Mentality;
   press: Press;
   tempo: Tempo;
-};
+} & DeepTactics;
 export type Player = {
   id: string;
   name: string;
@@ -555,8 +557,12 @@ export function standings(s: GameState): Club[] {
   );
 }
 export function setTactics(s: GameState, patch: Partial<Tactics>): GameState {
-  const valid = {
-    formation: ['4-3-3', '4-4-2', '3-5-2'],
+  const valid: Record<string, readonly unknown[]> = {
+    formation: FORMATIONS,
+    width: WIDTHS,
+    line: LINES,
+    passing: PASSING,
+    counter: [true, false],
     mentality: ['cautious', 'balanced', 'attacking'],
     press: ['low', 'normal', 'high'],
     tempo: ['patient', 'normal', 'quick'],
@@ -565,13 +571,29 @@ export function setTactics(s: GameState, patch: Partial<Tactics>): GameState {
     s.match?.complete ||
     Object.entries(patch).some(
       ([key, value]) =>
-        !(valid as Record<string, string[]>)[key]?.includes(value as string),
+        !valid[key]?.includes(value),
     )
   )
     return s;
   const b = copy(s);
   b.tactics = { ...b.tactics, ...patch };
   return b;
+}
+/** Pick a role / individual instruction for a player, or a set-piece taker. */
+export function setPlayerTactic(s: GameState, id: string, patch: { role?: string; instr?: string; taker?: 'pens' | 'corners' | 'freekicks' }): GameState {
+  const p = s.players.find((x) => x.id === id && x.clubId === s.clubId);
+  if (!p || s.match?.complete) return s;
+  if (patch.role && !ROLES[p.position][patch.role]) return s;
+  if (patch.instr && !(INSTRUCTIONS as readonly string[]).includes(patch.instr)) return s;
+  const b = copy(s);
+  if (patch.role) b.tactics.roles = { ...b.tactics.roles, [id]: patch.role };
+  if (patch.instr) b.tactics.instr = { ...b.tactics.instr, [id]: patch.instr as DeepTactics['instr'] extends Record<string, infer I> | undefined ? I : never };
+  if (patch.taker) b.tactics[patch.taker] = id;
+  return b;
+}
+export function applyScoutSuggestion(s: GameState): GameState {
+  const r = scoutReport(s, opponent(s));
+  return setTactics(s, { formation: r.suggestion.formation as Formation, width: r.suggestion.width, line: r.suggestion.line, counter: r.suggestion.counter });
 }
 export function setTraining(s: GameState, focus: Training): GameState {
   if (
@@ -947,6 +969,8 @@ export function advanceMatch(s: GameState): GameState {
       if (b.tactics.tempo === 'patient') edge -= 0.03;
       if (b.tactics.press === 'low') edge -= 0.03;
     }
+    const prof = tacticProfile(b, opponent(b).style);
+    edge += us ? prof.att : -prof.def;
     const chance = Math.max(
       0.2,
       Math.min(0.88, 0.52 + edge + (m.home && us ? 0.04 : 0)),
@@ -962,6 +986,23 @@ export function advanceMatch(s: GameState): GameState {
             b.players.filter((p) => p.starting && p.position !== 'GK'),
           )
         : null;
+      // Set pieces: some chances are corners, free kicks or penalties taken by the chosen taker.
+      const sp = us ? next(b) : 1;
+      if (sp < 0.22) {
+        const kind = sp < 0.04 ? 'pens' : sp < 0.14 ? 'corners' : 'freekicks';
+        const taker = setPieceTaker(b, kind);
+        if (taker) {
+          const a = attributes(taker);
+          const conv = kind === 'pens' ? 0.55 + a.shooting / 400 : kind === 'corners' ? 0.06 + a.passing / 900 : 0.05 + (a.shooting + a.passing) / 1600;
+          const label = kind === 'pens' ? 'penalty' : kind === 'corners' ? 'corner' : 'free kick';
+          if (next(b) < conv) {
+            m.us++;
+            taker.goals++;
+            m.timeline.push({ minute, text: `${taker.name} scores from a ${label}!`, side, kind: 'goal', playerId: taker.id });
+          } else m.timeline.push({ minute, text: `${taker.name}'s ${label} is saved.`, side, kind: 'chance' });
+          continue;
+        }
+      }
       if (next(b) < xg * 1.1) {
         if (us) {
           m.us++;

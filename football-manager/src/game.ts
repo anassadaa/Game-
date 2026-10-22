@@ -155,7 +155,9 @@ export type GameState = {
   board?: Board;
   offers?: string[];
   sacked?: boolean;
+  cup?: Cup;
 };
+export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
 export type Bid = { id: string; playerId: string; clubId: string; fee: number };
 
@@ -422,6 +424,7 @@ export function migrate(s: GameState): GameState {
   s.board ??= boardTarget(s);
   s.offers ??= [];
   s.sacked ??= false;
+  s.cup ??= newCup(s, []);
   return s;
 }
 function story(s: GameState): Story {
@@ -515,6 +518,7 @@ export function newGame(
   s.board = boardTarget(s);
   s.offers = [];
   s.sacked = false;
+  s.cup = newCup(s, []);
   return s;
 }
 export function club(s: GameState) {
@@ -1272,11 +1276,13 @@ export function advanceWeek(s: GameState): GameState {
   ].slice(0, 6);
   b.week++;
   b.match = null;
+  cupWeek(b);
   boardWeek(b);
   if (b.week === 18) {
     rollSeason(b);
     rollRivals(b);
     b.board = boardTarget(b);
+    b.cup = newCup(b, b.cup?.winners ?? [], b.cup?.wins ?? 0);
   }
   else {
     if (b.week % 3 === 0) refreshMarket(b);
@@ -1569,4 +1575,64 @@ export function declineOffers(s: GameState): GameState {
   b.trust = clamp(b.trust + 3);
   b.headlines = ['You turn down the approaches. The board appreciates your loyalty.', ...b.headlines].slice(0, 6);
   return b;
+}
+
+// ---------- Knockout cup ----------
+export const CUP_WEEKS = [4, 8, 12, 16];
+export const CUP_ROUNDS = ['Round of 16', 'Quarter-final', 'Semi-final', 'Final'];
+export const CUP_PRIZE = [120, 200, 350, 600];
+export const cupClubs = (s: GameState) => s.clubs;
+function newCup(s: GameState, winners: Cup['winners'], wins = 0): Cup {
+  const pool = [...cupClubs(s)].sort((a, b) => b.rating - a.rating);
+  const alive = [s.clubId, ...pool.filter((c) => c.id !== s.clubId).map((c) => c.id)].slice(0, 16);
+  alive.sort(() => next(s) - 0.5);
+  return { season: s.season, round: 0, alive, log: [], winners: winners.slice(0, 30), wins };
+}
+export function cupOpponent(s: GameState) {
+  const c = s.cup;
+  if (!c || c.round > 3) return null;
+  const i = c.alive.indexOf(s.clubId);
+  if (i < 0) return null;
+  return s.clubs.find((x) => x.id === c.alive[i ^ 1]) ?? null;
+}
+function cupWeek(b: GameState) {
+  const c = b.cup;
+  if (!c || c.round > 3 || CUP_WEEKS[c.round] !== b.week) return;
+  const winners: string[] = [];
+  for (let i = 0; i + 1 < c.alive.length; i += 2) {
+    const h = b.clubs.find((x) => x.id === c.alive[i])!,
+      a = b.clubs.find((x) => x.id === c.alive[i + 1])!;
+    const ours = h.id === b.clubId || a.id === b.clubId;
+    const boost = (x: Club) => (x.id === b.clubId ? { ...x, rating: Math.round(strength(b, true)) } : x);
+    let [gh, ga] = simulateScore(b, boost(h), boost(a));
+    let pens = '';
+    if (gh === ga) {
+      const hw = next(b) < 0.5;
+      pens = ` (${hw ? h.short : a.short} win on penalties)`;
+      winners.push(hw ? h.id : a.id);
+    } else winners.push(gh > ga ? h.id : a.id);
+    const line = `${CUP_ROUNDS[c.round]}: ${h.short} ${gh}–${ga} ${a.short}${pens}`;
+    if (ours) {
+      c.log.unshift(line);
+      const won = winners[winners.length - 1] === b.clubId;
+      if (won) {
+        b.budget += CUP_PRIZE[c.round]!;
+        b.fans = clamp(b.fans + 2);
+      }
+      b.headlines = [`🏆 Cup ${line}${won ? ` · prize £${CUP_PRIZE[c.round]}k` : ' · knocked out'}`, ...b.headlines].slice(0, 6);
+    }
+  }
+  c.alive = winners;
+  c.round++;
+  if (c.round === 4) {
+    const w = winners[0]!;
+    c.winners.unshift({ season: b.season, clubId: w });
+    const wc = b.clubs.find((x) => x.id === w)!;
+    if (w === b.clubId) {
+      c.wins++;
+      b.trust = clamp(b.trust + 10);
+      b.headlines = ['🏆 CUP WINNERS! The trophy is coming home.', ...b.headlines].slice(0, 6);
+    }
+    addNews(b, `🏆 ${wc.name} win the Cup.`);
+  }
 }

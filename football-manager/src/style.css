@@ -3822,3 +3822,8 @@ th:last-child {
 .board-room .bad { color: #f87171; }
 .trust-bar { height: 10px; border-radius: 6px; background: rgba(255,255,255,0.1); overflow: hidden; margin: 6px 0; }
 .trust-bar i { display: block; height: 100%; }
+.cup-bracket { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+.cup-bracket span { flex: 1 1 70px; text-align: center; padding: 6px 4px; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 0.8rem; }
+.cup-bracket .done { background: rgba(163,230,53,0.15); }
+.cup-bracket .now { background: rgba(250,204,21,0.25); font-weight: 700; }
+.cup-panel p { margin: 2px 0; }

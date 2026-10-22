@@ -58,6 +58,7 @@ import type {
   Training,
 } from './game.ts';
 import { TransferMarket } from './Market.tsx';
+import { CupPanel } from './Cup.tsx';
 import { BoardRoom, SackedModal } from './Board.tsx';
 import { askingPrice } from './game.ts';
 import { decodeSave, encodeSave, loadSave, storeSave } from './save.ts';
@@ -1404,6 +1405,7 @@ export default function App() {
               {tab === 'club' && (
                 <>
                   <BoardRoom state={state} onUpdate={update} />
+                  <CupPanel state={state} />
                   <div className="content-columns">
                     <section className="card club-foundation">
                       <SectionTitle

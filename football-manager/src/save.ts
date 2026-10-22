@@ -101,6 +101,16 @@ export function decodeSave(raw: string): GameState | null {
       !Array.isArray(s.offers) ||
       !s.offers.every((id) => s.clubs.some((c) => c.id === id)) ||
       typeof s.sacked !== 'boolean' ||
+      !s.cup ||
+      !Number.isInteger(s.cup.round) ||
+      s.cup.round < 0 ||
+      s.cup.round > 4 ||
+      !Array.isArray(s.cup.alive) ||
+      !s.cup.alive.every((id) => s.clubs.some((c) => c.id === id)) ||
+      !Array.isArray(s.cup.log) ||
+      !s.cup.log.every((l) => typeof l === 'string') ||
+      !Array.isArray(s.cup.winners) ||
+      !Number.isInteger(s.cup.wins) ||
       !Array.isArray(s.news) ||
       s.news.length > 50 ||
       !s.news.every((n) => typeof n === 'string') ||

@@ -3877,3 +3877,4 @@ th:last-child {
 .help-modal{max-height:92vh;overflow-y:auto}
 .club-option.locked{opacity:.45;cursor:not-allowed}
 .bg-blurb{font-size:.8rem;opacity:.75;margin:.2rem 0 .6rem}
+.staff-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}

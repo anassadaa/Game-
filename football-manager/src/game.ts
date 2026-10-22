@@ -13,6 +13,8 @@ import type { Retiree } from './regens.ts';
 import { jobsWeek, repSacked, repSeason, reputation, reputationOffers, stature } from './jobs.ts';
 import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
+import { dofDiscount, injuryFactor, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
+import type { Staff } from './staff.ts';
 import type { Scout, ScoutReport } from './scouts.ts';
 import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
@@ -203,6 +205,8 @@ export type GameState = {
   trophies?: Trophy[];
   awards?: Award[];
   scouts?: Scout[];
+  staff?: Staff[];
+  staffMarket?: Staff[];
   ffp?: Ffp;
   sellOns?: SellOn[];
   embargo?: boolean;
@@ -466,6 +470,7 @@ export function migrate(s: GameState): GameState {
   s.sacked ??= false;
   s.reputation ??= reputation(s);
   s.vacancies ??= [];
+  if (!s.staffMarket) refreshStaffMarket(s);
   // New divisions added after this save was made: bring their clubs and squads in.
   WORLD.forEach((w, i) => {
     if (s.clubs.some((c) => c.id === w.id)) return;
@@ -582,6 +587,7 @@ export function newGame(
   s.sacked = false;
   s.reputation = startRep == null ? clamp(stature(me) - 5) : clamp(startRep);
   s.vacancies = [];
+  refreshStaffMarket(s);
   s.cup = newCup(s, []);
   s.euro = newEuro(s, true);
   s.youth = [];
@@ -840,7 +846,7 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
   if (o.swapId && (!swap || roster.length <= 14)) return [s, 'That swap player cannot be included.'];
   if (!swap && roster.length >= 25) return [s, 'Your squad is full (25).'];
   const sellOnPct = fromRival ? Math.min(30, Math.max(0, Math.round(o.sellOn ?? 0))) : 0;
-  const agent = agentFee(p, o.fee);
+  const agent = Math.round(agentFee(p, o.fee) * dofDiscount(s));
   const upfront = (o.instalments ? Math.round(o.fee * 0.4) : o.fee) + agent;
   if (s.budget < upfront) return [s, `You cannot afford that upfront payment (incl. £${agent}k agent fee).`];
   const b = copy(s),
@@ -1225,7 +1231,7 @@ function train(s: GameState) {
       p.rating++;
     if (p.personality === 'Temperamental') p.morale = clamp(p.morale + int(s, -4, 4));
     if (p.personality === 'Professional' && p.age < 27 && p.rating < p.potential && next(s) < 0.04) p.rating++;
-    if (starter && p.fitness < 38 && next(s) < 0.09) p.injured = int(s, 1, 3);
+    if (starter && p.fitness < 38 && next(s) < 0.09 * injuryFactor(s)) p.injured = int(s, 1, 3);
   }
 }
 /** Reserve sides can never go up. */
@@ -1259,6 +1265,7 @@ function rollSeason(s: GameState) {
   seasonAwards(s, outcome, before);
   repSeason(s, pos, outcome);
   s.applied = [];
+  staffSeason(s);
   addNews(s, ffpSeason(s));
   boardReview(s, pos, outcome);
   s.euro = newEuro(s);
@@ -1412,6 +1419,7 @@ export function advanceWeek(s: GameState): GameState {
   facilitiesWeek(b);
   dressingWeek(b, played);
   scoutsWeek(b);
+  staffWeek(b);
   jobsWeek(b, m.us, m.them, m.opponentId);
   transferWeek(b);
   b.headlines = [

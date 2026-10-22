@@ -1,3 +1,4 @@
+import { validStaff } from './staff.ts';
 import { validJobs } from './jobs.ts';
 import { validRegens } from './regens.ts';
 import { validFinance } from './finance.ts';
@@ -203,7 +204,7 @@ export function decodeSave(raw: string): GameState | null {
       if (p.retrain !== undefined && (!['GK', 'DF', 'MF', 'FW'].includes(p.retrain?.to) || !Number.isFinite(p.retrain.progress))) delete p.retrain;
       if (p.sharp !== undefined && !Number.isFinite(p.sharp)) delete p.sharp;
     }
-    if (!validFacilities(s.facilities) || !validTrophies(s) || !validScouts(s) || !validFinance(s) || !validRegens(s) || !validJobs(s)) return null;
+    if (!validFacilities(s.facilities) || !validTrophies(s) || !validScouts(s) || !validStaff(s) || !validFinance(s) || !validRegens(s) || !validJobs(s)) return null;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {
       if (p.unhappy !== undefined && typeof p.unhappy !== 'string') delete p.unhappy;

@@ -67,6 +67,8 @@ import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
 import { JobCentre } from './Jobs.tsx';
 import { ScoutsPanel } from './Scouts.tsx';
+import { StaffRoom } from './Staff.tsx';
+import { dofDiscount } from './staff.ts';
 import { StatsPanel } from './Stats.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
 import { FacilityRows } from './Facilities.tsx';
@@ -1424,6 +1426,7 @@ export default function App() {
                 <>
                   <BoardRoom state={state} onUpdate={update} />
                   <JobCentre state={state} onUpdate={update} />
+                  <StaffRoom state={state} onUpdate={update} />
                   <YouthPanel state={state} onUpdate={update} />
                   <StatsPanel state={state} />
                   <CupPanel state={state} />
@@ -1690,7 +1693,7 @@ export default function App() {
                 <input type="checkbox" checked={deal.instalments} onChange={(e) => setDeal({ ...deal, instalments: e.target.checked })} /> Pay in instalments (40% now, rest over 6 weeks, +5% cost)
               </label>
               <p className="muted small">
-                Agent fee £{agentFee(t, deal.fee)}k{t.clubId !== 'market' && releaseClause(t) ? ` · release clause £${releaseClause(t)}k (meet it and they must sell)` : ''}
+                Agent fee £{Math.round(agentFee(t, deal.fee) * dofDiscount(state))}k{t.clubId !== 'market' && releaseClause(t) ? ` · release clause £${releaseClause(t)}k (meet it and they must sell)` : ''}
               </p>
               {t.clubId !== 'market' && (
                 <div className="seg-row" aria-label="Sell-on clause">

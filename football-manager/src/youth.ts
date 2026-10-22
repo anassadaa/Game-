@@ -1,3 +1,4 @@
+import { youthBonus } from './staff.ts';
 import type { GameState, Player, Position } from './game.ts';
 import { clamp, copy, int, makePlayer, next, pick } from './game.ts';
 
@@ -9,12 +10,12 @@ export function youthIntake(s: GameState) {
   const n = 3 + int(s, 0, 1) + Math.floor(s.academy / 2);
   const list: Player[] = [];
   for (let i = 0; i < n; i++) {
-    const p = makePlayer(s, s.clubId, 700 + i, pick(s, POS), 40 + s.academy * 3, true);
+    const p = makePlayer(s, s.clubId, 700 + i, pick(s, POS), 40 + s.academy * 3 + Math.round(youthBonus(s) / 3), true);
     p.age = 15 + int(s, 0, 2);
     p.starting = false;
     p.contract = 3;
     p.wage = 1;
-    if (next(s) < 0.04 + s.academy * 0.03) {
+    if (next(s) < 0.04 + s.academy * 0.03 + youthBonus(s) * 0.003) {
       p.wonderkid = true;
       p.rating = clamp(p.rating + int(s, 4, 9), 35, 75);
       p.potential = clamp(86 + int(s, 0, 8), p.rating, 95);

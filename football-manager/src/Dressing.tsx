@@ -1,4 +1,5 @@
 import type { GameState } from './game.ts';
+import { AssistantTip } from './Staff.tsx';
 import { TONES, answerPress, handleUnhappy, harmony, pressQuestion, teamTalk } from './dressing.ts';
 
 type Up = (s: GameState, m?: string) => void;
@@ -8,6 +9,7 @@ export function TeamTalk({ state, onUpdate }: { state: GameState; onUpdate: Up }
   return (
     <div className="talk">
       <b>{m.minute === 0 ? 'Pre-match team talk' : 'Half-time team talk'}</b>
+      <AssistantTip state={state} />
       <div className="seg-row">
         {TONES.map((t) => (
           <button key={t.id} onClick={() => onUpdate(teamTalk(state, t.id))}>{t.label}</button>

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  takeJob,
   newGame,
   setTactics,
   toggleStarter,
@@ -122,6 +123,7 @@ test('a twenty-season career retains a legal squad and exportable save size', ()
   let state = newGame(1001);
   for (let season = 0; season < 20; season++)
     for (let week = 0; week < 18; week++) {
+      if (state.sacked) state = takeJob(state, state.offers[0]);
       state = startMatch(state);
       for (let phase = 0; phase < 6; phase++) state = advanceMatch(state);
       state = advanceWeek(state);

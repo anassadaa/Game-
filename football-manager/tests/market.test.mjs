@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, startMatch, advanceMatch, advanceWeek, negotiate, toggleListed, acceptBid, searchMarket, askingPrice, windowOpen, migrate } from '../src/game.ts';
+import { takeJob, newGame, startMatch, advanceMatch, advanceWeek, negotiate, toggleListed, acceptBid, searchMarket, askingPrice, windowOpen, migrate } from '../src/game.ts';
 import { decodeSave, encodeSave } from '../src/save.ts';
 
-const play = (s) => { s = startMatch(s); while (!s.match.complete) s = advanceMatch(s); return advanceWeek(s); };
+const play = (s) => { if (s.sacked) s = takeJob(s, s.offers[0]); s = startMatch(s); while (!s.match.complete) s = advanceMatch(s); return advanceWeek(s); };
 
 test('rival clubs have real squads and the market can be searched', () => {
   const s = newGame(11);

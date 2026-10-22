@@ -3817,3 +3817,8 @@ th:last-child {
 .tm-news { max-height: 240px; overflow-y: auto; display: grid; gap: 4px; }
 .tm-news p { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
 .row-list > div > span { min-width: 0; overflow-wrap: anywhere; }
+.board-room p { margin: 4px 0; }
+.board-room .good { color: #a3e635; }
+.board-room .bad { color: #f87171; }
+.trust-bar { height: 10px; border-radius: 6px; background: rgba(255,255,255,0.1); overflow: hidden; margin: 6px 0; }
+.trust-bar i { display: block; height: 100%; }

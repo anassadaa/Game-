@@ -58,6 +58,7 @@ import type {
   Training,
 } from './game.ts';
 import { TransferMarket } from './Market.tsx';
+import { BoardRoom, SackedModal } from './Board.tsx';
 import { askingPrice } from './game.ts';
 import { decodeSave, encodeSave, loadSave, storeSave } from './save.ts';
 
@@ -1402,6 +1403,7 @@ export default function App() {
               )}
               {tab === 'club' && (
                 <>
+                  <BoardRoom state={state} onUpdate={update} />
                   <div className="content-columns">
                     <section className="card club-foundation">
                       <SectionTitle
@@ -1635,6 +1637,7 @@ export default function App() {
           </section>
         </div>
       )}
+      <SackedModal state={state} onUpdate={update} onNewCareer={() => setConfirmReset(true)} />
       {deal && (() => {
         const t = state.market.find((p) => p.id === deal.id) ?? state.rivals?.find((p) => p.id === deal.id);
         if (!t) return null;

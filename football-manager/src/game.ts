@@ -152,7 +152,11 @@ export type GameState = {
   rivals?: Player[];
   bids?: Bid[];
   news?: string[];
+  board?: Board;
+  offers?: string[];
+  sacked?: boolean;
 };
+export type Board = { target: number; objective: string; warnings: number };
 export type Bid = { id: string; playerId: string; clubId: string; fee: number };
 
 const CLUBS: [string, string, string, number, Mentality][] = [
@@ -415,6 +419,9 @@ export function migrate(s: GameState): GameState {
   s.bids ??= [];
   s.news ??= [];
   if (!s.rivals) makeRivals(s);
+  s.board ??= boardTarget(s);
+  s.offers ??= [];
+  s.sacked ??= false;
   return s;
 }
 function story(s: GameState): Story {
@@ -505,6 +512,9 @@ export function newGame(
   refreshMarket(s);
   s.inbox = story(s);
   makeRivals(s);
+  s.board = boardTarget(s);
+  s.offers = [];
+  s.sacked = false;
   return s;
 }
 export function club(s: GameState) {
@@ -866,6 +876,7 @@ function strength(s: GameState, ourSide: boolean): number {
   );
 }
 export function startMatch(s: GameState): GameState {
+  if (s.sacked) return s;
   if (s.match || s.week >= 18) return s;
   const b = copy(s),
     opp = opponent(b);
@@ -1116,6 +1127,7 @@ function rollSeason(s: GameState) {
     outcome,
   });
   s.history = s.history.slice(0, 20);
+  boardReview(s, pos, outcome);
   d1.slice(-2).forEach((c) => (c.division = 2));
   d2.slice(0, 2).forEach((c) => (c.division = 1));
   s.budget += before === 1 ? 1250 : 850;
@@ -1260,9 +1272,11 @@ export function advanceWeek(s: GameState): GameState {
   ].slice(0, 6);
   b.week++;
   b.match = null;
+  boardWeek(b);
   if (b.week === 18) {
     rollSeason(b);
     rollRivals(b);
+    b.board = boardTarget(b);
   }
   else {
     if (b.week % 3 === 0) refreshMarket(b);
@@ -1440,4 +1454,119 @@ function rollRivals(b: GameState) {
     while (n < 14) b.rivals.push(rivalPlayer(b, c, 200 + n++, pick(b, POSITIONS), true));
   }
   b.news = [`Season ${b.season}: the summer window is open!`, ...(b.news ?? [])].slice(0, 25);
+}
+
+// ---------- Board objectives, sacking and job offers ----------
+function divisionRank(s: GameState, id: string) {
+  const c = s.clubs.find((x) => x.id === id)!;
+  return s.clubs.filter((x) => x.division === c.division).sort((a, b) => b.rating - a.rating).findIndex((x) => x.id === id) + 1;
+}
+export function boardTarget(s: GameState): Board {
+  const c = club(s),
+    rank = divisionRank(s, s.clubId);
+  const target = Math.min(9, Math.max(1, rank + (s.trust >= 70 ? -1 : 1)));
+  const objective =
+    c.division === 2
+      ? target <= 2
+        ? 'Win promotion to the top flight'
+        : `Finish in the top ${target} and build for promotion`
+      : target <= 3
+        ? `Challenge for the title (top ${target})`
+        : target >= 8
+          ? 'Avoid relegation (8th or better)'
+          : `Finish in the top ${target}`;
+  return { target, objective, warnings: 0 };
+}
+function leaguePos(s: GameState) {
+  return standings(s).filter((c) => c.division === club(s).division).findIndex((c) => c.id === s.clubId) + 1;
+}
+function makeOffers(s: GameState, better: boolean) {
+  const mine = club(s);
+  const pool = s.clubs.filter((c) => c.id !== s.clubId && (better ? c.rating > mine.rating : c.rating <= mine.rating + 2));
+  pool.sort(() => next(s) - 0.5);
+  s.offers = pool.slice(0, better ? 2 : 3).map((c) => c.id);
+}
+function boardWeek(s: GameState) {
+  if (s.sacked) return;
+  const b = (s.board ??= boardTarget(s));
+  const pos = leaguePos(s);
+  if (s.week >= 6 && pos > b.target + 3 && s.trust < 45 && b.warnings < 2 && s.week % 3 === 0) {
+    b.warnings++;
+    s.trust = clamp(s.trust - 4);
+    s.headlines = [`📉 Board warning ${b.warnings}/2: results must improve (${b.objective.toLowerCase()}).`, ...s.headlines].slice(0, 6);
+  }
+  if (s.trust <= 12 && s.week >= 4) sack(s, 'The board has lost faith after a run of poor results.');
+}
+function sack(s: GameState, why: string) {
+  s.sacked = true;
+  makeOffers(s, false);
+  s.headlines = [`❌ Sacked! ${why}`, ...s.headlines].slice(0, 6);
+}
+function boardReview(s: GameState, pos: number, outcome: string) {
+  const b = s.board ?? boardTarget(s);
+  const met = pos <= b.target || outcome === 'Promoted' || outcome === 'Champions';
+  if (met) {
+    s.trust = clamp(s.trust + 6);
+    s.budget += 300;
+    s.headlines = [`✅ Board objective met: ${b.objective}. Bonus £300k.`, ...s.headlines];
+    if (pos <= Math.max(1, b.target - 2) || outcome === 'Champions') makeOffers(s, true);
+  } else if (pos >= b.target + 4 || outcome === 'Relegated') {
+    sack(s, `Objective missed: ${b.objective.toLowerCase()}.`);
+  } else {
+    s.trust = clamp(s.trust - 8);
+    s.headlines = [`⚠️ Board objective missed: ${b.objective}. They expect more.`, ...s.headlines];
+  }
+}
+function pickXI(s: GameState) {
+  const own = s.players.filter((p) => p.clubId === s.clubId);
+  own.forEach((p) => (p.starting = false));
+  const fit = own.filter((p) => !p.injured);
+  const gk = (fit.filter((p) => p.position === 'GK').sort((a, b) => b.rating - a.rating)[0] ??
+    own.filter((p) => p.position === 'GK').sort((a, b) => b.rating - a.rating)[0])!;
+  gk.starting = true;
+  [...fit, ...own.filter((p) => p.injured)]
+    .filter((p) => p.position !== 'GK')
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, 10)
+    .forEach((p) => (p.starting = true));
+}
+/** Accept a job offer: your old squad stays behind and you inherit the new club's players. */
+export function takeJob(s: GameState, clubId: string): GameState {
+  if (s.match || !s.offers?.includes(clubId) || clubId === s.clubId) return s;
+  const b = copy(s),
+    old = club(b),
+    target = b.clubs.find((c) => c.id === clubId)!;
+  const mine = b.players.filter((p) => p.clubId === old.id && !p.loan);
+  mine.forEach((p) => Object.assign(p, { starting: false, listed: false }));
+  const theirs = (b.rivals ?? []).filter((p) => p.clubId === clubId);
+  b.rivals = [...(b.rivals ?? []).filter((p) => p.clubId !== clubId), ...mine];
+  b.players = theirs.map((p) => {
+    delete p.counter;
+    return Object.assign(p, { listed: false, contract: Math.max(1, p.contract ?? 2) });
+  });
+  b.clubId = clubId;
+  while (b.players.length < 14 || !b.players.some((p) => p.position === 'GK'))
+    b.players.push(makePlayer(b, clubId, 300 + b.players.length, b.players.some((p) => p.position === 'GK') ? pick(b, POSITIONS) : 'GK', target.rating - 8));
+  b.players.sort((x, y) => y.rating - x.rating);
+  b.rivals.push(...b.players.splice(25));
+  pickXI(b);
+  b.players.forEach((p) => (p.clubId = clubId));
+  b.instalments = [];
+  b.bids = [];
+  b.offers = [];
+  b.trust = 60;
+  b.fans = clamp(b.fans - 5);
+  b.sacked = false;
+  b.board = boardTarget(b);
+  b.headlines = [`🤝 You are the new manager of ${target.name}!`, ...b.headlines].slice(0, 6);
+  addNews(b, `🎙️ ${target.short} appoint a new manager, who leaves ${old.short}.`);
+  return b;
+}
+export function declineOffers(s: GameState): GameState {
+  if (s.sacked || !s.offers?.length) return s;
+  const b = copy(s);
+  b.offers = [];
+  b.trust = clamp(b.trust + 3);
+  b.headlines = ['You turn down the approaches. The board appreciates your loyalty.', ...b.headlines].slice(0, 6);
+  return b;
 }

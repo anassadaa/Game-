@@ -94,6 +94,13 @@ export function decodeSave(raw: string): GameState | null {
         (b) =>
           b && typeof b.id === 'string' && typeof b.playerId === 'string' && typeof b.clubId === 'string' && Number.isFinite(b.fee) && b.fee >= 0,
       ) ||
+      !s.board ||
+      !Number.isInteger(s.board.target) ||
+      typeof s.board.objective !== 'string' ||
+      !Number.isInteger(s.board.warnings) ||
+      !Array.isArray(s.offers) ||
+      !s.offers.every((id) => s.clubs.some((c) => c.id === id)) ||
+      typeof s.sacked !== 'boolean' ||
       !Array.isArray(s.news) ||
       s.news.length > 50 ||
       !s.news.every((n) => typeof n === 'string') ||

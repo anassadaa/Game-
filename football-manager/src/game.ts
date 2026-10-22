@@ -31,7 +31,11 @@ export type Player = {
   injured?: number;
   attrs?: Attrs;
   personality?: Personality;
+  contract?: number;
+  loan?: boolean;
+  counter?: number;
 };
+export type Instalment = { name: string; amount: number; weeks: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
 export type AttrKey = (typeof ATTRS)[number];
 export type Attrs = Record<AttrKey, number>;
@@ -57,6 +61,7 @@ export function ensureProfile(p: Player) {
     for (const k of ATTRS) a[k] = Math.round(PROFILE[p.position][k] + (rnd() - 0.5) * 12) + 0;
     p.attrs = a;
   }
+  if (p.contract === undefined) p.contract = 1 + Math.floor(rnd() * 4);
   if (!p.personality) p.personality = PERSONALITIES[Math.floor(rnd() * PERSONALITIES.length)]!;
 }
 export function attributes(p: Player): Attrs {
@@ -142,6 +147,7 @@ export type GameState = {
   careerWins: number;
   careerGames: number;
   lastStory: string;
+  instalments?: Instalment[];
 };
 
 const CLUBS: [string, string, string, number, Mentality][] = [
@@ -399,6 +405,7 @@ function uniqueName(s: GameState): string {
 export function migrate(s: GameState): GameState {
   const v = s as unknown as { version: number };
   if (v.version === 1) v.version = 2;
+  s.instalments ??= [];
   [...s.players, ...s.market].forEach(ensureProfile);
   return s;
 }
@@ -482,6 +489,7 @@ export function newGame(
     careerWins: 0,
     careerGames: 0,
     lastStory: '',
+    instalments: [],
   };
   POSITIONS.forEach((pos, i) => s.players.push(makePlayer(s, clubId, i, pos, 54)));
   refreshMarket(s);
@@ -694,6 +702,84 @@ function autoPlace(b: GameState, id: string) {
     return true;
   }
   return false;
+}
+export type Offer = {
+  fee: number;
+  wage: number;
+  years: number;
+  instalments?: boolean;
+  swapId?: string;
+};
+/** Negotiate with a transfer target. Returns the new state and a message for the manager. */
+export function negotiate(s: GameState, id: string, o: Offer): [GameState, string] {
+  const p = s.market.find((x) => x.id === id);
+  const roster = s.players.filter((x) => x.clubId === s.clubId);
+  if (s.match || !p) return [s, 'That player is no longer available.'];
+  if (!(o.years >= 1 && o.years <= 5) || !Number.isFinite(o.fee) || o.fee < 0 || !Number.isFinite(o.wage))
+    return [s, 'That offer is not valid.'];
+  const swap = o.swapId ? roster.find((x) => x.id === o.swapId && !x.starting) : undefined;
+  if (o.swapId && (!swap || roster.length <= 14)) return [s, 'That swap player cannot be included.'];
+  if (!swap && roster.length >= 25) return [s, 'Your squad is full (25).'];
+  const upfront = o.instalments ? Math.round(o.fee * 0.4) : o.fee;
+  if (s.budget < upfront) return [s, 'You cannot afford that upfront payment.'];
+  const b = copy(s),
+    t = b.market.find((x) => x.id === id)!;
+  const ask = t.counter ?? t.price,
+    value = o.fee + (swap ? Math.round(swap.price * 0.8) : 0) - (o.instalments ? Math.round(o.fee * 0.05) : 0);
+  const wantWage = Math.round(t.wage * (t.personality === 'Ambitious' ? 1.15 : 1));
+  if (value < ask * 0.75) {
+    t.counter = ask;
+    return [b, `Rejected. The club will not go below ${ask}k.`];
+  }
+  if (value < ask * 0.97) {
+    t.counter = Math.max(Math.round((ask + value) / 2), Math.round(t.price * 0.85));
+    return [b, `Counter-offer: they want £${t.counter}k.`];
+  }
+  if (o.wage < wantWage) return [b, `Fee agreed, but ${t.name} wants £${wantWage}k a week.`];
+  t.clubId = b.clubId;
+  t.starting = false;
+  t.morale = 78;
+  t.wage = Math.round(o.wage);
+  t.contract = o.years;
+  delete t.counter;
+  b.players.push(t);
+  b.market = b.market.filter((x) => x.id !== id);
+  b.budget -= upfront;
+  if (o.instalments)
+    b.instalments = [...(b.instalments ?? []), { name: t.name, amount: Math.ceil((o.fee - upfront) / 6), weeks: 6 }];
+  if (swap) b.players = b.players.filter((x) => x.id !== swap.id);
+  autoPlace(b, t.id);
+  b.headlines = [
+    `${t.name} signs a ${o.years}-year deal${swap ? ` with ${swap.name} going the other way` : ''}.`,
+    ...b.headlines,
+  ].slice(0, 6);
+  return [b, `${t.name} has signed!${t.starting ? ' He goes straight into your XI.' : ''}`];
+}
+export function loanIn(s: GameState, id: string): GameState {
+  const p = s.market.find((x) => x.id === id);
+  const fee = p ? Math.round(p.price * 0.15) : 0;
+  if (s.match || !p || s.budget < fee || s.players.filter((x) => x.clubId === s.clubId).length >= 25) return s;
+  const b = copy(s),
+    t = b.market.find((x) => x.id === id)!;
+  Object.assign(t, { clubId: b.clubId, starting: false, loan: true, contract: 0, morale: 72 });
+  delete t.counter;
+  b.players.push(t);
+  b.market = b.market.filter((x) => x.id !== id);
+  b.budget -= fee;
+  autoPlace(b, t.id);
+  b.headlines = [`${t.name} arrives on a season-long loan.`, ...b.headlines].slice(0, 6);
+  return b;
+}
+export function renewContract(s: GameState, id: string, years: number): GameState {
+  const p = s.players.find((x) => x.id === id && x.clubId === s.clubId && !x.loan);
+  if (s.match || !p || !(years >= 1 && years <= 5)) return s;
+  const b = copy(s),
+    t = b.players.find((x) => x.id === id)!;
+  t.wage = Math.round(t.wage * 1.15 + 1);
+  t.contract = years;
+  t.morale = clamp(t.morale + 6);
+  b.headlines = [`${t.name} commits his future for ${years} more years.`, ...b.headlines].slice(0, 6);
+  return b;
 }
 export function sellPlayer(s: GameState, id: string): GameState {
   if (s.match) return s;
@@ -1029,10 +1115,21 @@ function rollSeason(s: GameState) {
     c.form = [];
     c.rating = clamp(c.rating + int(s, -2, 2), 40, 85);
   });
+  const leaving: string[] = [];
   s.players = s.players.filter((p) => {
     p.age++;
+    if (p.loan) {
+      leaving.push(`${p.name} (loan ends)`);
+      return false;
+    }
+    p.contract = (p.contract ?? 1) - 1;
+    if (p.contract <= 0) {
+      leaving.push(`${p.name} (contract expired)`);
+      return false;
+    }
     return p.age <= 36;
   });
+  if (leaving.length) s.headlines = [`Departures: ${leaving.join(', ')}.`, ...s.headlines];
   const needsKeeper = !s.players.some((p) => p.position === 'GK');
   const recruits = Array.from(
     { length: Math.max(3, 14 - s.players.length) },
@@ -1125,6 +1222,11 @@ export function advanceWeek(s: GameState): GameState {
     (m.home ? 90 + Math.round(b.fans * 0.5) : 35) +
     Math.round(b.fans * 0.2);
   b.budget += income - wages;
+  for (const i of b.instalments ?? []) {
+    b.budget -= i.amount;
+    i.weeks--;
+  }
+  b.instalments = (b.instalments ?? []).filter((i) => i.weeks > 0);
   if (b.budget < 0) {
     b.trust = clamp(b.trust - 5);
     b.players.forEach((p) => (p.morale = clamp(p.morale - 3)));

@@ -33,11 +33,13 @@ import {
   potentialStars,
   club,
   homeFixture,
+  loanIn,
+  negotiate,
   newGame,
+  renewContract,
   opponent,
   setTactics,
   setTraining,
-  signPlayer,
   sellPlayer,
   standings,
   startMatch,
@@ -266,11 +268,13 @@ function PlayerCard({
   player,
   onStart,
   onSell,
+  onRenew,
   locked,
 }: {
   player: Player;
   onStart: () => void;
   onSell?: () => void;
+  onRenew?: () => void;
   locked: boolean;
 }) {
   return (
@@ -294,7 +298,8 @@ function PlayerCard({
           {player.injured ? ` · Injured ${player.injured}w` : ''}
         </p>
         <p>
-          {player.personality} · <Stars p={player} />
+          {player.personality} · <Stars p={player} /> ·{' '}
+          {player.loan ? 'On loan' : `Contract ${player.contract ?? '?'}y`}
         </p>
         <AttrGrid p={player} />
         <div className="player-bars">
@@ -324,6 +329,11 @@ function PlayerCard({
             Start
           </button>
         )}
+        {onRenew && !player.loan && (player.contract ?? 9) <= 1 && (
+          <button className="text-button" disabled={locked} onClick={onRenew}>
+            Renew 3y
+          </button>
+        )}
         {onSell && !player.starting && (
           <button className="text-button" disabled={locked} onClick={onSell}>
             Sell {money(Math.round(player.price * 0.68))}
@@ -343,6 +353,14 @@ export default function App() {
   const [saveOk, setSaveOk] = useState(true);
   const [filter, setFilter] = useState('All');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [deal, setDeal] = useState<{
+    id: string;
+    fee: number;
+    wage: number;
+    years: number;
+    instalments: boolean;
+    swapId: string;
+  } | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -1084,6 +1102,12 @@ export default function App() {
                               `${p.name} joins the starting eleven.`,
                             )
                           }
+                          onRenew={() =>
+                            update(
+                              renewContract(state, p.id, 3),
+                              `${p.name} signs a new deal.`,
+                            )
+                          }
                         />
                       ))}
                   </div>
@@ -1293,20 +1317,38 @@ export default function App() {
                             Transfer fee<b>{money(p.price)}</b>
                           </span>
                         </div>
-                        <button
-                          className="secondary wide"
-                          disabled={
-                            state.budget < p.price || roster.length >= 25
-                          }
-                          onClick={() =>
-                            update(
-                              signPlayer(state, p.id),
-                              `${p.name} has signed. Welcome to the club.`,
-                            )
-                          }
-                        >
-                          Sign player <ArrowUpRight size={16} />
-                        </button>
+                        <div className="btn-row">
+                          <button
+                            className="secondary"
+                            onClick={() =>
+                              setDeal({
+                                id: p.id,
+                                fee: p.counter ?? Math.round(p.price * 0.85),
+                                wage: p.wage,
+                                years: 3,
+                                instalments: false,
+                                swapId: '',
+                              })
+                            }
+                          >
+                            Negotiate <ArrowUpRight size={16} />
+                          </button>
+                          <button
+                            className="text-button"
+                            disabled={
+                              state.budget < Math.round(p.price * 0.15) ||
+                              roster.length >= 25
+                            }
+                            onClick={() =>
+                              update(loanIn(state, p.id), `${p.name} joins on loan.`)
+                            }
+                          >
+                            Loan {money(Math.round(p.price * 0.15))}
+                          </button>
+                        </div>
+                        {p.counter && (
+                          <small className="muted">Asking: {money(p.counter)}</small>
+                        )}
                       </article>
                     ))}
                   </div>
@@ -1575,6 +1617,49 @@ export default function App() {
           </section>
         </div>
       )}
+      {deal && (() => {
+        const t = state.market.find((p) => p.id === deal.id);
+        if (!t) return null;
+        return (
+          <div className="modal-backdrop" onClick={() => setDeal(null)}>
+            <section className="help-modal" role="dialog" aria-label="Negotiate" onClick={(e) => e.stopPropagation()}>
+              <button className="close-button" aria-label="Close" onClick={() => setDeal(null)}><X /></button>
+              <span className="eyebrow">NEGOTIATION</span>
+              <h2>{t.name}</h2>
+              <p>
+                Value {money(t.price)}{t.counter ? ` · they ask ${money(t.counter)}` : ''} · wants about {money(t.wage)}/wk · {t.personality}
+              </p>
+              <label className="deal-field">Fee offer: <b>{money(deal.fee)}</b>
+                <input type="range" min={Math.round(t.price * 0.5)} max={Math.round(t.price * 1.3)} value={deal.fee} onChange={(e) => setDeal({ ...deal, fee: +e.target.value })} />
+              </label>
+              <label className="deal-field">Weekly wage: <b>{money(deal.wage)}</b>
+                <input type="range" min={Math.max(1, Math.round(t.wage * 0.6))} max={Math.round(t.wage * 1.6) + 2} value={deal.wage} onChange={(e) => setDeal({ ...deal, wage: +e.target.value })} />
+              </label>
+              <label className="deal-field">Contract: <b>{deal.years} years</b>
+                <input type="range" min={1} max={5} value={deal.years} onChange={(e) => setDeal({ ...deal, years: +e.target.value })} />
+              </label>
+              <label className="deal-check">
+                <input type="checkbox" checked={deal.instalments} onChange={(e) => setDeal({ ...deal, instalments: e.target.checked })} /> Pay in instalments (40% now, rest over 6 weeks, +5% cost)
+              </label>
+              <label className="deal-field">Swap a reserve (counts 80% of value)
+                <select value={deal.swapId} onChange={(e) => setDeal({ ...deal, swapId: e.target.value })}>
+                  <option value="">No swap</option>
+                  {roster.filter((p) => !p.starting).map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.position} {p.rating}, {money(Math.round(p.price * 0.8))})</option>
+                  ))}
+                </select>
+              </label>
+              <button className="primary wide" onClick={() => {
+                const [next, msg] = negotiate(state, deal.id, { ...deal, swapId: deal.swapId || undefined });
+                if (next !== state) setState(next);
+                setToast(msg);
+                if (!next.market.some((p) => p.id === deal.id)) setDeal(null);
+                else { const c = next.market.find((p) => p.id === deal.id)?.counter; if (c) setDeal({ ...deal, fee: c }); }
+              }}>Submit offer <ArrowRight size={17} /></button>
+            </section>
+          </div>
+        );
+      })()}
       {confirmReset && (
         <div className="modal-backdrop">
           <section

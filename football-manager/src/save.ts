@@ -65,6 +65,9 @@ export function decodeSave(raw: string): GameState | null {
         (typeof p.attrs === 'object' &&
           p.attrs !== null &&
           ATTRS.every((k) => Number.isFinite(p.attrs![k])))) &&
+      (p.contract === undefined || (Number.isInteger(p.contract) && p.contract >= 0 && p.contract <= 10)) &&
+      (p.loan === undefined || typeof p.loan === 'boolean') &&
+      (p.counter === undefined || Number.isFinite(p.counter)) &&
       (p.personality === undefined ||
         (PERSONALITIES as readonly string[]).includes(p.personality));
     if (
@@ -73,6 +76,11 @@ export function decodeSave(raw: string): GameState | null {
       ) ||
       !s.players.every(validPlayer) ||
       !s.headlines.every((n) => typeof n === 'string') ||
+      (s.instalments !== undefined &&
+        (!Array.isArray(s.instalments) ||
+          !s.instalments.every(
+            (i) => i && typeof i.name === 'string' && Number.isFinite(i.amount) && Number.isInteger(i.weeks),
+          ))) ||
       !s.history.every(
         (h) =>
           h &&

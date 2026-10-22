@@ -3792,3 +3792,6 @@ th:last-child {
   .row-list > div { font-size: 0.92rem; }
   button.mini, .text-button { min-height: 38px; font-size: 0.9rem; }
 }
+.deal-field { display: grid; gap: 6px; margin: 10px 0; font-size: 0.95rem; }
+.deal-field input[type=range], .deal-field select { width: 100%; min-height: 36px; }
+.deal-check { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: 0.9rem; }

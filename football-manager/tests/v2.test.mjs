@@ -42,3 +42,25 @@ test('players have attributes, personality and potential stars', () => {
   const m = decodeSave(JSON.stringify(old));
   assert.ok(m.players.every((x) => x.attrs && x.personality));
 });
+
+test('negotiation counters low bids and accepts fair ones', () => {
+  let s = g.newGame(12);
+  s.budget = 99999;
+  const t = s.market[0];
+  let [a, msg] = g.negotiate(s, t.id, { fee: Math.round(t.price * 0.8), wage: t.wage * 2, years: 3 });
+  assert.match(msg, /Counter/);
+  [a, msg] = g.negotiate(a, t.id, { fee: t.price * 2, wage: t.wage * 2, years: 3, instalments: true });
+  assert.ok(a.players.some((p) => p.id === t.id));
+  assert.equal(a.instalments.length, 1);
+  assert.ok(decodeSave(JSON.stringify(a)));
+});
+
+test('loans and renewals work', () => {
+  let s = g.newGame(13);
+  s.budget = 99999;
+  s = g.loanIn(s, s.market[0].id);
+  assert.ok(s.players.some((p) => p.loan));
+  const own = s.players.find((p) => !p.loan);
+  s = g.renewContract(s, own.id, 4);
+  assert.equal(s.players.find((p) => p.id === own.id).contract, 4);
+});

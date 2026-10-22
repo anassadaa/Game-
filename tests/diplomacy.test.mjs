@@ -5,3 +5,7 @@ const run=(s,n)=>{for(let i=0;i<n;i++){if(s.event){const i2=s.event.choices.find
 test('version-two saves migrate to version three with neutral neighbours',()=>{const s=E.newGame(4);run(s,6);delete s.diplomacy;s.version=2;const r=E.restore(JSON.stringify(s));assert.equal(r.version,3);assert.deepEqual([0,1,2].map(i=>E.status(r,i)).filter(x=>x!=='neutral'&&x!=='hostile'),[]);});
 test('invalid diplomacy is rejected',()=>{const s=E.newGame(4);s.diplomacy.neighbours[0].treaty='empire';assert.throws(()=>E.restore(JSON.stringify(s)));});
 test('treaties expire and break when relations fall',()=>{const s=E.newGame(4);const n=s.diplomacy.neighbours;n[0].treaty='trade';n[0].until=s.day+1;n[1].treaty='alliance';n[1].until=999;s.relations[1]=10;run(s,2);assert.equal(n[0].treaty,'none');assert.equal(n[1].treaty,'none');});
+test('gifts, treaties and peace follow their requirements',()=>{const s=E.newGame(4);s.stock.coins=2000;s.stock.food=500;s.relations[0]=50;
+ assert.match(E.signTreaty(s,0,'trade'),/55/);assert.equal(E.gift(s,0),'');assert.match(E.gift(s,0),/recently/);assert.equal(E.signTreaty(s,0,'trade'),'');assert.equal(E.status(s,0),'trade');
+ const before=E.price(s,'wood',true);s.diplomacy.neighbours[0].treaty='none';assert.ok(E.price(s,'wood',true)>before);
+ s.diplomacy.neighbours[1].war=true;s.relations[1]=10;assert.match(E.proposePeace(s,1),/25/);s.relations[1]=30;assert.equal(E.proposePeace(s,1),'');assert.equal(E.status(s,1),'peace');});

@@ -19,6 +19,7 @@ export const treatyCount=(s:Game,t:Treaty)=>[0,1,2].filter(i=>hasTreaty(s,i,t)).
 export function relationShift(s:Game,i:number,d:number){s.relations[i]=cap(s.relations[i]+d,0,100);}
 /** Daily upkeep: treaties expire or break, relations drift. */
 export function tickDiplomacy(s:Game,_rand:(s:Game)=>number){
+ const inc=treatyIncome(s);s.stock.coins+=inc.coins;s.stock.knowledge+=inc.knowledge;
  s.diplomacy.neighbours.forEach((n,i)=>{
   if(n.war)relationShift(s,i,-.2);else if(s.relations[i]<50)relationShift(s,i,.1);
   if(n.treaty!=='none'&&!n.war){
@@ -29,3 +30,17 @@ export function tickDiplomacy(s:Game,_rand:(s:Game)=>number){
 }
 export function validDiplomacy(d:any):boolean{const num=(v:unknown,a=-1e3,b=1e9)=>typeof v==='number'&&Number.isFinite(v)&&v>=a&&v<=b;
  return !!d&&Array.isArray(d.neighbours)&&d.neighbours.length===3&&num(d.raidsMade,0)&&num(d.raidsWonAbroad,0)&&d.neighbours.every((n:any)=>n&&typeof n.war==='boolean'&&num(n.warSince,0)&&['none','peace','trade','alliance'].includes(n.treaty)&&num(n.until,0)&&num(n.giftDay)&&num(n.raidDay));}
+/** Diplomatic actions */
+const bad=(i:number)=>!Number.isInteger(i)||i<0||i>2;
+export const TREATY_TERMS:Record<Exclude<Treaty,'none'>,{need:number;coins:number;food:number;days:number;desc:string}>={
+ peace:{need:40,coins:40,food:0,days:40,desc:'They will not raid you.'},
+ trade:{need:55,coins:60,food:0,days:40,desc:'No raids, better market prices and +3 coins a day.'},
+ alliance:{need:75,coins:120,food:30,days:50,desc:'All trade benefits, they help defend you in raids, +1 knowledge a day.'}};
+export const giftCost=(s:Game)=>({coins:25+s.age*15,food:15});
+export function gift(s:Game,i:number){if(bad(i))return 'Unknown neighbour.';const n=s.diplomacy.neighbours[i],c=giftCost(s);if(s.day-n.giftDay<3)return `${NEIGHBOURS[i]} received a gift recently. Wait ${3-(s.day-n.giftDay)} day(s).`;if(s.stock.coins<c.coins||s.stock.food<c.food)return `A gift costs ${c.coins} coins and ${c.food} food.`;s.stock.coins-=c.coins;s.stock.food-=c.food;n.giftDay=s.day;const d=n.war?6:12;relationShift(s,i,d);note(s,`Your gift pleased ${NEIGHBOURS[i]}. Relations +${d}.`);return '';}
+export const peaceCost=(s:Game)=>80+s.age*40;
+export function proposePeace(s:Game,i:number){if(bad(i))return 'Unknown neighbour.';const n=s.diplomacy.neighbours[i];if(!n.war)return 'You are not at war with them.';if(s.relations[i]<25)return 'Relations must be 25+ before they will talk peace. Send gifts first.';const c=peaceCost(s);if(s.stock.coins<c)return `Peace reparations cost ${c} coins.`;s.stock.coins-=c;n.war=false;n.treaty='peace';n.until=s.day+TREATY_TERMS.peace.days;relationShift(s,i,10);s.morale=cap(s.morale+4,0,100);note(s,`Peace with ${NEIGHBOURS[i]}. The war is over and a peace treaty holds for ${TREATY_TERMS.peace.days} days.`);return '';}
+export function signTreaty(s:Game,i:number,kind:Exclude<Treaty,'none'>){if(bad(i)||!(kind in TREATY_TERMS))return 'Unknown treaty.';const n=s.diplomacy.neighbours[i],t=TREATY_TERMS[kind];if(n.war)return 'Make peace first.';if(s.relations[i]<t.need)return `Relations must be ${t.need}+ for this treaty.`;if(s.stock.coins<t.coins||s.stock.food<t.food)return `This treaty costs ${t.coins} coins${t.food?` and ${t.food} food`:''}.`;s.stock.coins-=t.coins;s.stock.food-=t.food;const renew=n.treaty===kind;n.treaty=kind;n.until=s.day+t.days;note(s,`${renew?'Renewed':'Signed'} a ${kind} treaty with ${NEIGHBOURS[i]} until day ${n.until}.`);return '';}
+/** Treaty effects */
+export function priceFactor(s:Game,buy:boolean){const t=treatyCount(s,'trade');return buy?1-.05*t:1+.05*t;}
+export function treatyIncome(s:Game){return {coins:treatyCount(s,'trade')*3,knowledge:treatyCount(s,'alliance')};}

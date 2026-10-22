@@ -68,3 +68,14 @@ export const leagueName = (division: number) => { const l = league(division); re
 export const sameCountry = (a: number, b: number) => league(a).country === league(b).country;
 /** Continental cup places per league. */
 export const EURO_QUOTA: Record<number, number> = { 1: 4, 3: 4, 4: 3, 5: 3, 6: 1, 7: 1 };
+
+export const ordinal = (n: number) => { const t = n % 100, s = ['th', 'st', 'nd', 'rd']; return n + (t >= 11 && t <= 13 ? 'th' : s[n % 10] ?? 'th'); };
+/** Label and expected finish from a club's rating rank within its own league. */
+export function clubOutlook(clubs: { id: string; rating: number; division: number }[], id: string) {
+  const c = clubs.find((x) => x.id === id)!;
+  const peers = clubs.filter((x) => x.division === c.division).sort((a, b) => b.rating - a.rating);
+  const rank = peers.findIndex((x) => x.rating === c.rating) + 1; // ties share the higher rank
+  const f = (rank - 1) / peers.length;
+  const label = f < 0.15 ? (league(c.division).tier === 2 ? 'Promotion favourite' : 'Title contender') : f < 0.4 ? 'Established side' : f < 0.7 ? 'Ambitious club' : 'Underdog story';
+  return { label, rank, expected: `Expected: ${ordinal(rank)}` };
+}

@@ -58,7 +58,7 @@ import type {
   Training,
 } from './game.ts';
 import { TransferMarket } from './Market.tsx';
-import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
+import { LEAGUES, WORLD, clubOutlook, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
 import { FinancePanel } from './Finance.tsx';
 import { agentFee, releaseClause } from './finance.ts';
@@ -501,7 +501,7 @@ export default function App() {
                 <button className={`club-option ${chosen === c.id ? 'active' : ''}`} key={c.id} onClick={() => setChosen(c.id)}>
                   <Crest team={{ ...c, short: c.name.split(' ').slice(-1)[0]! }} />
                   <div>
-                    <small>{c.rating >= 80 ? 'Title contender' : c.rating >= 72 ? 'Established side' : c.rating >= 66 ? 'Ambitious club' : 'Underdog story'}</small>
+                    <small>{(() => { const o = clubOutlook(WORLD, c.id); return `${o.label} · ${o.expected}`; })()}</small>
                     <h3>{c.name}</h3>
                     <p>Strength {c.rating}</p>
                   </div>

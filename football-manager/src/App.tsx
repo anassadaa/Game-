@@ -60,6 +60,8 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { FinancePanel } from './Finance.tsx';
+import { agentFee, releaseClause } from './finance.ts';
 import { ScoutsPanel } from './Scouts.tsx';
 import { StatsPanel } from './Stats.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
@@ -384,6 +386,7 @@ export default function App() {
     years: number;
     instalments: boolean;
     swapId: string;
+    sellOn?: number;
   } | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLElement>(null);
@@ -1250,6 +1253,7 @@ export default function App() {
               {tab === 'recruitment' && (
                 <>
                   <ScoutsPanel state={state} onUpdate={update} />
+                  <FinancePanel state={state} onUpdate={update} />
                   <div className="recruitment-summary">
                     <div>
                       <Search size={25} />
@@ -1669,6 +1673,16 @@ export default function App() {
               <label className="deal-check">
                 <input type="checkbox" checked={deal.instalments} onChange={(e) => setDeal({ ...deal, instalments: e.target.checked })} /> Pay in instalments (40% now, rest over 6 weeks, +5% cost)
               </label>
+              <p className="muted small">
+                Agent fee £{agentFee(t, deal.fee)}k{t.clubId !== 'market' && releaseClause(t) ? ` · release clause £${releaseClause(t)}k (meet it and they must sell)` : ''}
+              </p>
+              {t.clubId !== 'market' && (
+                <div className="seg-row" aria-label="Sell-on clause">
+                  {[0, 10, 20, 30].map((v) => (
+                    <button key={v} className={(deal.sellOn ?? 0) === v ? 'on' : ''} onClick={() => setDeal({ ...deal, sellOn: v })}>{v ? `${v}% sell-on` : 'No sell-on'}</button>
+                  ))}
+                </div>
+              )}
               <label className="deal-field">Swap a reserve (counts 80% of value)
                 <select value={deal.swapId} onChange={(e) => setDeal({ ...deal, swapId: e.target.value })}>
                   <option value="">No swap</option>

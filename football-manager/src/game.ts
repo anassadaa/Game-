@@ -6,6 +6,8 @@ import type { Facilities } from './facilities.ts';
 import { dressingWeek } from './dressing.ts';
 import { addTrophy, seasonAwards } from './stats.ts';
 import type { Award, Trophy } from './stats.ts';
+import { agentFee, ffpSeason, ffpSpend, releaseClause, saleIncome, sellOnReceipt } from './finance.ts';
+import type { Ffp, SellOn } from './finance.ts';
 import { scoutsWeek } from './scouts.ts';
 import type { Scout, ScoutReport } from './scouts.ts';
 import { recordRatings } from './highlights.ts';
@@ -46,6 +48,8 @@ export type Player = {
   attrs?: Attrs;
   personality?: Personality;
   contract?: number;
+  clause?: number;
+  sellOn?: { clubId: string; pct: number };
   loan?: boolean;
   counter?: number;
   listed?: boolean;
@@ -193,6 +197,9 @@ export type GameState = {
   trophies?: Trophy[];
   awards?: Award[];
   scouts?: Scout[];
+  ffp?: Ffp;
+  sellOns?: SellOn[];
+  embargo?: boolean;
   scoutReports?: ScoutReport[];
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
@@ -790,6 +797,7 @@ export type Offer = {
   years: number;
   instalments?: boolean;
   swapId?: string;
+  sellOn?: number;
 };
 /** Negotiate with a transfer target. Returns the new state and a message for the manager. */
 export function negotiate(s: GameState, id: string, o: Offer): [GameState, string] {
@@ -797,26 +805,31 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
   const roster = s.players.filter((x) => x.clubId === s.clubId);
   if (s.match || !p) return [s, 'That player is no longer available.'];
   const fromRival = p.clubId !== 'market';
+  if (fromRival && s.embargo) return [s, 'FFP embargo: you cannot sign players from clubs this season.'];
   if (fromRival && !windowOpen(s)) return [s, 'The transfer window is closed. Free agents only until it reopens.'];
   if (!(o.years >= 1 && o.years <= 5) || !Number.isFinite(o.fee) || o.fee < 0 || !Number.isFinite(o.wage))
     return [s, 'That offer is not valid.'];
   const swap = o.swapId ? roster.find((x) => x.id === o.swapId && !x.starting) : undefined;
   if (o.swapId && (!swap || roster.length <= 14)) return [s, 'That swap player cannot be included.'];
   if (!swap && roster.length >= 25) return [s, 'Your squad is full (25).'];
-  const upfront = o.instalments ? Math.round(o.fee * 0.4) : o.fee;
-  if (s.budget < upfront) return [s, 'You cannot afford that upfront payment.'];
+  const sellOnPct = fromRival ? Math.min(30, Math.max(0, Math.round(o.sellOn ?? 0))) : 0;
+  const agent = agentFee(p, o.fee);
+  const upfront = (o.instalments ? Math.round(o.fee * 0.4) : o.fee) + agent;
+  if (s.budget < upfront) return [s, `You cannot afford that upfront payment (incl. £${agent}k agent fee).`];
   const b = copy(s),
     t = (fromRival ? b.rivals! : b.market).find((x) => x.id === id)!;
   const seller = b.clubs.find((c) => c.id === t.clubId);
   const base = askingPrice(t);
   const ask = t.counter ?? base,
-    value = o.fee + (swap ? Math.round(swap.price * 0.8) : 0) - (o.instalments ? Math.round(o.fee * 0.05) : 0);
+    value = o.fee + (swap ? Math.round(swap.price * 0.8) : 0) - (o.instalments ? Math.round(o.fee * 0.05) : 0) + Math.round(o.fee * sellOnPct / 100 * 0.6);
+  const clause = fromRival ? releaseClause(t) : undefined;
+  const triggered = clause !== undefined && o.fee >= clause;
   const wantWage = Math.round(t.wage * (t.personality === 'Ambitious' ? 1.15 : 1));
-  if (value < ask * 0.75) {
+  if (!triggered && value < ask * 0.75) {
     t.counter = ask;
     return [b, `Rejected. The club will not go below ${ask}k.`];
   }
-  if (value < ask * 0.97) {
+  if (!triggered && value < ask * 0.97) {
     t.counter = Math.max(Math.round((ask + value) / 2), Math.round(base * 0.85));
     return [b, `Counter-offer: they want £${t.counter}k.`];
   }
@@ -828,6 +841,9 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
   t.wage = Math.round(o.wage);
   t.contract = o.years;
   delete t.counter;
+  delete t.clause;
+  if (sellOnPct && seller) t.sellOn = { clubId: seller.id, pct: sellOnPct };
+  ffpSpend(b, o.fee + agent);
   b.players.push(t);
   b.market = b.market.filter((x) => x.id !== id);
   b.rivals = (b.rivals ?? []).filter((x) => x.id !== id);
@@ -841,7 +857,7 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
     `${t.name} signs a ${o.years}-year deal${swap ? ` with ${swap.name} going the other way` : ''}.`,
     ...b.headlines,
   ].slice(0, 6);
-  return [b, `${t.name} has signed!${t.starting ? ' He goes straight into your XI.' : ''}`];
+  return [b, `${t.name} has signed!${triggered ? ' Release clause triggered.' : ''} Agent fee £${agent}k.${t.starting ? ' He goes straight into your XI.' : ''}`];
 }
 export function loanIn(s: GameState, id: string): GameState {
   const p = s.market.find((x) => x.id === id);
@@ -858,13 +874,15 @@ export function loanIn(s: GameState, id: string): GameState {
   b.headlines = [`${t.name} arrives on a season-long loan.`, ...b.headlines].slice(0, 6);
   return b;
 }
-export function renewContract(s: GameState, id: string, years: number): GameState {
+export function renewContract(s: GameState, id: string, years: number, clause?: number): GameState {
   const p = s.players.find((x) => x.id === id && x.clubId === s.clubId && !x.loan);
   if (s.match || !p || !(years >= 1 && years <= 5)) return s;
   const b = copy(s),
     t = b.players.find((x) => x.id === id)!;
-  t.wage = Math.round(t.wage * 1.15 + 1);
+  const withClause = clause !== undefined && Number.isFinite(clause) && clause > 0;
+  t.wage = Math.round(t.wage * (withClause ? 1.08 : 1.15) + 1);
   t.contract = years;
+  if (withClause) t.clause = Math.max(Math.round(t.price * 1.2), Math.round(clause));
   t.morale = clamp(t.morale + 6);
   b.headlines = [`${t.name} commits his future for ${years} more years.`, ...b.headlines].slice(0, 6);
   return b;
@@ -875,9 +893,9 @@ export function sellPlayer(s: GameState, id: string): GameState {
   const p = team.find((p) => p.id === id && !p.starting);
   if (!p || team.length <= 14) return s;
   const b = copy(s);
-  b.players = b.players.filter((x) => x.id !== id);
   const fee = Math.round(p.price * 0.68);
-  b.budget += fee;
+  b.budget += saleIncome(b, b.players.find((x) => x.id === id)!, fee);
+  b.players = b.players.filter((x) => x.id !== id);
   b.fans = clamp(b.fans - 1);
   b.headlines = [`${p.name} departs for £${fee}k.`, ...b.headlines].slice(0, 6);
   return b;
@@ -1210,6 +1228,7 @@ function rollSeason(s: GameState) {
   });
   s.history = s.history.slice(0, 20);
   seasonAwards(s, outcome, before);
+  addNews(s, ffpSeason(s));
   boardReview(s, pos, outcome);
   s.euro = newEuro(s);
   d1.slice(-k).forEach((c) => (c.division = 2));
@@ -1476,7 +1495,9 @@ export function acceptBid(s: GameState, bidId: string): [GameState, string] {
   }
   Object.assign(t, { clubId: buyer.id, starting: false, listed: false, goals: 0, assists: 0 });
   b.rivals = [...(b.rivals ?? []), t];
-  b.budget += bid.fee;
+  b.budget += saleIncome(b, t, bid.fee);
+  delete t.clause;
+  if (t.age <= 23) b.sellOns = [...(b.sellOns ?? []), { playerId: t.id, name: t.name, pct: 15 }].slice(-20);
   b.bids = (b.bids ?? []).filter((x) => x.playerId !== t.id);
   addNews(b, `💰 ${t.name} leaves ${club(b).short} for ${buyer.short} (£${bid.fee}k).`);
   b.headlines = [`${t.name} sold to ${buyer.name} for £${bid.fee}k.`, ...b.headlines].slice(0, 6);
@@ -1509,6 +1530,16 @@ function transferWeek(b: GameState) {
     const fee = Math.round(p.price * (p.listed ? 0.7 + next(b) * 0.3 : 1.0 + next(b) * 0.35) * (dd > 1 ? 1.1 : 1));
     b.bids.push({ id: `bid-${b.season}-${b.week}-${p.id}`, playerId: p.id, clubId: buyer.id, fee });
   }
+  // Release clauses on our players can be triggered by richer clubs
+  for (const p of b.players.filter((x) => x.clubId === b.clubId && x.clause && !x.loan)) {
+    if (b.players.filter((x) => x.clubId === b.clubId).length <= 14) break;
+    if (p.clause! > p.price * 1.6 || next(b) >= 0.06 * dd) continue;
+    const buyer = pick(b, b.clubs.filter((c) => c.id !== b.clubId));
+    b.bids.push({ id: `clause-${b.season}-${b.week}-${p.id}`, playerId: p.id, clubId: buyer.id, fee: p.clause! });
+    const [after] = acceptBid(b, `clause-${b.season}-${b.week}-${p.id}`);
+    Object.assign(b, after);
+    addNews(b, `🚨 ${buyer.short} trigger ${p.name}'s £${p.clause}k release clause.`);
+  }
   if (b.bids.length) addNews(b, `📨 ${b.bids.length} bid${b.bids.length > 1 ? 's' : ''} received for your players.`);
   // AI clubs trade with each other
   const moves = int(b, 0, deadlineDay(b) ? 3 : 1);
@@ -1518,6 +1549,7 @@ function transferWeek(b: GameState) {
     if (rivals.filter((x) => x.clubId === from.id).length <= 13) continue;
     const to = pick(b, b.clubs.filter((c) => c.id !== b.clubId && c.id !== from.id));
     const fee = Math.round(p.price * (0.9 + next(b) * 0.5));
+    sellOnReceipt(b, p, fee);
     p.clubId = to.id;
     p.listed = false;
     delete p.counter;

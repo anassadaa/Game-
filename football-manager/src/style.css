@@ -3858,3 +3858,7 @@ th:last-child {
 .press-a{display:grid;gap:6px}.press-a button{text-align:left;min-height:38px}
 .meter-bar{height:8px;border-radius:6px;background:rgba(0,0,0,.08);overflow:hidden;margin:6px 0}.meter-bar i{display:block;height:100%}
 .drama{color:#c0392b;font-weight:600}
+.cabinet{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}.trophy{display:grid;text-align:center;padding:8px;border-radius:10px;background:linear-gradient(#fff8dc,#f6e7a8);color:#5a4300}.trophy span{font-size:26px}.trophy small{font-size:11px}
+.stats-t{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}.stats-t td,.stats-t th{padding:4px 2px;text-align:center}.stats-t td:first-child,.stats-t th:first-child{text-align:left;width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats-t th button{background:none;border:0;color:inherit;font-weight:700;padding:4px;min-height:30px}.stats-t th button.on{text-decoration:underline}.stats-t tr:nth-child(even){background:rgba(0,0,0,.03)}
+.talk,.hl{min-width:0;max-width:100%}.press-a button,.talk .seg-row button{white-space:normal;min-width:0;max-width:100%;overflow-wrap:anywhere}

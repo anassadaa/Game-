@@ -60,6 +60,7 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { StatsPanel } from './Stats.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
 import { FacilityRows } from './Facilities.tsx';
 import { TrainingPanel } from './Training.tsx';
@@ -1402,6 +1403,7 @@ export default function App() {
                 <>
                   <BoardRoom state={state} onUpdate={update} />
                   <YouthPanel state={state} onUpdate={update} />
+                  <StatsPanel state={state} />
                   <CupPanel state={state} />
                   <CupPanel state={state} euro />
                   <WorldPanel state={state} onUpdate={update} />

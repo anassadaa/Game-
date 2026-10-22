@@ -4,6 +4,8 @@ import type { TrainingReport } from './training.ts';
 import { facilities, facilitiesWeek, stadiumBonus } from './facilities.ts';
 import type { Facilities } from './facilities.ts';
 import { dressingWeek } from './dressing.ts';
+import { addTrophy, seasonAwards } from './stats.ts';
+import type { Award, Trophy } from './stats.ts';
 import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 import type { DeepTactics } from './tactics.ts';
@@ -54,6 +56,8 @@ export type Player = {
   sharp?: number;
   unhappy?: string;
   promise?: { weeks: number; kept: number };
+  careerGoals?: number;
+  careerApps?: number;
 };
 export type Instalment = { name: string; amount: number; weeks: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
@@ -184,6 +188,8 @@ export type GameState = {
   facilities?: Facilities;
   harmony?: number;
   drama?: string;
+  trophies?: Trophy[];
+  awards?: Award[];
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1199,6 +1205,7 @@ function rollSeason(s: GameState) {
     outcome,
   });
   s.history = s.history.slice(0, 20);
+  seasonAwards(s, outcome, before);
   boardReview(s, pos, outcome);
   s.euro = newEuro(s);
   d1.slice(-k).forEach((c) => (c.division = 2));
@@ -1725,6 +1732,7 @@ function runCup(b: GameState, c: Cup | undefined, weeks: number[], prizes: numbe
     const wc = b.clubs.find((x) => x.id === w)!;
     if (w === b.clubId) {
       c.wins++;
+      addTrophy(b, label);
       b.trust = clamp(b.trust + 10);
       b.headlines = [`🏆 ${label.toUpperCase()} WINNERS! The trophy is coming home.`, ...b.headlines].slice(0, 6);
     }

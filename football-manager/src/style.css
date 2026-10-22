@@ -3875,3 +3875,5 @@ th:last-child {
 @media (max-height:500px){.sidebar nav button{min-height:40px;padding-top:6px;padding-bottom:6px}.sidebar{padding-top:10px;padding-bottom:10px}}
 .job-row{flex-wrap:wrap;gap:6px}.job-row>span{flex:1 1 220px;min-width:0}.job-result{margin:8px 0;padding:8px 10px;border-radius:8px;border:1px solid currentColor}
 .help-modal{max-height:92vh;overflow-y:auto}
+.club-option.locked{opacity:.45;cursor:not-allowed}
+.bg-blurb{font-size:.8rem;opacity:.75;margin:.2rem 0 .6rem}

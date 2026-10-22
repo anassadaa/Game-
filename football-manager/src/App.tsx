@@ -58,6 +58,7 @@ import type {
   Training,
 } from './game.ts';
 import { TransferMarket } from './Market.tsx';
+import { BACKGROUNDS, locked as clubLocked, repNeeded } from './start.ts';
 import { LEAGUES, WORLD, clubOutlook, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
 import { FinancePanel } from './Finance.tsx';
@@ -376,6 +377,8 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('home');
   const [chosen, setChosen] = useState('wrexham');
   const [pickLeague, setPickLeague] = useState(2);
+  const [bg, setBg] = useState('sandbox');
+  const bgRep = BACKGROUNDS.find((b) => b.id === bg)?.rep ?? null;
   const [tableDiv, setTableDiv] = useState<number | null>(null);
   const [toast, setToast] = useState('');
   const [help, setHelp] = useState(false);
@@ -492,6 +495,12 @@ export default function App() {
               </div>
               <span className="tag">SEASON 01</span>
             </div>
+            <select className="league-select" value={bg} onChange={(e) => setBg(e.target.value)} aria-label="Manager background">
+              {BACKGROUNDS.map((b) => (
+                <option key={b.id} value={b.id}>{b.label}{b.rep !== null ? ` · reputation ${b.rep}` : ''}</option>
+              ))}
+            </select>
+            <p className="bg-blurb">{BACKGROUNDS.find((b) => b.id === bg)?.blurb}</p>
             <select className="league-select" value={pickLeague} onChange={(e) => setPickLeague(+e.target.value)}>
               {LEAGUES.map((l) => (
                 <option key={l.division} value={l.division}>{l.flag} {l.name} · {l.country}</option>
@@ -499,12 +508,12 @@ export default function App() {
             </select>
             <div className="club-pick-list">
               {WORLD.filter((w) => w.division === pickLeague).map((c) => (
-                <button className={`club-option ${chosen === c.id ? 'active' : ''}`} key={c.id} onClick={() => setChosen(c.id)}>
+                <button className={`club-option ${chosen === c.id ? 'active' : ''} ${clubLocked(c, bgRep) ? 'locked' : ''}`} key={c.id} disabled={clubLocked(c, bgRep)} onClick={() => setChosen(c.id)}>
                   <Crest team={{ ...c, short: c.name.split(' ').slice(-1)[0]! }} />
                   <div>
                     <small>{(() => { const o = clubOutlook(WORLD, c.id); return `${o.label} · ${o.expected}`; })()}</small>
                     <h3>{c.name}</h3>
-                    <p>Strength {c.rating}</p>
+                    <p>Strength {c.rating}{clubLocked(c, bgRep) ? ` · 🔒 Needs reputation ${repNeeded(c)}` : ''}</p>
                   </div>
                   <span className="radio-check">{chosen === c.id && <Check size={14} />}</span>
                 </button>
@@ -512,7 +521,8 @@ export default function App() {
             </div>
             <button
               className="primary wide"
-              onClick={() => setState(newGame(Date.now() >>> 0, chosen))}
+              disabled={clubLocked(WORLD.find((w) => w.id === chosen) ?? WORLD[0]!, bgRep)}
+              onClick={() => setState(newGame(Date.now() >>> 0, chosen, bgRep))}
             >
               Take the manager’s seat <ArrowRight size={18} />
             </button>

@@ -506,6 +506,7 @@ export const DEFAULT_CLUB = 'wrexham';
 export function newGame(
   seed = Date.now() >>> 0,
   clubId = DEFAULT_CLUB,
+  startRep?: number | null,
 ): GameState {
   const styles: Mentality[] = ['attacking', 'balanced', 'cautious'];
   const clubs = WORLD.map((w, i): Club => ({
@@ -568,7 +569,7 @@ export function newGame(
   s.board = boardTarget(s);
   s.offers = [];
   s.sacked = false;
-  s.reputation = clamp(stature(me) - 5);
+  s.reputation = startRep == null ? clamp(stature(me) - 5) : clamp(startRep);
   s.vacancies = [];
   s.cup = newCup(s, []);
   s.euro = newEuro(s, true);

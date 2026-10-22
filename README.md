@@ -22,6 +22,8 @@ This first version uses illustrated scenes with interactive district/room/locati
 
 The Product Design mobile runtime is preserved. App code lives in `src/Prototype.tsx`, `src/prototype.css`, `src/game.ts`, `src/world.ts` and `src/save.ts`. Generated art is in `public/art`. Desktop offers iPhone and Pixel preview shells; a real phone uses its full browser viewport. A corrupted local save is offered for download before a fresh start; imports are validated and autosave stops when storage fails. No backend persistence or multiplayer is claimed.
 
+`npm run build` produces the standalone web client in `dist/client`. A Site-bound checkout additionally contains its private `.openai/hosting.json` and packages the Worker for Sites publication; that project-specific manifest is not needed to clone, develop or build this repository.
+
 ## Design and gameplay research
 
 These references informed general mechanics; no franchise artwork or characters are copied:

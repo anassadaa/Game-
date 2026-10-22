@@ -60,6 +60,7 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { ScoutsPanel } from './Scouts.tsx';
 import { StatsPanel } from './Stats.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
 import { FacilityRows } from './Facilities.tsx';
@@ -1248,6 +1249,7 @@ export default function App() {
               )}
               {tab === 'recruitment' && (
                 <>
+                  <ScoutsPanel state={state} onUpdate={update} />
                   <div className="recruitment-summary">
                     <div>
                       <Search size={25} />

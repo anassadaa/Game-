@@ -6,6 +6,8 @@ import type { Facilities } from './facilities.ts';
 import { dressingWeek } from './dressing.ts';
 import { addTrophy, seasonAwards } from './stats.ts';
 import type { Award, Trophy } from './stats.ts';
+import { scoutsWeek } from './scouts.ts';
+import type { Scout, ScoutReport } from './scouts.ts';
 import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 import type { DeepTactics } from './tactics.ts';
@@ -190,6 +192,8 @@ export type GameState = {
   drama?: string;
   trophies?: Trophy[];
   awards?: Award[];
+  scouts?: Scout[];
+  scoutReports?: ScoutReport[];
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1348,6 +1352,7 @@ export function advanceWeek(s: GameState): GameState {
   weeklyTraining(b, played);
   facilitiesWeek(b);
   dressingWeek(b, played);
+  scoutsWeek(b);
   transferWeek(b);
   b.headlines = [
     `${m.home ? 'Home' : 'Away'} to ${opp.name}: ${m.us}–${m.them}. ${m.us > m.them ? 'Three points banked.' : m.us < m.them ? 'Time to regroup.' : 'A point to build on.'}`,

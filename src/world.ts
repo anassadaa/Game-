@@ -84,7 +84,7 @@ export function tickWorld(s:Game,rng:(s:Game)=>number){
  }
  const index=Math.floor((s.day-1)/12);
  if(index!==w.seasonIndex){w.seasonIndex=index;w.goals=goals(s.day,s.stats,s.completed,s.age);note(s,'A new season brings two fresh ambitions in the chronicle.');}
- if(!s.event){const i=w.pending.findIndex(p=>p.due<=s.day);if(i>=0){const [p]=w.pending.splice(i,1);s.event=structuredClone(FOLLOWUPS[p.key]);w.nextEvent=Math.max(w.nextEvent,s.day+2);}}
+ if(!s.event&&s.day>=w.nextEvent){const i=w.pending.findIndex(p=>p.due<=s.day);if(i>=0){const [p]=w.pending.splice(i,1);s.event=structuredClone(FOLLOWUPS[p.key]);w.nextEvent=Math.max(w.nextEvent,s.day+5);}}
 }
 export function chooseStory(s:Game,stories:Story[],rng:(s:Game)=>number){
  if(s.event||s.day<s.world.nextEvent)return;
@@ -92,7 +92,7 @@ export function chooseStory(s:Game,stories:Story[],rng:(s:Game)=>number){
  let pool=stories.filter(e=>!s.recent.includes(e.key)&&eligible(e));
  if(!pool.length)pool=stories.filter(e=>!s.recent.includes(e.key));
  if(!pool.length)return;
- const e=pool[Math.floor(rng(s)*pool.length)];s.event=structuredClone(e);s.recent=[e.key,...s.recent].slice(0,8);s.world.nextEvent=s.day+4+Math.floor(rng(s)*4);
+ const e=pool[Math.floor(rng(s)*pool.length)];s.event=structuredClone(e);s.recent=[e.key,...s.recent].slice(0,8);s.world.nextEvent=s.day+7+Math.floor(rng(s)*5);
 }
 export function encounter(s:Game,t:Trip,siteName:string,rng:(s:Game)=>number):Story{
  const variants=[

@@ -1,3 +1,4 @@
+import { INTAKE_WEEK, youthIntake } from './youth.ts';
 import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 import type { DeepTactics } from './tactics.ts';
@@ -42,6 +43,7 @@ export type Player = {
   apps?: number;
   ratingSum?: number;
   motm?: number;
+  wonderkid?: boolean;
 };
 export type Instalment = { name: string; amount: number; weeks: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
@@ -164,6 +166,7 @@ export type GameState = {
   sacked?: boolean;
   cup?: Cup;
   euro?: Cup;
+  youth?: Player[];
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -418,6 +421,7 @@ export function migrate(s: GameState): GameState {
   s.sacked ??= false;
   s.cup ??= newCup(s, []);
   s.euro ??= newEuro(s, true);
+  s.youth ??= [];
   return s;
 }
 function story(s: GameState): Story {
@@ -517,6 +521,7 @@ export function newGame(
   s.sacked = false;
   s.cup = newCup(s, []);
   s.euro = newEuro(s, true);
+  s.youth = [];
   return s;
 }
 export function club(s: GameState) {
@@ -1322,6 +1327,7 @@ export function advanceWeek(s: GameState): GameState {
   runCup(b, b.cup, CUP_WEEKS, CUP_PRIZE, 'Cup');
   runCup(b, b.euro, EURO_WEEKS, EURO_PRIZE, 'Champions Cup');
   boardWeek(b);
+  if (b.week === INTAKE_WEEK + 1) youthIntake(b);
   if (b.week === 18) {
     rollSeason(b);
     rollRivals(b);

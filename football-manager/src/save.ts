@@ -190,6 +190,7 @@ export function decodeSave(raw: string): GameState | null {
       )
     )
       return null;
+    if (!Array.isArray(s.youth) || s.youth.length > 12 || !s.youth.every((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && [p.age, p.rating, p.potential].every(Number.isFinite))) s.youth = [];
     const own = s.players.filter((p) => p.clubId === s.clubId),
       ids = new Set(s.players.map((p) => p.id));
     if (

@@ -60,6 +60,7 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { YouthPanel } from './Youth.tsx';
 import { Highlights } from './Highlights.tsx';
 import { simToEnd, avgRating } from './highlights.ts';
 import { DeepTacticsPanel } from './TacticsPanel.tsx';
@@ -1393,6 +1394,7 @@ export default function App() {
               {tab === 'club' && (
                 <>
                   <BoardRoom state={state} onUpdate={update} />
+                  <YouthPanel state={state} onUpdate={update} />
                   <CupPanel state={state} />
                   <CupPanel state={state} euro />
                   <WorldPanel state={state} onUpdate={update} />

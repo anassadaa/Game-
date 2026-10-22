@@ -2,6 +2,9 @@ import {newWorld, tickWorld, chooseStory, queueFollowup, encounter, revenueFacto
 import type {World} from './world.ts';
 import {newExtra,tickExtra,validExtra} from './extras.ts';
 import type {Extra} from './extras.ts';
+import {newDiplomacy,tickDiplomacy,validDiplomacy} from './diplomacy.ts';
+import type {Diplomacy} from './diplomacy.ts';
+export * from './diplomacy.ts';
 export * from './extras.ts';
 export {seasonalGoals, claimSeasonGoal, saleFactor} from './world.ts';
 // Everstead's deterministic, serializable simulation. No timers or browser APIs here.
@@ -16,7 +19,7 @@ export type Building = {id:number;kind:BuildingKind;district:District;level:numb
 export type Choice = {label:string;detail:string;cost?:Cost;gain?:Cost;morale?:number;relation?:number;buff?:{kind:string;days:number};follow?:string};
 export type Story = {key:string;title:string;body:string;scene:'storm'|'town'|'colony'|'frontier';choices:Choice[];trip?:number};
 export type Trip = {id:number;site:string;team:number[];started:number;due:number;chance:number;encountered:boolean;careful:boolean;retreat?:boolean};
-export type Game = {world:World;extra:Extra;version:2;seed:number;day:number;age:number;legacy:number;stock:Stock;morale:number;buildings:Building[];people:Resident[];roads:District[];tech:string[];research:null|{id:string;left:number};trips:Trip[];event:Story|null;recent:string[];log:{day:number;text:string}[];weather:string;forecast:string;buffs:{kind:string;until:number}[];relations:number[];rivalGrowth:number[];contracts:{id:string;resource:Resource;amount:number;reward:number;due:number;rival:number}[];claimed:string[];discoveries:number;completed:number;nextId:number;actions:number;policy:'balanced'|'generous'|'taxes';difficulty:'explorer'|'strategist'|'survival';stats:{built:number;traded:number;crafted:number};started:boolean};
+export type Game = {world:World;extra:Extra;diplomacy:Diplomacy;version:3;seed:number;day:number;age:number;legacy:number;stock:Stock;morale:number;buildings:Building[];people:Resident[];roads:District[];tech:string[];research:null|{id:string;left:number};trips:Trip[];event:Story|null;recent:string[];log:{day:number;text:string}[];weather:string;forecast:string;buffs:{kind:string;until:number}[];relations:number[];rivalGrowth:number[];contracts:{id:string;resource:Resource;amount:number;reward:number;due:number;rival:number}[];claimed:string[];discoveries:number;completed:number;nextId:number;actions:number;policy:'balanced'|'generous'|'taxes';difficulty:'explorer'|'strategist'|'survival';stats:{built:number;traded:number;crafted:number};started:boolean};
 export const RESOURCE_NAMES:Record<Resource,string>={coins:'Coins',food:'Food',water:'Water',wood:'Wood',ore:'Ore',tools:'Tools',knowledge:'Knowledge',relics:'Relics'};
 export const AGES=['Founding','Borough','City','Legacy'];
 export const DISTRICTS:Record<District,{name:string;bonus:string}>={riverside:{name:'Riverside',bonus:'Farms & wells +20%. Exposed to flooding.'},woodland:{name:'Pinewood',bonus:'Lumber +30%. Quiet homes lift morale.'},heights:{name:'Highlands',bonus:'Quarries +30%. Safe from floods.'}};
@@ -75,7 +78,7 @@ export function workers(s:Game,b:number){return s.people.filter(p=>p.job===b&&p.
 export function skillBonus(p:Resident,skill:Skill){return 1+p.skills[skill]*.08;}
 export function person(s:Game,name?:string):Resident {const names=['Mara','Idris','Nora','Rowan','Leila','Oren','Sana','Theo','Amir','Ada','Ivy','Tariq','Lina','Finn','Noor','Ezra','Mei','Zara','Elias','Juno'];const id=s.nextId++;return{id,name:name??names[id%names.length]+(id>30?` ${Math.floor(id/20)}`:''),trait:['Patient','Curious','Practical','Adventurous'][Math.floor(rand(s)*4)],skills:{growing:1+Math.floor(rand(s)*5),craft:1+Math.floor(rand(s)*5),learning:1+Math.floor(rand(s)*5),exploring:1+Math.floor(rand(s)*5)},job:null,away:null,injury:0,xp:0};}
 export function newGame(seed=Date.now(),difficulty:Game['difficulty']='strategist',legacy=0):Game {
- const s:Game={world:newWorld(1,{built:0,traded:0,crafted:0},0),extra:newExtra(1),version:2,seed:seed>>>0,day:1,age:0,legacy,stock:{coins:280+legacy*30,food:100,water:100,wood:120,ore:35,tools:10,knowledge:12,relics:0},morale:75,buildings:[],people:[],roads:['riverside'],tech:[],research:null,trips:[],event:null,recent:[],log:[],weather:'Clear',forecast:'Rain',buffs:[],relations:[50,40,55],rivalGrowth:[10,14,9],contracts:[],claimed:[],discoveries:0,completed:0,nextId:1,actions:2,policy:'balanced',difficulty,stats:{built:0,traded:0,crafted:0},started:false};
+ const s:Game={world:newWorld(1,{built:0,traded:0,crafted:0},0),extra:newExtra(1),diplomacy:newDiplomacy(),version:3,seed:seed>>>0,day:1,age:0,legacy,stock:{coins:280+legacy*30,food:100,water:100,wood:120,ore:35,tools:10,knowledge:12,relics:0},morale:75,buildings:[],people:[],roads:['riverside'],tech:[],research:null,trips:[],event:null,recent:[],log:[],weather:'Clear',forecast:'Rain',buffs:[],relations:[50,40,55],rivalGrowth:[10,14,9],contracts:[],claimed:[],discoveries:0,completed:0,nextId:1,actions:2,policy:'balanced',difficulty,stats:{built:0,traded:0,crafted:0},started:false};
  for(const kind of ['cottage','farm','well','lumber','study'] as BuildingKind[])s.buildings.push({id:s.nextId++,kind,district:'riverside',level:1});
  for(let i=0;i<8;i++)s.people.push(person(s,['Mara','Idris','Nora','Rowan','Leila','Oren','Sana','Theo'][i]));
  s.people[0].skills.craft=5;s.people[0].skills.exploring=4;
@@ -139,6 +142,7 @@ export function tick(s:Game){if(s.event)return 'Resolve the current event before
  if(s.research){s.research.left--;if(s.research.left<=0){s.tech.push(s.research.id);note(s,`Discovered ${TECH.find(t=>t.id===s.research!.id)!.name}.`);s.research=null;}}
  tickWorld(s,rand);
  tickExtra(s,rand,person);
+ tickDiplomacy(s,rand);
  for(const t of [...s.trips]){const site=SITES.find(x=>x.id===t.site)!;if(s.day>=t.due){const success=rand(s)<t.chance;const reward=Object.fromEntries(Object.entries(site.reward).map(([k,v])=>[k,t.retreat?(k==='relics'?0:Math.floor(v*.2)):success?v:Math.floor(v*.35)]));give(s,reward);for(const id of t.team){const p=s.people.find(p=>p.id===id);if(p){p.away=null;p.skills.exploring=Math.min(12,p.skills.exploring+1);if(!success)p.injury=3;}}s.completed++;if(success&&!t.retreat)s.discoveries++;note(s,`${site.name}: ${t.retreat?'the team turned back with a small haul':success?'a successful return':'a difficult return; the team needs rest'}. ${costText(reward)} recovered.`);s.trips=s.trips.filter(x=>x.id!==t.id);}else if(!t.encountered&&s.day-t.started>=Math.ceil((t.due-t.started)/2)&&!s.event){t.encountered=true;s.event=encounter(s,t,site.name,rand);}}
  if(s.day%9===0)contracts(s);s.contracts=s.contracts.filter(c=>c.due>=s.day);s.rivalGrowth=s.rivalGrowth.map((v,i)=>v+.15+rand(s)*.3+(s.relations[i]>65?.12:0));
  chooseStory(s,EVENTS,rand);
@@ -162,7 +166,8 @@ export function restore(text:string):Game {
  const cost=(v:any,min=0)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.entries(v).every(([k,n])=>keys.includes(k as Resource)&&num(n,min,1e6));
  const fail=()=>{throw new Error('This is not a compatible Everstead save.');};
  if(s&&s.version===1&&s.extra===undefined){s.version=2;s.extra=newExtra(Number.isInteger(s.day)?s.day:1);}
- if(!s||s.version!==2||!Number.isInteger(s.day)||!num(s.day,1,1e7)||!num(s.age,0,3)||!Number.isInteger(s.age)||!num(s.seed,0,4294967295)||!num(s.nextId,1)||!num(s.legacy,0,10000)||!num(s.morale,0,100)||!num(s.actions,0,2)||!num(s.discoveries)||!num(s.completed)||typeof s.started!=='boolean'||!s.stock||!keys.every(k=>num(s.stock[k])))return fail();
+ if(s&&s.version===2){s.version=3;if(s.diplomacy===undefined)s.diplomacy=newDiplomacy();}
+ if(!s||s.version!==3||!Number.isInteger(s.day)||!num(s.day,1,1e7)||!num(s.age,0,3)||!Number.isInteger(s.age)||!num(s.seed,0,4294967295)||!num(s.nextId,1)||!num(s.legacy,0,10000)||!num(s.morale,0,100)||!num(s.actions,0,2)||!num(s.discoveries)||!num(s.completed)||typeof s.started!=='boolean'||!s.stock||!keys.every(k=>num(s.stock[k])))return fail();
  if(!list(s.people)||s.people.length<1||!list(s.buildings,36)||!list(s.trips,2)||!list(s.roads,3)||!list(s.tech,14)||!list(s.log,70)||!list(s.recent,8)||!list(s.buffs,1000)||!list(s.claimed,8)||!list(s.relations,3)||s.relations.length!==3||!list(s.rivalGrowth,3)||s.rivalGrowth.length!==3||!list(s.contracts,3))return fail();
  if(!s.roads.every((d:string)=>d in DISTRICTS)||!s.tech.every((id:string)=>TECH.some(t=>t.id===id))||!s.relations.every((v:number)=>num(v,0,100))||!s.rivalGrowth.every((v:number)=>num(v))||!s.buildings.every((b:Building)=>b&&Number.isInteger(b.id)&&b.kind in BUILDINGS&&b.district in DISTRICTS&&Number.isInteger(b.level)&&num(b.level,1,3)))return fail();
  if(!s.trips.every((t:Trip)=>t&&num(t.id,1)&&SITES.some(d=>d.id===t.site)&&list(t.team,2)&&t.team.length===2&&new Set(t.team).size===2&&num(t.started,1)&&num(t.due,t.started)&&num(t.chance,0,1)&&typeof t.encountered==='boolean'))return fail();
@@ -176,6 +181,6 @@ export function restore(text:string):Game {
  if(s.trips.some((t:Trip)=>t.team.some(id=>!s.people.some((p:Resident)=>p.id===id&&p.away===t.id)))||s.people.some((p:Resident)=>p.away!==null&&!s.trips.some((t:Trip)=>t.id===p.away&&t.team.includes(p.id))))return fail();
  if(s.event?.trip&&!s.trips.some((t:Trip)=>t.id===s.event.trip))return fail();
  if(s.world===undefined)s.world=newWorld(s.day,s.stats,s.completed,s.age);
- if(!validWorld(s.world)||!validExtra(s.extra,s))return fail();
+ if(!validWorld(s.world)||!validExtra(s.extra,s)||!validDiplomacy(s.diplomacy))return fail();
  return s as Game;
 }

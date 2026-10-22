@@ -10,6 +10,8 @@ import { agentFee, ffpSeason, ffpSpend, releaseClause, saleIncome, sellOnReceipt
 import type { Ffp, SellOn } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
 import type { Retiree } from './regens.ts';
+import { jobsWeek, repSacked, repSeason, reputation, reputationOffers, stature } from './jobs.ts';
+import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
 import type { Scout, ScoutReport } from './scouts.ts';
 import { recordRatings } from './highlights.ts';
@@ -205,6 +207,10 @@ export type GameState = {
   sellOns?: SellOn[];
   embargo?: boolean;
   retired?: Retiree[];
+  reputation?: number;
+  vacancies?: Vacancy[];
+  applied?: string[];
+  resigned?: boolean;
   scoutReports?: ScoutReport[];
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
@@ -458,6 +464,8 @@ export function migrate(s: GameState): GameState {
   s.board ??= boardTarget(s);
   s.offers ??= [];
   s.sacked ??= false;
+  s.reputation ??= reputation(s);
+  s.vacancies ??= [];
   s.cup ??= newCup(s, []);
   s.euro ??= newEuro(s, true);
   s.youth ??= [];
@@ -560,6 +568,8 @@ export function newGame(
   s.board = boardTarget(s);
   s.offers = [];
   s.sacked = false;
+  s.reputation = clamp(stature(me) - 5);
+  s.vacancies = [];
   s.cup = newCup(s, []);
   s.euro = newEuro(s, true);
   s.youth = [];
@@ -1233,6 +1243,8 @@ function rollSeason(s: GameState) {
   });
   s.history = s.history.slice(0, 20);
   seasonAwards(s, outcome, before);
+  repSeason(s, pos, outcome);
+  s.applied = [];
   addNews(s, ffpSeason(s));
   boardReview(s, pos, outcome);
   s.euro = newEuro(s);
@@ -1382,6 +1394,7 @@ export function advanceWeek(s: GameState): GameState {
   facilitiesWeek(b);
   dressingWeek(b, played);
   scoutsWeek(b);
+  jobsWeek(b, m.us, m.them, m.opponentId);
   transferWeek(b);
   b.headlines = [
     `${m.home ? 'Home' : 'Away'} to ${opp.name}: ${m.us}–${m.them}. ${m.us > m.them ? 'Three points banked.' : m.us < m.them ? 'Time to regroup.' : 'A point to build on.'}`,
@@ -1624,13 +1637,8 @@ function leaguePos(s: GameState) {
   return standings(s).filter((c) => c.division === club(s).division).findIndex((c) => c.id === s.clubId) + 1;
 }
 function makeOffers(s: GameState, better: boolean) {
-  const mine = club(s);
-  const pool = s.clubs.filter((c) => c.id !== s.clubId && (better ? c.rating > mine.rating : c.rating <= mine.rating + 2));
-  pool.sort(() => next(s) - 0.5);
-  // Never leave a sacked manager without a way back into the game.
-  if (!pool.length && !better)
-    pool.push(...s.clubs.filter((c) => c.id !== s.clubId).sort((a, b) => a.rating - b.rating).slice(0, 3));
-  s.offers = pool.slice(0, better ? 2 : 3).map((c) => c.id);
+  // Scaled by manager reputation; never leaves a sacked manager without a way back.
+  s.offers = reputationOffers(s, better);
 }
 function boardWeek(s: GameState) {
   if (s.sacked) return;
@@ -1645,6 +1653,7 @@ function boardWeek(s: GameState) {
 }
 function sack(s: GameState, why: string) {
   s.sacked = true;
+  repSacked(s);
   makeOffers(s, false);
   s.headlines = [`❌ Sacked! ${why}`, ...s.headlines].slice(0, 6);
 }
@@ -1703,6 +1712,8 @@ export function takeJob(s: GameState, clubId: string): GameState {
   b.trust = 60;
   b.fans = clamp(b.fans - 5);
   b.sacked = false;
+  b.resigned = false;
+  b.vacancies = (b.vacancies ?? []).filter((v) => v.clubId !== clubId);
   b.board = boardTarget(b);
   b.headlines = [`🤝 You are the new manager of ${target.name}!`, ...b.headlines].slice(0, 6);
   addNews(b, `🎙️ ${target.short} appoint a new manager, who leaves ${old.short}.`);

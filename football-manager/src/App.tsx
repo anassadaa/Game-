@@ -64,6 +64,7 @@ import { FinancePanel } from './Finance.tsx';
 import { agentFee, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
+import { JobCentre } from './Jobs.tsx';
 import { ScoutsPanel } from './Scouts.tsx';
 import { StatsPanel } from './Stats.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
@@ -1412,6 +1413,7 @@ export default function App() {
               {tab === 'club' && (
                 <>
                   <BoardRoom state={state} onUpdate={update} />
+                  <JobCentre state={state} onUpdate={update} />
                   <YouthPanel state={state} onUpdate={update} />
                   <StatsPanel state={state} />
                   <CupPanel state={state} />

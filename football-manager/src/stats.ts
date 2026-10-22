@@ -1,3 +1,4 @@
+import { repTrophy } from './jobs.ts';
 import type { GameState, Player } from './game.ts';
 import { avgRating } from './highlights.ts';
 import { leagueName } from './world.ts';
@@ -9,6 +10,7 @@ export function addTrophy(s: GameState, name: string) {
   const c = s.clubs.find((x) => x.id === s.clubId)!;
   (s.trophies ??= []).unshift({ season: s.season, name, club: c.name });
   s.trophies = s.trophies.slice(0, 60);
+  repTrophy(s);
 }
 const own = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId);
 export function leaders(s: GameState) {

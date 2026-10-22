@@ -1,6 +1,7 @@
 import { leagueName } from './world.ts';
 import { declineOffers, standings, takeJob } from './game.ts';
 import type { GameState } from './game.ts';
+import { JobCentre } from './Jobs.tsx';
 
 const ord = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
@@ -64,11 +65,12 @@ export function SackedModal({ state, onUpdate, onNewCareer }: { state: GameState
   return (
     <div className="modal-backdrop">
       <section className="help-modal" role="dialog" aria-label="Sacked">
-        <span className="eyebrow">YOU HAVE BEEN SACKED</span>
-        <h2>Clear your desk</h2>
-        <p>{state.headlines.find((h) => h.includes('Sacked')) ?? 'The board has relieved you of your duties.'}</p>
-        <p>Some clubs still believe in you:</p>
+        <span className="eyebrow">{state.resigned ? 'YOU RESIGNED' : 'YOU HAVE BEEN SACKED'}</span>
+        <h2>{state.resigned ? 'Between jobs' : 'Clear your desk'}</h2>
+        <p>{state.resigned ? 'You are a free agent. Pick an offer or apply for a vacancy.' : state.headlines.find((h) => h.includes('Sacked')) ?? 'The board has relieved you of your duties.'}</p>
+        <p>Clubs interested in you:</p>
         <Offers state={state} onUpdate={onUpdate} />
+        <JobCentre state={state} onUpdate={onUpdate} />
         <button className="text-button wide" onClick={onNewCareer}>
           Start a new career instead
         </button>

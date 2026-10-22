@@ -1,5 +1,9 @@
 # Touchline — Club Architect
 
+[Play Touchline](https://touchline-club-architect.anassadaacca.chatgpt.site) · Private to the owner’s ChatGPT account.
+
+![Android phone preview](docs/screenshots/phone-preview.jpg)
+
 An original football management game built for phones and desktop browsers. Choose Harbour Vale, Marlowe Town or Bracken Athletic and build a long-running career in a fictional two-division world. This game is independent of Everstead, which lives in the sibling `everstead/` directory.
 
 ## Play

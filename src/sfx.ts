@@ -21,7 +21,7 @@ function unlock(){const c=ensure();if(!c)return;
  if(c.state==='running')for(const ev of EVENTS)window.removeEventListener(ev,unlock,true);}
 const EVENTS=['pointerdown','touchstart','touchend','mousedown','keydown','click'];
 if(typeof window!=='undefined')for(const ev of EVENTS)window.addEventListener(ev,unlock,{capture:true,passive:true});
-function tone(freq:number,start:number,dur:number,type:OscillatorType='sine',vol=.3){if(!ctx||!master)return;const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.value=freq;const t=ctx.currentTime+start+.02;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(master);o.start(t);o.stop(t+dur+.05);}
+function tone(freq:number,start:number,dur:number,type:OscillatorType='sine',vol=.3){if(!ctx||!master)return;const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.value=freq;const t=ctx.currentTime+start+.02;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(master);o.onended=()=>{o.disconnect();g.disconnect()};o.start(t);o.stop(t+dur+.05);}
 export function play(kind:'build'|'day'|'reward'|'alert'){if(isMuted())return;const c=ensure();if(!c)return;
  const go=()=>{
  if(kind==='build'){tone(180,0,.14,'square',.5);tone(240,.1,.16,'square',.5);tone(360,.2,.25,'triangle',.8);}
@@ -37,8 +37,8 @@ export function startMusic(){if(music||isMuted()||!musicOn())return;const c=ensu
  const gain=c.createGain();gain.gain.value=0;gain.connect(master);gain.gain.linearRampToValueAtTime(.5,c.currentTime+3);
  let step=0,next=c.currentTime+.1;
  const sched=()=>{while(next<c.currentTime+4){const ch=CHORDS[step%CHORDS.length];
-  for(const f of ch){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f/2;g.gain.setValueAtTime(.0001,next);g.gain.linearRampToValueAtTime(.3,next+1.5);g.gain.linearRampToValueAtTime(.0001,next+4.2);o.connect(g).connect(gain);o.start(next);o.stop(next+4.3);}
-  for(let i=0;i<2;i++){const t=next+.5+i*1.7+((step*7+i*3)%5)*.1,f=SCALE[(step*5+i*2)%SCALE.length];const o=c.createOscillator(),g=c.createGain();o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.35,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+1.4);o.connect(g).connect(gain);o.start(t);o.stop(t+1.5);}
+  for(const f of ch){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f/2;g.gain.setValueAtTime(.0001,next);g.gain.linearRampToValueAtTime(.3,next+1.5);g.gain.linearRampToValueAtTime(.0001,next+4.2);o.onended=()=>{o.disconnect();g.disconnect()};o.connect(g).connect(gain);o.start(next);o.stop(next+4.3);}
+  for(let i=0;i<2;i++){const t=next+.5+i*1.7+((step*7+i*3)%5)*.1,f=SCALE[(step*5+i*2)%SCALE.length];const o=c.createOscillator(),g=c.createGain();o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.35,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+1.4);o.onended=()=>{o.disconnect();g.disconnect()};o.connect(g).connect(gain);o.start(t);o.stop(t+1.5);}
   next+=4;step++;}};
  sched();music={gain,timer:window.setInterval(sched,1000)};}
 export function stopMusic(){if(!music||!ctx)return;const m=music;music=null;clearInterval(m.timer);m.gain.gain.cancelScheduledValues(ctx.currentTime);m.gain.gain.setValueAtTime(m.gain.gain.value,ctx.currentTime);m.gain.gain.linearRampToValueAtTime(0,ctx.currentTime+.8);setTimeout(()=>m.gain.disconnect(),1000);}

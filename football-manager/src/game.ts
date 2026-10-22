@@ -1,3 +1,4 @@
+import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 import type { DeepTactics } from './tactics.ts';
 import { EURO_QUOTA, LEAGUES, WORLD, starsFor, league, sameCountry } from './world.ts';
@@ -38,6 +39,9 @@ export type Player = {
   loan?: boolean;
   counter?: number;
   listed?: boolean;
+  apps?: number;
+  ratingSum?: number;
+  motm?: number;
 };
 export type Instalment = { name: string; amount: number; weeks: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
@@ -341,26 +345,26 @@ const STORY_TEMPLATES = [
   },
 ];
 export const storyIds = STORY_TEMPLATES.map((t) => t.id);
-const clamp = (n: number, min = 0, max = 100) =>
+export const clamp = (n: number, min = 0, max = 100) =>
   Math.max(min, Math.min(max, Math.round(n)));
 // Rival players are flat records (their nested attrs are never mutated), so a shallow copy is enough and keeps phones fast.
-const copy = (s: GameState): GameState => {
+export const copy = (s: GameState): GameState => {
   const b = structuredClone({ ...s, rivals: undefined }) as GameState;
   if (s.rivals) b.rivals = s.rivals.map((p) => ({ ...p }));
   else delete b.rivals;
   return b;
 };
-function next(s: GameState): number {
+export function next(s: GameState): number {
   s.seed = (Math.imul(1664525, s.seed) + 1013904223) >>> 0;
   return s.seed / 4294967296;
 }
-function int(s: GameState, min: number, max: number) {
+export function int(s: GameState, min: number, max: number) {
   return min + Math.floor(next(s) * (max - min + 1));
 }
-function pick<T>(s: GameState, arr: T[]): T {
+export function pick<T>(s: GameState, arr: T[]): T {
   return arr[Math.floor(next(s) * arr.length)]!;
 }
-function makePlayer(
+export function makePlayer(
   s: GameState,
   clubId: string,
   i: number,
@@ -1038,6 +1042,7 @@ export function advanceMatch(s: GameState): GameState {
   if (m.minute === 90) {
     m.complete = true;
     rateMatch(b);
+    recordRatings(b);
     m.timeline.push({
       minute: 90,
       text: `Full-time. ${club(b).short} ${m.us}–${m.them} ${opponent(b).short}.`,
@@ -1568,7 +1573,7 @@ function boardReview(s: GameState, pos: number, outcome: string) {
     s.headlines = [`⚠️ Board objective missed: ${b.objective}. They expect more.`, ...s.headlines];
   }
 }
-function pickXI(s: GameState) {
+export function pickXI(s: GameState) {
   const own = s.players.filter((p) => p.clubId === s.clubId);
   own.forEach((p) => (p.starting = false));
   const fit = own.filter((p) => !p.injured);

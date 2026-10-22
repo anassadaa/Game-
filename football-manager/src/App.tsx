@@ -60,6 +60,8 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { Highlights } from './Highlights.tsx';
+import { simToEnd, avgRating } from './highlights.ts';
 import { DeepTacticsPanel } from './TacticsPanel.tsx';
 import { FORMATIONS } from './tactics.ts';
 import { CupPanel } from './Cup.tsx';
@@ -309,6 +311,12 @@ function PlayerCard({
           {player.personality} · <Stars p={player} /> ·{' '}
           {player.loan ? 'On loan' : `Contract ${player.contract ?? '?'}y`}
         </p>
+        {!!player.apps && (
+          <p>
+            {player.apps} apps · avg {avgRating(player).toFixed(2)}
+            {player.motm ? ` · ★ MOTM ×${player.motm}` : ''}
+          </p>
+        )}
         <AttrGrid p={player} />
         <div className="player-bars">
           <span>
@@ -766,9 +774,8 @@ export default function App() {
                         ))}
                     </div>
                   </div>
-                ) : (
-                  <Pitch players={roster} compact />
-                )}
+                ) : null}
+                <Highlights state={state} onSkip={() => update(simToEnd(state))} />
                 <div className="match-cta">
                   <button className="primary wide" onClick={matchAction}>
                     {actionLabel}

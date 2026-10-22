@@ -63,6 +63,7 @@ import { WorldPanel } from './World.tsx';
 import { FinancePanel } from './Finance.tsx';
 import { agentFee, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
+import { DepthPanel } from './Depth.tsx';
 import { ScoutsPanel } from './Scouts.tsx';
 import { StatsPanel } from './Stats.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
@@ -1056,6 +1057,7 @@ export default function App() {
               {tab === 'squad' && (
                 <>
                   <DressingPanel state={state} onUpdate={update} />
+                  <DepthPanel state={state} onUpdate={update} />
                   <div className="squad-banner">
                     <div>
                       <span className="eyebrow">

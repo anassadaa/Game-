@@ -3854,3 +3854,7 @@ th:last-child {
 .indiv{display:grid;gap:6px}.indiv-row{display:grid;grid-template-columns:1fr 1fr;gap:4px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.06)}
 .indiv-name{grid-column:1/-1;display:flex;justify-content:space-between;gap:6px;min-width:0}.indiv-name b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .indiv-row select{min-width:0;width:100%;min-height:34px}
+.talk{margin:10px 0;padding:10px;border-radius:10px;background:rgba(47,128,237,.08);display:grid;gap:6px}.talk p{margin:0}
+.press-a{display:grid;gap:6px}.press-a button{text-align:left;min-height:38px}
+.meter-bar{height:8px;border-radius:6px;background:rgba(0,0,0,.08);overflow:hidden;margin:6px 0}.meter-bar i{display:block;height:100%}
+.drama{color:#c0392b;font-weight:600}

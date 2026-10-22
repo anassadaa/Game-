@@ -199,6 +199,11 @@ export function decodeSave(raw: string): GameState | null {
       if (p.sharp !== undefined && !Number.isFinite(p.sharp)) delete p.sharp;
     }
     if (!validFacilities(s.facilities)) return null;
+    if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
+    for (const p of s.players) {
+      if (p.unhappy !== undefined && typeof p.unhappy !== 'string') delete p.unhappy;
+      if (p.promise !== undefined && !(Number.isInteger(p.promise?.weeks) && Number.isInteger(p.promise?.kept))) delete p.promise;
+    }
     const own = s.players.filter((p) => p.clubId === s.clubId),
       ids = new Set(s.players.map((p) => p.id));
     if (

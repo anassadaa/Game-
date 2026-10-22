@@ -3,6 +3,7 @@ import { sharpness, weeklyTraining } from './training.ts';
 import type { TrainingReport } from './training.ts';
 import { facilities, facilitiesWeek, stadiumBonus } from './facilities.ts';
 import type { Facilities } from './facilities.ts';
+import { dressingWeek } from './dressing.ts';
 import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 import type { DeepTactics } from './tactics.ts';
@@ -51,6 +52,8 @@ export type Player = {
   focus?: AttrKey;
   retrain?: { to: Position; progress: number };
   sharp?: number;
+  unhappy?: string;
+  promise?: { weeks: number; kept: number };
 };
 export type Instalment = { name: string; amount: number; weeks: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
@@ -133,6 +136,8 @@ export type Match = {
   complete: boolean;
   ratings?: Record<string, number>;
   motm?: string;
+  talks?: number[];
+  pressDone?: boolean;
 };
 export type CareerRecord = {
   season: number;
@@ -177,6 +182,8 @@ export type GameState = {
   drills?: string[];
   trainingReport?: TrainingReport;
   facilities?: Facilities;
+  harmony?: number;
+  drama?: string;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1333,6 +1340,7 @@ export function advanceWeek(s: GameState): GameState {
   train(b);
   weeklyTraining(b, played);
   facilitiesWeek(b);
+  dressingWeek(b, played);
   transferWeek(b);
   b.headlines = [
     `${m.home ? 'Home' : 'Away'} to ${opp.name}: ${m.us}–${m.them}. ${m.us > m.them ? 'Three points banked.' : m.us < m.them ? 'Time to regroup.' : 'A point to build on.'}`,

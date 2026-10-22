@@ -60,6 +60,7 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
 import { FacilityRows } from './Facilities.tsx';
 import { TrainingPanel } from './Training.tsx';
 import { YouthPanel } from './Youth.tsx';
@@ -778,6 +779,8 @@ export default function App() {
                     </div>
                   </div>
                 ) : null}
+                <TeamTalk state={state} onUpdate={update} />
+                <PressRoom state={state} onUpdate={update} />
                 <Highlights state={state} onSkip={() => update(simToEnd(state))} />
                 <div className="match-cta">
                   <button className="primary wide" onClick={matchAction}>
@@ -1046,6 +1049,7 @@ export default function App() {
               )}
               {tab === 'squad' && (
                 <>
+                  <DressingPanel state={state} onUpdate={update} />
                   <div className="squad-banner">
                     <div>
                       <span className="eyebrow">

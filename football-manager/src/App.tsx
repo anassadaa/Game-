@@ -60,6 +60,7 @@ import type {
 import { TransferMarket } from './Market.tsx';
 import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
+import { FacilityRows } from './Facilities.tsx';
 import { TrainingPanel } from './Training.tsx';
 import { YouthPanel } from './Youth.tsx';
 import { Highlights } from './Highlights.tsx';
@@ -1446,6 +1447,7 @@ export default function App() {
                           </div>
                         </div>
                       ))}
+                      <FacilityRows state={state} onUpdate={update} />
                     </section>
                     <section className="legacy-card">
                       <Trophy size={31} />

@@ -1,6 +1,8 @@
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
 import { sharpness, weeklyTraining } from './training.ts';
 import type { TrainingReport } from './training.ts';
+import { facilities, facilitiesWeek, stadiumBonus } from './facilities.ts';
+import type { Facilities } from './facilities.ts';
 import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 import type { DeepTactics } from './tactics.ts';
@@ -174,6 +176,7 @@ export type GameState = {
   youth?: Player[];
   drills?: string[];
   trainingReport?: TrainingReport;
+  facilities?: Facilities;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -430,6 +433,7 @@ export function migrate(s: GameState): GameState {
   s.euro ??= newEuro(s, true);
   s.youth ??= [];
   s.drills ??= [];
+  facilities(s);
   return s;
 }
 function story(s: GameState): Story {
@@ -531,6 +535,7 @@ export function newGame(
   s.euro = newEuro(s, true);
   s.youth = [];
   s.drills = [];
+  facilities(s);
   return s;
 }
 export function club(s: GameState) {
@@ -1312,7 +1317,7 @@ export function advanceWeek(s: GameState): GameState {
     (league(club(b).division).tier === 1 ? 130 : 90) +
     (m.home ? 90 + Math.round(b.fans * 0.5) : 35) +
     Math.round(b.fans * 0.2);
-  b.budget += income - wages;
+  b.budget += income - wages + stadiumBonus(b, m.home);
   for (const i of b.instalments ?? []) {
     b.budget -= i.amount;
     i.weeks--;
@@ -1327,6 +1332,7 @@ export function advanceWeek(s: GameState): GameState {
   const played = new Set(Object.keys(m.ratings ?? {}));
   train(b);
   weeklyTraining(b, played);
+  facilitiesWeek(b);
   transferWeek(b);
   b.headlines = [
     `${m.home ? 'Home' : 'Away'} to ${opp.name}: ${m.us}–${m.them}. ${m.us > m.them ? 'Three points banked.' : m.us < m.them ? 'Time to regroup.' : 'A point to build on.'}`,

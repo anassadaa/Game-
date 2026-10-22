@@ -1,4 +1,5 @@
 import type { AttrKey, GameState, Player, Position } from './game.ts';
+import { trainingBoost } from './facilities.ts';
 import { ATTRS, clamp, copy, next } from './game.ts';
 
 export const DRILLS: { id: string; name: string; attr: AttrKey; cost: number }[] = [
@@ -47,7 +48,7 @@ export function weeklyTraining(s: GameState, played: Set<string>) {
   const drills = DRILLS.filter((d) => (s.drills ?? []).includes(d.id));
   const lines: string[] = [];
   for (const p of s.players.filter((x) => x.clubId === s.clubId)) {
-    const young = p.age < 24 ? 1.4 : p.age > 30 ? 0.6 : 1;
+    const young = (p.age < 24 ? 1.4 : p.age > 30 ? 0.6 : 1) * trainingBoost(s);
     const gains: string[] = [];
     for (const d of drills) {
       p.fitness = clamp(p.fitness - d.cost * 0.5);

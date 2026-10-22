@@ -13,6 +13,7 @@ import type { Retiree } from './regens.ts';
 import { jobsWeek, repSacked, repSeason, reputation, reputationOffers, stature } from './jobs.ts';
 import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
+import { agentsWeek, release, type AgentMsg } from './agents.ts';
 import { dofDiscount, injuryFactor, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
 import type { Staff } from './staff.ts';
 import type { Scout, ScoutReport } from './scouts.ts';
@@ -61,6 +62,7 @@ export type Player = {
   loan?: boolean;
   counter?: number;
   listed?: boolean;
+  released?: boolean;
   apps?: number;
   ratingSum?: number;
   motm?: number;
@@ -212,6 +214,7 @@ export type GameState = {
   embargo?: boolean;
   retired?: Retiree[];
   reputation?: number;
+  agentMsgs?: AgentMsg[];
   vacancies?: Vacancy[];
   applied?: string[];
   resigned?: boolean;
@@ -470,6 +473,7 @@ export function migrate(s: GameState): GameState {
   s.sacked ??= false;
   s.reputation ??= reputation(s);
   s.vacancies ??= [];
+  s.agentMsgs ??= [];
   if (!s.staffMarket) refreshStaffMarket(s);
   // New divisions added after this save was made: bring their clubs and squads in.
   WORLD.forEach((w, i) => {
@@ -498,6 +502,7 @@ function story(s: GameState): Story {
   };
 }
 function refreshMarket(s: GameState) {
+  const kept = s.market.filter((p) => p.released).slice(-12);
   s.market = [];
   for (let i = 0; i < 8; i++)
     s.market.push(
@@ -513,6 +518,7 @@ function refreshMarket(s: GameState) {
     p.starting = false;
     p.price = Math.max(65, Math.round(p.price * (0.8 + next(s) * 0.6)));
   });
+  s.market.push(...kept);
 }
 export const DEFAULT_CLUB = 'wrexham';
 const STYLES: Mentality[] = ['attacking', 'balanced', 'cautious'];
@@ -587,6 +593,7 @@ export function newGame(
   s.sacked = false;
   s.reputation = startRep == null ? clamp(stature(me) - 5) : clamp(startRep);
   s.vacancies = [];
+  s.agentMsgs = [];
   refreshStaffMarket(s);
   s.cup = newCup(s, []);
   s.euro = newEuro(s, true);
@@ -1291,6 +1298,7 @@ function rollSeason(s: GameState) {
     c.rating = clamp(c.rating + int(s, -2, 2), 40, 85);
   });
   const leaving: string[] = [];
+  const freed: Player[] = [];
   s.players = s.players.filter((p) => {
     p.age++;
     if (p.loan) {
@@ -1300,6 +1308,7 @@ function rollSeason(s: GameState) {
     p.contract = (p.contract ?? 1) - 1;
     if (p.contract <= 0) {
       leaving.push(`${p.name} (contract expired)`);
+      freed.push(p);
       return false;
     }
     if (retires(s, p)) {
@@ -1364,6 +1373,11 @@ function rollSeason(s: GameState) {
   s.week = 0;
   s.match = null;
   refreshMarket(s);
+  freed.forEach((p) => release(s, p));
+  // A few rival veterans are released into the free-agent pool each summer.
+  const vets = (s.rivals ?? []).filter((p) => p.age >= 30 && next(s) < 0.02).slice(0, 4);
+  if (vets.length) { const ids = new Set(vets.map((p) => p.id)); s.rivals = s.rivals!.filter((p) => !ids.has(p.id)); vets.forEach((p) => release(s, p)); }
+  s.agentMsgs = [];
   s.inbox = story(s);
   s.headlines = [
     `Season ${s.season - 1}: ${outcome.toLowerCase()}! You finished ${pos}${pos === 1 ? 'st' : pos === 2 ? 'nd' : pos === 3 ? 'rd' : 'th'}. ${recruits.length} academy prospects join the squad.`,
@@ -1420,6 +1434,7 @@ export function advanceWeek(s: GameState): GameState {
   dressingWeek(b, played);
   scoutsWeek(b);
   staffWeek(b);
+  agentsWeek(b);
   jobsWeek(b, m.us, m.them, m.opponentId);
   transferWeek(b);
   b.headlines = [

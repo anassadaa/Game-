@@ -67,6 +67,7 @@ import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
 import { JobCentre } from './Jobs.tsx';
 import { ScoutsPanel } from './Scouts.tsx';
+import { FreeAgents, Inbox } from './Inbox.tsx';
 import { StaffRoom } from './Staff.tsx';
 import { dofDiscount } from './staff.ts';
 import { StatsPanel } from './Stats.tsx';
@@ -871,6 +872,13 @@ export default function App() {
             <>
               {tab === 'home' && (
                 <>
+                  <Inbox
+                    state={state}
+                    onUpdate={update}
+                    onTalks={(p, wage) =>
+                      setDeal({ id: p.id, fee: p.counter ?? Math.round(askingPrice(p) * 0.85), wage, years: 3, instalments: false, swapId: '' })
+                    }
+                  />
                   <div className="overview-grid">
                     <section className="fixture-hero">
                       <div className="fixture-top">
@@ -1269,6 +1277,7 @@ export default function App() {
               {tab === 'recruitment' && (
                 <>
                   <ScoutsPanel state={state} onUpdate={update} />
+                  <FreeAgents state={state} onUpdate={update} />
                   <FinancePanel state={state} onUpdate={update} />
                   <RegensPanel state={state} />
                   <div className="recruitment-summary">

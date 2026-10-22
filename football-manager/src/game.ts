@@ -29,7 +29,44 @@ export type Player = {
   assists: number;
   academyGraduate?: boolean;
   injured?: number;
+  attrs?: Attrs;
+  personality?: Personality;
 };
+export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
+export type AttrKey = (typeof ATTRS)[number];
+export type Attrs = Record<AttrKey, number>;
+export const PERSONALITIES = ['Professional', 'Ambitious', 'Loyal', 'Temperamental', 'Leader', 'Easy-going'] as const;
+export type Personality = (typeof PERSONALITIES)[number];
+const PROFILE: Record<Position, Record<AttrKey, number>> = {
+  GK: { pace: -14, shooting: -22, passing: -6, defending: 2, stamina: -4, mental: 6, goalkeeping: 14 },
+  DF: { pace: 0, shooting: -12, passing: -2, defending: 10, stamina: 4, mental: 3, goalkeeping: -30 },
+  MF: { pace: 1, shooting: 0, passing: 9, defending: -2, stamina: 6, mental: 4, goalkeeping: -30 },
+  FW: { pace: 7, shooting: 10, passing: 1, defending: -14, stamina: 1, mental: 0, goalkeeping: -30 },
+};
+function hash(str: string) {
+  let h = 2166136261;
+  for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return h;
+}
+/** Attribute offsets are stored relative to overall, so overall growth lifts every skill. */
+export function ensureProfile(p: Player) {
+  let h = hash(p.id + p.name);
+  const rnd = () => ((h = (Math.imul(1664525, h) + 1013904223) >>> 0) / 4294967296);
+  if (!p.attrs) {
+    const a = {} as Attrs;
+    for (const k of ATTRS) a[k] = Math.round(PROFILE[p.position][k] + (rnd() - 0.5) * 12) + 0;
+    p.attrs = a;
+  }
+  if (!p.personality) p.personality = PERSONALITIES[Math.floor(rnd() * PERSONALITIES.length)]!;
+}
+export function attributes(p: Player): Attrs {
+  ensureProfile(p);
+  const out = {} as Attrs;
+  for (const k of ATTRS) out[k] = Math.max(1, Math.min(99, p.rating + p.attrs![k]));
+  return out;
+}
+export const potentialStars = (p: Pick<Player, 'potential'>) =>
+  Math.max(0.5, Math.min(5, Math.round(((p.potential - 40) / 50) * 10) / 2));
 export type Club = {
   id: string;
   name: string;
@@ -328,7 +365,7 @@ function makePlayer(
 ): Player {
   const rating = clamp(base + int(s, -9, 8), 35, 88),
     age = academyGraduate ? 17 + int(s, 0, 2) : 18 + int(s, 0, 15);
-  return {
+  const player: Player = {
     id: `p${s.season}-${s.week}-${i}-${s.seed}`,
     name: uniqueName(s),
     age,
@@ -345,6 +382,8 @@ function makePlayer(
     assists: 0,
     academyGraduate,
   };
+  ensureProfile(player);
+  return player;
 }
 function uniqueName(s: GameState): string {
   const used = new Set([...s.players, ...s.market].map((p) => p.name));
@@ -360,6 +399,7 @@ function uniqueName(s: GameState): string {
 export function migrate(s: GameState): GameState {
   const v = s as unknown as { version: number };
   if (v.version === 1) v.version = 2;
+  [...s.players, ...s.market].forEach(ensureProfile);
   return s;
 }
 function story(s: GameState): Story {
@@ -756,7 +796,12 @@ export function advanceMatch(s: GameState): GameState {
     (b.tactics.tempo === 'quick' ? 1 : 0);
   b.players
     .filter((p) => p.starting)
-    .forEach((p) => (p.fitness = clamp(p.fitness - energyCost)));
+    .forEach(
+      (p) =>
+        (p.fitness = clamp(
+          p.fitness - energyCost * (attributes(p).stamina >= 70 ? 0.7 : 1),
+        )),
+    );
   for (const side of ['us', 'them'] as const) {
     const us = side === 'us';
     let edge = (strength(b, us) - strength(b, !us)) * 0.012;
@@ -938,6 +983,8 @@ function train(s: GameState) {
       p.rating < p.potential
     )
       p.rating++;
+    if (p.personality === 'Temperamental') p.morale = clamp(p.morale + int(s, -4, 4));
+    if (p.personality === 'Professional' && p.age < 27 && p.rating < p.potential && next(s) < 0.04) p.rating++;
     if (starter && p.fitness < 38 && next(s) < 0.09) p.injured = int(s, 1, 3);
   }
 }

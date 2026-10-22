@@ -1,5 +1,5 @@
 import type { GameState } from './game.ts';
-import { migrate, storyIds } from './game.ts';
+import { ATTRS, PERSONALITIES, migrate, storyIds } from './game.ts';
 
 export const SAVE_KEY = 'touchline-career-v1';
 export const encodeSave = (state: GameState) => JSON.stringify(state);
@@ -60,7 +60,13 @@ export function decodeSave(raw: string): GameState | null {
       p.morale >= 0 &&
       p.morale <= 100 &&
       p.wage >= 0 &&
-      p.price >= 0;
+      p.price >= 0 &&
+      (p.attrs === undefined ||
+        (typeof p.attrs === 'object' &&
+          p.attrs !== null &&
+          ATTRS.every((k) => Number.isFinite(p.attrs![k])))) &&
+      (p.personality === undefined ||
+        (PERSONALITIES as readonly string[]).includes(p.personality));
     if (
       !s.market.every(
         (p) => validPlayer(p) && p.clubId === 'market' && !p.starting,

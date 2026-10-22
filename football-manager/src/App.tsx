@@ -28,7 +28,9 @@ import {
 import {
   advanceMatch,
   advanceWeek,
+  attributes,
   chooseEvent,
+  potentialStars,
   club,
   homeFixture,
   newGame,
@@ -228,6 +230,38 @@ function Table({ state, full = false }: { state: GameState; full?: boolean }) {
   );
 }
 
+const ATTR_LABEL: Record<string, string> = {
+  pace: 'PAC',
+  shooting: 'SHO',
+  passing: 'PAS',
+  defending: 'DEF',
+  stamina: 'STA',
+  mental: 'MEN',
+  goalkeeping: 'GK',
+};
+export function Stars({ p }: { p: Player }) {
+  const n = potentialStars(p);
+  return (
+    <span className="stars" title={`Potential ${p.potential}`}>
+      {'★'.repeat(Math.floor(n))}
+      {n % 1 ? '½' : ''}
+    </span>
+  );
+}
+export function AttrGrid({ p }: { p: Player }) {
+  const a = attributes(p);
+  return (
+    <div className="attr-grid">
+      {Object.entries(a)
+        .filter(([k]) => (p.position === 'GK') === (k === 'goalkeeping') || k === 'mental' || k === 'passing')
+        .map(([k, v]) => (
+          <span key={k}>
+            {ATTR_LABEL[k]} <b>{v}</b>
+          </span>
+        ))}
+    </div>
+  );
+}
 function PlayerCard({
   player,
   onStart,
@@ -259,6 +293,10 @@ function PlayerCard({
           {player.age} years · {player.position} · {money(player.wage)}/wk
           {player.injured ? ` · Injured ${player.injured}w` : ''}
         </p>
+        <p>
+          {player.personality} · <Stars p={player} />
+        </p>
+        <AttrGrid p={player} />
         <div className="player-bars">
           <span>
             FIT <Meter value={player.fitness} />
@@ -1234,14 +1272,16 @@ export default function App() {
                           <div>
                             <h3>{p.name}</h3>
                             <p>
-                              {p.age} years · {p.position}
+                              {p.age} years · {p.position} · {p.personality}
                             </p>
+                            <Stars p={p} />
                           </div>
                           <div className="rating">
                             <b>{p.rating}</b>
                             <small>OVR</small>
                           </div>
                         </div>
+                        <AttrGrid p={p} />
                         <div className="market-stats">
                           <span>
                             Potential<b>{p.potential}</b>

@@ -15,15 +15,16 @@ import {
   standings,
 } from '../src/game.ts';
 
-test('new careers are seeded and have a playable two-division world', () => {
-  const a = newGame(421, 'harbour');
-  assert.deepEqual(a, newGame(421, 'harbour'));
-  assert.equal(a.clubs.length, 20);
+test('new careers are seeded and have a playable multi-league world', () => {
+  const a = newGame(421, 'wrexham');
+  assert.deepEqual(a, newGame(421, 'wrexham'));
+  assert.equal(a.clubs.length, 152);
   assert.equal(
     a.players.filter((p) => p.clubId === a.clubId && p.starting).length,
     11,
   );
-  assert.equal(standings(a).filter((c) => c.division === 2).length, 10);
+  assert.equal(standings(a).filter((c) => c.division === 2).length, 20);
+  assert.equal(new Set(a.clubs.map((c) => c.division)).size, 8);
   assert.ok(a.inbox);
 });
 
@@ -131,7 +132,7 @@ test('a twenty-season career retains a legal squad and exportable save size', ()
   assert.equal(state.season, 21);
   assert.ok(state.players.length <= 25);
   assert.equal(state.players.filter((p) => p.starting).length, 11);
-  assert.ok(JSON.stringify(state).length < 2_000_000);
+  assert.ok(JSON.stringify(state).length < 6_000_000);
 });
 
 test('high pressing and quick tempo consume more energy during a match', () => {

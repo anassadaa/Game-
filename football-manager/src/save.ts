@@ -1,11 +1,12 @@
 import type { GameState } from './game.ts';
+import { LEAGUES } from './world.ts';
 import { ATTRS, PERSONALITIES, migrate, storyIds } from './game.ts';
 
 export const SAVE_KEY = 'touchline-career-v1';
 export const encodeSave = (state: GameState) => JSON.stringify(state);
 
 export function decodeSave(raw: string): GameState | null {
-  if (typeof raw !== 'string' || raw.length > 2_000_000) return null;
+  if (typeof raw !== 'string' || raw.length > 6_000_000) return null;
   try {
     const s = JSON.parse(raw) as GameState;
     if (s && [1, 2].includes((s as { version: number }).version) && Array.isArray(s.players) && Array.isArray(s.market) && Array.isArray(s.clubs)) migrate(s);
@@ -76,7 +77,7 @@ export function decodeSave(raw: string): GameState | null {
       ) ||
       !s.players.every(validPlayer) ||
       !Array.isArray(s.rivals) ||
-      s.rivals.length > 600 ||
+      s.rivals.length > 5000 ||
       !s.rivals.every(
         (p) =>
           validPlayer(p) &&
@@ -101,6 +102,10 @@ export function decodeSave(raw: string): GameState | null {
       !Array.isArray(s.offers) ||
       !s.offers.every((id) => s.clubs.some((c) => c.id === id)) ||
       typeof s.sacked !== 'boolean' ||
+      !s.euro ||
+      !Array.isArray(s.euro.alive) ||
+      !s.euro.alive.every((id) => s.clubs.some((c) => c.id === id)) ||
+      !Number.isInteger(s.euro.round) ||
       !s.cup ||
       !Number.isInteger(s.cup.round) ||
       s.cup.round < 0 ||
@@ -124,7 +129,7 @@ export function decodeSave(raw: string): GameState | null {
         (h) =>
           h &&
           Number.isInteger(h.season) &&
-          [1, 2].includes(h.division) &&
+          Number.isInteger(h.division) &&
           Number.isInteger(h.position) &&
           typeof h.outcome === 'string' &&
           Number.isFinite(h.points),
@@ -132,9 +137,12 @@ export function decodeSave(raw: string): GameState | null {
     )
       return null;
     if (
-      s.clubs.filter((c) => c?.division === 1).length !== 10 ||
-      s.clubs.filter((c) => c?.division === 2).length !== 10 ||
-      new Set(s.clubs.map((c) => c?.id)).size !== 20
+      !Array.isArray(s.clubs) ||
+      s.clubs.length < 20 ||
+      s.clubs.length > 400 ||
+      !s.clubs.every((c) => c && LEAGUES.some((l) => l.division === c.division)) ||
+      [...new Set(s.clubs.map((c) => c.division))].some((d) => s.clubs.filter((c) => c.division === d).length < 10) ||
+      new Set(s.clubs.map((c) => c?.id)).size !== s.clubs.length
     )
       return null;
     if (
@@ -151,7 +159,6 @@ export function decodeSave(raw: string): GameState | null {
       return null;
     if (
       !Array.isArray(s.clubs) ||
-      s.clubs.length !== 20 ||
       !Array.isArray(s.players) ||
       s.players.length < 14 ||
       s.players.length > 100 ||
@@ -168,7 +175,7 @@ export function decodeSave(raw: string): GameState | null {
         (c) =>
           typeof c.id === 'string' &&
           typeof c.name === 'string' &&
-          [1, 2].includes(c.division) &&
+          c.name.length <= 40 &&
           [
             c.rating,
             c.played,

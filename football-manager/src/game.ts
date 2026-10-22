@@ -1,3 +1,4 @@
+import { EURO_QUOTA, LEAGUES, STARS, WORLD, league, sameCountry } from './world.ts';
 export type Position = 'GK' | 'DF' | 'MF' | 'FW';
 export type Mentality = 'cautious' | 'balanced' | 'attacking';
 export type Press = 'low' | 'normal' | 'high';
@@ -156,33 +157,12 @@ export type GameState = {
   offers?: string[];
   sacked?: boolean;
   cup?: Cup;
+  euro?: Cup;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
 export type Bid = { id: string; playerId: string; clubId: string; fee: number };
 
-const CLUBS: [string, string, string, number, Mentality][] = [
-  ['northport', 'Northport Athletic', '#D9F06F', 66, 'attacking'],
-  ['westhaven', 'Westhaven City', '#6FE0DE', 64, 'balanced'],
-  ['crownford', 'Crownford FC', '#EFAB76', 65, 'cautious'],
-  ['bellwick', 'Bellwick United', '#B9ABF5', 63, 'attacking'],
-  ['stonebridge', 'Stonebridge Rovers', '#F3CD6C', 62, 'balanced'],
-  ['redmere', 'Redmere Albion', '#F28384', 62, 'attacking'],
-  ['elmfield', 'Elmfield FC', '#9AD19A', 60, 'balanced'],
-  ['highborough', 'Highborough', '#86B5F2', 61, 'cautious'],
-  ['southgate', 'Southgate Town', '#E9A9CE', 59, 'attacking'],
-  ['kingswell', 'Kingswell', '#C1C8D4', 58, 'balanced'],
-  ['harbour', 'Harbour Vale', '#C8ED75', 54, 'balanced'],
-  ['marlowe', 'Marlowe Town', '#FBBC89', 56, 'attacking'],
-  ['ashford', 'Ashford Rovers', '#99CFEC', 57, 'cautious'],
-  ['riverside', 'Riverside FC', '#B8AAEE', 55, 'balanced'],
-  ['halewood', 'Halewood United', '#E69C9C', 55, 'attacking'],
-  ['bracken', 'Bracken Athletic', '#EACD88', 53, 'cautious'],
-  ['oldcastle', 'Oldcastle', '#A8D9AD', 52, 'balanced'],
-  ['wycombe', 'Wycombe Vale', '#93B9E8', 51, 'attacking'],
-  ['penrose', 'Penrose FC', '#DEAAC8', 50, 'balanced'],
-  ['eastmoor', 'Eastmoor', '#B9BECA', 49, 'cautious'],
-];
 const FIRST = [
   'Leo',
   'Amir',
@@ -361,7 +341,13 @@ const STORY_TEMPLATES = [
 export const storyIds = STORY_TEMPLATES.map((t) => t.id);
 const clamp = (n: number, min = 0, max = 100) =>
   Math.max(min, Math.min(max, Math.round(n)));
-const copy = (s: GameState): GameState => structuredClone(s);
+// Rival players are flat records (their nested attrs are never mutated), so a shallow copy is enough and keeps phones fast.
+const copy = (s: GameState): GameState => {
+  const b = structuredClone({ ...s, rivals: undefined }) as GameState;
+  if (s.rivals) b.rivals = s.rivals.map((p) => ({ ...p }));
+  else delete b.rivals;
+  return b;
+};
 function next(s: GameState): number {
   s.seed = (Math.imul(1664525, s.seed) + 1013904223) >>> 0;
   return s.seed / 4294967296;
@@ -392,7 +378,7 @@ function makePlayer(
     fitness: int(s, 78, 100),
     morale: int(s, 60, 85),
     wage: Math.max(2, Math.round(rating / 8)),
-    price: Math.max(65, Math.round((rating - 30) * 7 + (24 - age) * 5)),
+    price: priceFor(rating, age),
     clubId,
     starting: i < 11,
     goals: 0,
@@ -425,6 +411,7 @@ export function migrate(s: GameState): GameState {
   s.offers ??= [];
   s.sacked ??= false;
   s.cup ??= newCup(s, []);
+  s.euro ??= newEuro(s, true);
   return s;
 }
 function story(s: GameState): Story {
@@ -448,7 +435,7 @@ function refreshMarket(s: GameState) {
         'market',
         i,
         pick(s, POSITIONS),
-        49 + s.scouting * 2 + int(s, -4, 12),
+        Math.max(49, (s.clubs.find((c) => c.id === s.clubId)?.rating ?? 60) - 12) + s.scouting * 2 + int(s, -4, 12),
       ),
     );
   s.market.forEach((p) => {
@@ -456,18 +443,20 @@ function refreshMarket(s: GameState) {
     p.price = Math.max(65, Math.round(p.price * (0.8 + next(s) * 0.6)));
   });
 }
+export const DEFAULT_CLUB = 'wrexham';
 export function newGame(
   seed = Date.now() >>> 0,
-  clubId = 'harbour',
+  clubId = DEFAULT_CLUB,
 ): GameState {
-  const clubs = CLUBS.map(([id, name, color, rating, style], i): Club => ({
-    id,
-    name,
-    short: name.split(' ')[0]!,
-    color,
-    division: i < 10 ? 1 : 2,
-    rating,
-    style,
+  const styles: Mentality[] = ['attacking', 'balanced', 'cautious'];
+  const clubs = WORLD.map((w, i): Club => ({
+    id: w.id,
+    name: w.name,
+    short: w.name.split(' ').slice(-1)[0]!,
+    color: w.color,
+    division: w.division,
+    rating: w.rating,
+    style: styles[i % 3]!,
     played: 0,
     wins: 0,
     draws: 0,
@@ -477,8 +466,7 @@ export function newGame(
     points: 0,
     form: [],
   }));
-  if (!clubs.some((c) => c.id === clubId && c.division === 2))
-    clubId = 'harbour';
+  if (!clubs.some((c) => c.id === clubId)) clubId = DEFAULT_CLUB;
   const s: GameState = {
     version: 2,
     seed: seed >>> 0,
@@ -511,7 +499,10 @@ export function newGame(
     bids: [],
     news: [],
   };
-  POSITIONS.forEach((pos, i) => s.players.push(makePlayer(s, clubId, i, pos, 54)));
+  const me = clubs.find((c) => c.id === clubId)!;
+  s.budget = Math.round(2800 * Math.max(0.8, 1 + (me.rating - 60) / 12));
+  POSITIONS.forEach((pos, i) => s.players.push(makePlayer(s, clubId, i, pos, me.rating - 6)));
+  applyStars(s, me, s.players);
   refreshMarket(s);
   s.inbox = story(s);
   makeRivals(s);
@@ -519,6 +510,7 @@ export function newGame(
   s.offers = [];
   s.sacked = false;
   s.cup = newCup(s, []);
+  s.euro = newEuro(s, true);
   return s;
 }
 export function club(s: GameState) {
@@ -540,13 +532,15 @@ export function homeFixture(s: GameState) {
   return pair[0] === s.clubId;
 }
 export function roundPairs(ids: string[], week: number): [string, string][] {
-  const rotation = [...ids];
-  for (let r = 0; r < week % 9; r++) rotation.splice(1, 0, rotation.pop()!);
+  const n = ids.length - (ids.length % 2),
+    rounds = n - 1;
+  const rotation = ids.slice(0, n);
+  for (let r = 0; r < week % rounds; r++) rotation.splice(1, 0, rotation.pop()!);
   const pairs: Array<[string, string]> = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < n / 2; i++) {
     const a = rotation[i]!,
-      b = rotation[9 - i]!;
-    pairs.push(week < 9 ? (i % 2 ? [b, a] : [a, b]) : i % 2 ? [a, b] : [b, a]);
+      b = rotation[n - 1 - i]!;
+    pairs.push(week < rounds ? (i % 2 ? [b, a] : [a, b]) : i % 2 ? [a, b] : [b, a]);
   }
   return pairs;
 }
@@ -980,7 +974,7 @@ export function advanceMatch(s: GameState): GameState {
             : `${opponent(b).short} score after a dangerous spell.`,
           side,
           kind: 'goal',
-          playerId: scorer?.id,
+          ...(scorer ? { playerId: scorer.id } : {}),
         });
       } else
         m.timeline.push({
@@ -1110,15 +1104,17 @@ function train(s: GameState) {
 function rollSeason(s: GameState) {
   const d1 = standings(s).filter((c) => c.division === 1),
     d2 = standings(s).filter((c) => c.division === 2),
+    k = d1.length >= 20 ? 3 : 2,
+    size = s.clubs.filter((c) => c.division === club(s).division).length,
     pos =
       standings(s)
         .filter((c) => c.division === club(s).division)
         .findIndex((c) => c.id === s.clubId) + 1;
   const before = club(s).division;
   let outcome =
-    before === 2 && pos <= 2
+    before === 2 && pos <= k
       ? 'Promoted'
-      : before === 1 && pos >= 9
+      : before === 1 && pos > size - k
         ? 'Relegated'
         : pos === 1
           ? 'Champions'
@@ -1132,14 +1128,15 @@ function rollSeason(s: GameState) {
   });
   s.history = s.history.slice(0, 20);
   boardReview(s, pos, outcome);
-  d1.slice(-2).forEach((c) => (c.division = 2));
-  d2.slice(0, 2).forEach((c) => (c.division = 1));
-  s.budget += before === 1 ? 1250 : 850;
+  s.euro = newEuro(s);
+  d1.slice(-k).forEach((c) => (c.division = 2));
+  d2.slice(0, k).forEach((c) => (c.division = 1));
+  s.budget += league(before).tier === 1 ? 1250 : 850;
   s.trust = clamp(
     s.trust +
       (outcome === 'Promoted' || outcome === 'Champions'
         ? 14
-        : pos >= 8
+        : pos > size * 0.75
           ? -10
           : 4),
   );
@@ -1235,7 +1232,7 @@ export function advanceWeek(s: GameState): GameState {
   result(home, away, m.home ? m.us : m.them, m.home ? m.them : m.us);
   b.careerGames++;
   if (m.us > m.them) b.careerWins++;
-  for (const division of [1, 2]) {
+  for (const division of [...new Set(b.clubs.map((c) => c.division))]) {
     const pairs = roundPairs(
       b.clubs.filter((c) => c.division === division).map((c) => c.id),
       b.week,
@@ -1252,7 +1249,7 @@ export function advanceWeek(s: GameState): GameState {
     .filter((p) => p.clubId === b.clubId)
     .reduce((sum, p) => sum + p.wage, 0);
   const income =
-    (club(b).division === 1 ? 130 : 90) +
+    (league(club(b).division).tier === 1 ? 130 : 90) +
     (m.home ? 90 + Math.round(b.fans * 0.5) : 35) +
     Math.round(b.fans * 0.2);
   b.budget += income - wages;
@@ -1276,7 +1273,8 @@ export function advanceWeek(s: GameState): GameState {
   ].slice(0, 6);
   b.week++;
   b.match = null;
-  cupWeek(b);
+  runCup(b, b.cup, CUP_WEEKS, CUP_PRIZE, 'Cup');
+  runCup(b, b.euro, EURO_WEEKS, EURO_PRIZE, 'Champions Cup');
   boardWeek(b);
   if (b.week === 18) {
     rollSeason(b);
@@ -1304,7 +1302,9 @@ function makeRivals(s: GameState) {
   s.rivals = [];
   for (const c of s.clubs) {
     if (c.id === s.clubId) continue;
+    const start = s.rivals.length;
     SQUAD_SHAPE.forEach((pos, i) => s.rivals!.push(rivalPlayer(s, c, i, pos)));
+    applyStars(s, c, s.rivals.slice(start));
   }
 }
 /** Transfer windows: pre-season (weeks 1–4) and mid-season (weeks 10–11). */
@@ -1451,7 +1451,7 @@ function rollRivals(b: GameState) {
     if (p.age > 34) continue;
     if (p.age <= 24 && p.rating < p.potential) p.rating = Math.min(p.potential, p.rating + int(b, 0, 4));
     else if (p.age >= 31) p.rating = Math.max(35, p.rating - int(b, 0, 3));
-    p.price = Math.max(65, Math.round((p.rating - 30) * 7 + (24 - p.age) * 5));
+    p.price = priceFor(p.rating, p.age);
     b.rivals.push(p);
   }
   for (const c of b.clubs) {
@@ -1470,16 +1470,17 @@ function divisionRank(s: GameState, id: string) {
 export function boardTarget(s: GameState): Board {
   const c = club(s),
     rank = divisionRank(s, s.clubId);
-  const target = Math.min(9, Math.max(1, rank + (s.trust >= 70 ? -1 : 1)));
+  const size = s.clubs.filter((x) => x.division === c.division).length;
+  const target = Math.min(size - 3, Math.max(1, rank + (s.trust >= 70 ? -1 : 1)));
   const objective =
-    c.division === 2
+    league(c.division).tier === 2
       ? target <= 2
         ? 'Win promotion to the top flight'
         : `Finish in the top ${target} and build for promotion`
       : target <= 3
         ? `Challenge for the title (top ${target})`
-        : target >= 8
-          ? 'Avoid relegation (8th or better)'
+        : target >= size - 3
+          ? `Avoid the drop (${size - 3}th or better)`
           : `Finish in the top ${target}`;
   return { target, objective, warnings: 0 };
 }
@@ -1581,23 +1582,34 @@ export function declineOffers(s: GameState): GameState {
 export const CUP_WEEKS = [4, 8, 12, 16];
 export const CUP_ROUNDS = ['Round of 16', 'Quarter-final', 'Semi-final', 'Final'];
 export const CUP_PRIZE = [120, 200, 350, 600];
-export const cupClubs = (s: GameState) => s.clubs;
+export const cupClubs = (s: GameState) => s.clubs.filter((c) => sameCountry(c.division, club(s).division));
 function newCup(s: GameState, winners: Cup['winners'], wins = 0): Cup {
   const pool = [...cupClubs(s)].sort((a, b) => b.rating - a.rating);
   const alive = [s.clubId, ...pool.filter((c) => c.id !== s.clubId).map((c) => c.id)].slice(0, 16);
   alive.sort(() => next(s) - 0.5);
   return { season: s.season, round: 0, alive, log: [], winners: winners.slice(0, 30), wins };
 }
-export function cupOpponent(s: GameState) {
-  const c = s.cup;
+export function cupOpponent(s: GameState, c = s.cup) {
   if (!c || c.round > 3) return null;
   const i = c.alive.indexOf(s.clubId);
   if (i < 0) return null;
   return s.clubs.find((x) => x.id === c.alive[i ^ 1]) ?? null;
 }
-function cupWeek(b: GameState) {
-  const c = b.cup;
-  if (!c || c.round > 3 || CUP_WEEKS[c.round] !== b.week) return;
+export const EURO_WEEKS = [6, 10, 14, 17];
+export const EURO_PRIZE = [300, 500, 800, 1500];
+/** Continental cup: top finishers from the big leagues, topped up by the strongest remaining clubs. */
+export function newEuro(s: GameState, byRating = false): Cup {
+  const prev = s.euro;
+  const table = byRating ? [...s.clubs].sort((a, b) => a.division - b.division || b.rating - a.rating) : standings(s);
+  const picked: string[] = [];
+  for (const [div, n] of Object.entries(EURO_QUOTA))
+    picked.push(...table.filter((c) => c.division === +div).slice(0, n).map((c) => c.id));
+  for (const c of [...s.clubs].sort((a, b) => b.rating - a.rating)) if (picked.length < 16 && !picked.includes(c.id)) picked.push(c.id);
+  const alive = picked.slice(0, 16).sort(() => next(s) - 0.5);
+  return { season: s.season + (byRating ? 0 : 1), round: 0, alive, log: [], winners: (prev?.winners ?? []).slice(0, 30), wins: prev?.wins ?? 0 };
+}
+function runCup(b: GameState, c: Cup | undefined, weeks: number[], prizes: number[], label: string) {
+  if (!c || c.round > 3 || weeks[c.round] !== b.week) return;
   const winners: string[] = [];
   for (let i = 0; i + 1 < c.alive.length; i += 2) {
     const h = b.clubs.find((x) => x.id === c.alive[i])!,
@@ -1616,10 +1628,10 @@ function cupWeek(b: GameState) {
       c.log.unshift(line);
       const won = winners[winners.length - 1] === b.clubId;
       if (won) {
-        b.budget += CUP_PRIZE[c.round]!;
+        b.budget += prizes[c.round]!;
         b.fans = clamp(b.fans + 2);
       }
-      b.headlines = [`🏆 Cup ${line}${won ? ` · prize £${CUP_PRIZE[c.round]}k` : ' · knocked out'}`, ...b.headlines].slice(0, 6);
+      b.headlines = [`🏆 ${label} ${line}${won ? ` · prize £${prizes[c.round]}k` : ' · knocked out'}`, ...b.headlines].slice(0, 6);
     }
   }
   c.alive = winners;
@@ -1631,8 +1643,41 @@ function cupWeek(b: GameState) {
     if (w === b.clubId) {
       c.wins++;
       b.trust = clamp(b.trust + 10);
-      b.headlines = ['🏆 CUP WINNERS! The trophy is coming home.', ...b.headlines].slice(0, 6);
+      b.headlines = [`🏆 ${label.toUpperCase()} WINNERS! The trophy is coming home.`, ...b.headlines].slice(0, 6);
     }
-    addNews(b, `🏆 ${wc.name} win the Cup.`);
+    addNews(b, `🏆 ${wc.name} win the ${label}.`);
   }
 }
+
+export function priceFor(rating: number, age: number) {
+  const base = Math.max(65, Math.round((rating - 30) * 7 + (24 - age) * 5));
+  return Math.round(base * (rating > 65 ? 1 + (rating - 65) * 0.15 : 1));
+}
+/** Give famous look-alike stars to their club's squad. */
+function applyStars(_s: GameState, c: Club, squad: Player[]) {
+  const used = new Set<string>();
+  for (const st of STARS.filter((x) => x.club === c.id)) {
+    const p = squad.find((x) => x.position === st.position && !used.has(x.id)) ?? squad.find((x) => !used.has(x.id) && x.position !== 'GK');
+    if (!p) continue;
+    used.add(p.id);
+    Object.assign(p, {
+      name: st.name,
+      age: st.age,
+      rating: st.rating,
+      position: st.position,
+      potential: Math.min(97, st.rating + (st.age <= 21 ? 6 : st.age <= 24 ? 3 : 0)),
+      price: priceFor(st.rating, st.age),
+      wage: Math.max(2, Math.round(st.rating / 5)),
+    });
+  }
+}
+export function renameClub(s: GameState, id: string, name: string): GameState {
+  const n = name.trim().replace(/\s+/g, ' ');
+  if (n.length < 2 || n.length > 32 || !s.clubs.some((c) => c.id === id)) return s;
+  const b = copy(s),
+    c = b.clubs.find((x) => x.id === id)!;
+  c.name = n;
+  c.short = n.split(' ').slice(-1)[0]!.slice(0, 14);
+  return b;
+}
+export { LEAGUES };

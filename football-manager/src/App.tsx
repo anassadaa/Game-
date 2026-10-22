@@ -58,6 +58,8 @@ import type {
   Training,
 } from './game.ts';
 import { TransferMarket } from './Market.tsx';
+import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
+import { WorldPanel } from './World.tsx';
 import { CupPanel } from './Cup.tsx';
 import { BoardRoom, SackedModal } from './Board.tsx';
 import { askingPrice } from './game.ts';
@@ -176,9 +178,9 @@ function Pitch({
   );
 }
 
-function Table({ state, full = false }: { state: GameState; full?: boolean }) {
+function Table({ state, full = false, division }: { state: GameState; full?: boolean; division?: number }) {
   const own = club(state);
-  const teams = standings(state).filter((c) => c.division === own.division);
+  const teams = standings(state).filter((c) => c.division === (division ?? own.division));
   return (
     <div className="table-wrap">
       <table>
@@ -351,7 +353,9 @@ function PlayerCard({
 export default function App() {
   const [state, setState] = useState<GameState | null>(loadSave);
   const [tab, setTab] = useState<Tab>('home');
-  const [chosen, setChosen] = useState('harbour');
+  const [chosen, setChosen] = useState('wrexham');
+  const [pickLeague, setPickLeague] = useState(2);
+  const [tableDiv, setTableDiv] = useState<number | null>(null);
   const [toast, setToast] = useState('');
   const [help, setHelp] = useState(false);
   const [saveOk, setSaveOk] = useState(true);
@@ -423,32 +427,6 @@ export default function App() {
     />
   );
   if (!state) {
-    const choices = [
-      {
-        id: 'harbour',
-        name: 'Harbour Vale',
-        short: 'Harbour',
-        color: '#C8ED75',
-        tag: 'The sleeping giant',
-        body: 'A proud town. A patient board. Build something that lasts.',
-      },
-      {
-        id: 'marlowe',
-        name: 'Marlowe Town',
-        short: 'Marlowe',
-        color: '#FBBC89',
-        tag: 'The ambitious challenger',
-        body: 'An attacking tradition and supporters hungry for promotion.',
-      },
-      {
-        id: 'bracken',
-        name: 'Bracken Athletic',
-        short: 'Bracken',
-        color: '#EACD88',
-        tag: 'The underdog story',
-        body: 'A small club with a big heart. Make every decision count.',
-      },
-    ];
     return (
       <div className="welcome">
         <div className="welcome-brand">
@@ -470,7 +448,7 @@ export default function App() {
             </p>
             <div className="welcome-features">
               <span>
-                <Trophy /> Two divisions
+                <Trophy /> 8 leagues · 152 clubs
               </span>
               <span>
                 <Sprout /> Growing talent
@@ -492,23 +470,24 @@ export default function App() {
               </div>
               <span className="tag">SEASON 01</span>
             </div>
-            {choices.map((c) => (
-              <button
-                className={`club-option ${chosen === c.id ? 'active' : ''}`}
-                key={c.id}
-                onClick={() => setChosen(c.id)}
-              >
-                <Crest team={c} />
-                <div>
-                  <small>{c.tag}</small>
-                  <h3>{c.name}</h3>
-                  <p>{c.body}</p>
-                </div>
-                <span className="radio-check">
-                  {chosen === c.id && <Check size={14} />}
-                </span>
-              </button>
-            ))}
+            <select className="league-select" value={pickLeague} onChange={(e) => setPickLeague(+e.target.value)}>
+              {LEAGUES.map((l) => (
+                <option key={l.division} value={l.division}>{l.flag} {l.name} · {l.country}</option>
+              ))}
+            </select>
+            <div className="club-pick-list">
+              {WORLD.filter((w) => w.division === pickLeague).map((c) => (
+                <button className={`club-option ${chosen === c.id ? 'active' : ''}`} key={c.id} onClick={() => setChosen(c.id)}>
+                  <Crest team={{ ...c, short: c.name.split(' ').slice(-1)[0]! }} />
+                  <div>
+                    <small>{c.rating >= 80 ? 'Title contender' : c.rating >= 72 ? 'Established side' : c.rating >= 66 ? 'Ambitious club' : 'Underdog story'}</small>
+                    <h3>{c.name}</h3>
+                    <p>Strength {c.rating}</p>
+                  </div>
+                  <span className="radio-check">{chosen === c.id && <Check size={14} />}</span>
+                </button>
+              ))}
+            </div>
             <button
               className="primary wide"
               onClick={() => setState(newGame(Date.now() >>> 0, chosen))}
@@ -703,7 +682,7 @@ export default function App() {
             </div>
             <div className="season-pill">
               <Flag size={15} />{' '}
-              {team.division === 1 ? 'Premier League' : 'National League'}
+              {leagueName(team.division)}
             </div>
           </div>
           {state.match ? (
@@ -901,8 +880,7 @@ export default function App() {
                       <div className="position-stat">
                         <b>{ordinal(rank)}</b>
                         <span>
-                          in the {team.division === 1 ? 'Premier' : 'National'}{' '}
-                          League
+                          in the {leagueDef(team.division).name}
                           <br />
                           <strong>{team.points} points</strong> from{' '}
                           {team.played} matches
@@ -1406,6 +1384,8 @@ export default function App() {
                 <>
                   <BoardRoom state={state} onUpdate={update} />
                   <CupPanel state={state} />
+                  <CupPanel state={state} euro />
+                  <WorldPanel state={state} onUpdate={update} />
                   <div className="content-columns">
                     <section className="card club-foundation">
                       <SectionTitle
@@ -1485,19 +1465,19 @@ export default function App() {
                   <section className="card full-table">
                     <SectionTitle
                       eyebrow="EVERY POINT MATTERS"
-                      title={
-                        team.division === 1
-                          ? 'Premier League'
-                          : 'National League'
-                      }
+                      title={leagueName(tableDiv ?? team.division)}
                       action={
                         <span className="tag">MATCHWEEK {state.week + 1}</span>
                       }
                     />
-                    <Table state={state} full />
+                    <select className="league-select" value={tableDiv ?? team.division} onChange={(e) => setTableDiv(+e.target.value)}>
+                      {LEAGUES.filter((l) => state.clubs.some((c) => c.division === l.division)).map((l) => (
+                        <option key={l.division} value={l.division}>{l.flag} {l.name} ({l.country})</option>
+                      ))}
+                    </select>
+                    <Table state={state} full division={tableDiv ?? team.division} />
                     <p className="table-note">
-                      National League: top two promoted. Premier League: bottom
-                      two relegated. Points: 3 for a win, 1 for a draw.
+                      England: top three of the Championship go up, bottom three of the Premier Division go down. Top finishers in the big leagues qualify for the Champions Cup. Points: 3 for a win, 1 for a draw.
                     </p>
                   </section>
                   {state.history.length > 0 && (
@@ -1510,7 +1490,7 @@ export default function App() {
                         <div key={h.season}>
                           <b>Season {h.season}</b>
                           <span>
-                            {h.division === 1 ? 'Premier' : 'National'} League ·{' '}
+                            {leagueDef(h.division).name} ·{' '}
                             {ordinal(h.position)} · {h.points} pts
                           </span>
                           <strong>{h.outcome}</strong>

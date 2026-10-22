@@ -1,3 +1,4 @@
+import { leagueName } from './world.ts';
 import { declineOffers, standings, takeJob } from './game.ts';
 import type { GameState } from './game.ts';
 
@@ -11,7 +12,7 @@ function Offers({ state, onUpdate }: { state: GameState; onUpdate: (s: GameState
         return (
           <div key={id}>
             <span>
-              <b>{c.name}</b> · Division {c.division} · rating {c.rating}
+              <b>{c.name}</b> · {leagueName(c.division)} · rating {c.rating}
             </span>
             <button className="secondary" onClick={() => onUpdate(takeJob(state, id), `Welcome to ${c.name}!`)}>
               Accept job

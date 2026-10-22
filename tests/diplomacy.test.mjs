@@ -9,8 +9,8 @@ test('gifts, treaties and peace follow their requirements',()=>{const s=E.newGam
  assert.match(E.signTreaty(s,0,'trade'),/55/);assert.equal(E.gift(s,0),'');assert.match(E.gift(s,0),/recently/);assert.equal(E.signTreaty(s,0,'trade'),'');assert.equal(E.status(s,0),'trade');
  const before=E.price(s,'wood',true);s.diplomacy.neighbours[0].treaty='none';assert.ok(E.price(s,'wood',true)>before);
  s.diplomacy.neighbours[1].war=true;s.relations[1]=10;assert.match(E.proposePeace(s,1),/25/);s.relations[1]=30;assert.equal(E.proposePeace(s,1),'');assert.equal(E.status(s,1),'peace');});
-test('player raids give loot or injuries, lower relations and can start war',()=>{const s=E.newGame(7);s.stock.food=500;s.stock.tools=20;const team=[s.people[0].id,s.people[1].id];const r0=s.relations[0];const c0=s.stock.coins;
- assert.match(E.raidNeighbour(s,0,[]),/1 to 4/);const msg=E.raidNeighbour(s,0,team);assert.ok(s.relations[0]<r0);if(msg==='')assert.ok(s.stock.coins>c0);else assert.ok(s.people[0].injury>0);assert.match(E.raidNeighbour(s,0,[s.people[2].id]),/guard/);
+test('player raids give loot or injuries, lower relations and can start war',()=>{const s=E.newGame(7);s.day=10;s.stock.food=500;s.stock.tools=20;const team=[s.people[0].id,s.people[1].id];const r0=s.relations[0];const c0=s.stock.coins;
+ assert.match(E.raidNeighbour(s,0,[]),/1 to 4/);assert.equal(E.raidNeighbour(s,0,team),'');assert.ok(s.relations[0]<r0);if(s.diplomacy.raidsWonAbroad)assert.ok(s.stock.coins>c0);else assert.ok(s.people[0].injury>0);assert.match(E.raidNeighbour(s,0,[s.people[2].id]),/guard/);
  E.declareWar(s,1);assert.equal(E.status(s,1),'war');});
 test('peace treaties stop raids; early raids are winnable',()=>{const s=E.newGame(7);const n=s.diplomacy.neighbours;for(const x of n){x.treaty='peace';x.until=9999;}s.relations=[90,90,90];const won=s.extra.raidsWon,lost=s.extra.raidsLost;s.extra.nextRaid=s.day+1;run(s,3);assert.equal(s.extra.raidsWon+s.extra.raidsLost,won+lost);
  const t=E.newGame(8);const team=t.people.slice(0,2).map(p=>p.id);assert.ok(E.raidChance(t,0,team)>.4&&E.raidChance(t,0,team)<.85);});

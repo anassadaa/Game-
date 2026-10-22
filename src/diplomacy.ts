@@ -58,19 +58,20 @@ export function aiReact(s:Game,rand:(s:Game)=>number){const x=s.extra;
  if(war.length&&x.nextRaid>s.day+9){x.nextRaid=s.day+6+Math.floor(rand(s)*4);x.raidFrom=war[Math.floor(rand(s)*war.length)];}
 }
 /** Player raids */
-export const raidCooldown=6;
-export function targetDefence(s:Game,i:number){const n=s.diplomacy.neighbours[i];return Math.round((8+s.day*.1+s.rivalGrowth[i]*.3+s.age*6)*(n.war?1.15:1));}
-export function raidPower(s:Game,team:number[]){const ppl=s.people.filter(p=>team.includes(p.id));const towers=s.buildings.filter(b=>b.kind==='watch').reduce((t,b)=>t+b.level,0);return Math.round(ppl.reduce((t,p)=>t+3+p.skills.exploring*1.5+p.skills.craft*.8,0)+(ppl.length?towers*2+Math.min(s.stock.tools,20)*.4+treatyCount(s,'alliance')*4:0));}
+export const raidCooldown=6,raidFrom=8;
+export function targetDefence(s:Game,i:number){const n=s.diplomacy.neighbours[i];return Math.round((14+s.day*.12+s.rivalGrowth[i]*.3+s.age*6)*(n.war?1.15:1));}
+export function raidPower(s:Game,team:number[]){const ppl=s.people.filter(p=>team.includes(p.id));const towers=s.buildings.filter(b=>b.kind==='watch').reduce((t,b)=>t+b.level,0);return Math.round(ppl.reduce((t,p)=>t+2+p.skills.exploring*1.5+p.skills.craft*.8,0)+(ppl.length?towers*2+Math.min(s.stock.tools,20)*.25+treatyCount(s,'alliance')*4:0));}
 export function raidChance(s:Game,i:number,team:number[]){const p=raidPower(s,team),d=targetDefence(s,i);return cap(p/(p+d),.1,.9);}
 export function launchRaid(s:Game,i:number,team:number[],rand:(s:Game)=>number){if(bad(i))return 'Unknown neighbour.';const n=s.diplomacy.neighbours[i];
  if(!Array.isArray(team)||team.length<1||team.length>4||new Set(team).size!==team.length)return 'Choose 1 to 4 different raiders.';
  if(team.some(id=>!s.people.some(p=>p.id===id&&p.away===null&&p.injury===0)))return 'Raiders must be home and healthy.';
+ if(s.day<raidFrom)return `Your people are not ready to raid until day ${raidFrom}.`;
  if(s.day-n.raidDay<raidCooldown)return `${NEIGHBOURS[i]} is on guard. Wait ${raidCooldown-(s.day-n.raidDay)} day(s).`;
  const food=8*team.length;if(s.stock.food<food||s.stock.tools<1)return `A raid needs ${food} food and 1 tool.`;
  const chance=raidChance(s,i,team),d=targetDefence(s,i);s.stock.food-=food;s.stock.tools-=1;n.raidDay=s.day;s.diplomacy.raidsMade++;
  const broke=n.treaty!=='none'?n.treaty:null;n.treaty='none';
  const won=rand(s)<chance;const names=s.people.filter(p=>team.includes(p.id)).map(p=>p.name).join(', ');
- if(won){const loot={coins:Math.round(20+d*2),food:Math.round(15+d),ore:Math.round(d*.6)};s.stock.coins+=loot.coins;s.stock.food+=loot.food;s.stock.ore+=loot.ore;s.diplomacy.raidsWonAbroad++;s.people.forEach(p=>{if(team.includes(p.id))p.skills.exploring=Math.min(12,p.skills.exploring+1);});relationShift(s,i,-20);note(s,`${names} raided ${NEIGHBOURS[i]} and returned with ${loot.coins} coins, ${loot.food} food and ${loot.ore} ore.`);}
+ if(won){const loot={coins:Math.round(10+d*1.5),food:Math.round(8+d*.8),ore:Math.round(d*.4)};s.stock.coins+=loot.coins;s.stock.food+=loot.food;s.stock.ore+=loot.ore;s.diplomacy.raidsWonAbroad++;s.people.forEach(p=>{if(team.includes(p.id))p.skills.exploring=Math.min(12,p.skills.exploring+1);});relationShift(s,i,-20);note(s,`${names} raided ${NEIGHBOURS[i]} and returned with ${loot.coins} coins, ${loot.food} food and ${loot.ore} ore.`);}
  else{s.people.forEach(p=>{if(team.includes(p.id))p.injury=Math.max(p.injury,4);});relationShift(s,i,-12);s.morale=cap(s.morale-3,0,100);note(s,`The raid on ${NEIGHBOURS[i]} failed. ${names} came home injured.`);}
  if(!n.war&&(broke||s.relations[i]<25||rand(s)<.35))startWar(s,i,broke?`you broke the ${broke} treaty with a raid.`:'your raid was an act of war.');
- return won?'':'The raid failed.';}
+ return '';}

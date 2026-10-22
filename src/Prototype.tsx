@@ -10,6 +10,8 @@ type Panel='build'|'people'|'trade'|'journal'|'settings'|'stock'|'craft'|'help'|
 const SAVE='everstead-living-frontier-v1';
 const ri:Record<Resource,typeof CoinsIcon>={coins:CoinsIcon,food:GrainsIcon,water:DropIcon,wood:TreeIcon,ore:MountainsIcon,tools:HammerIcon,knowledge:BookOpenIcon,relics:FlagIcon};
 const bi:Record<BuildingKind,typeof HouseIcon>={cottage:HouseIcon,farm:GrainsIcon,well:DropIcon,lumber:TreeIcon,quarry:MountainsIcon,workshop:HammerIcon,study:BookOpenIcon,clinic:PlusIcon,market:HandshakeIcon,garden:PlantIcon,greenhouse:LeafIcon,watch:ShieldIcon,beacon:FireIcon};
+const TUT='everstead-tutorial-done';
+const store={get:(k:string)=>{try{return localStorage.getItem(k)}catch{return null}},set:(k:string,v:string)=>{try{localStorage.setItem(k,v)}catch{}}};
 const fmt=(n:number)=>Math.floor(n).toLocaleString();
 const signed=(n:number)=>`${n>=0?'+':''}${n.toFixed(1)}`;
 
@@ -18,6 +20,7 @@ export default function Prototype(){
  const [boot]=useState(()=>readSave(()=>localStorage.getItem(SAVE)));
  const [saveBlocked,setSaveBlocked]=useState(boot.blocked);
  const [game,setGame]=useState<Game>(boot.game),ref=useRef(game),[view,setView]=useState<View>('town'),[panel,setPanel]=useState<Panel>(null),[speed,setSpeed]=useState(0),[toast,setToast]=useState(''),[saved,setSaved]=useState(true),[district,setDistrict]=useState<District>('riverside'),[kind,setKind]=useState<BuildingKind>('cottage'),[selected,setSelected]=useState(0),[site,setSite]=useState('grove'),[team,setTeam]=useState<number[]>([]),[careful,setCareful]=useState(true),[difficulty,setDifficulty]=useState<Game['difficulty']>('strategist'),[restart,setRestart]=useState('');
+ const [tutorial,setTutorial]=useState(()=>store.get(TUT)?-1:0),[tutBase]=useState(()=>({cottages:boot.game.buildings.filter(b=>b.kind==='cottage').length,jobs:boot.game.people.filter(p=>p.job!==null).length,day:boot.game.day}));
  const fileRef=useRef<HTMLInputElement>(null); const keyboard=useKeyboard(),screenPortal=useScreenPortal();
  useEffect(()=>{keyboard.hide();requestAnimationFrame(()=>screenPortal.screenRef.current?.scrollTo(0,0));},[panel,view]);
  useEffect(()=>{ref.current=game;if(saveBlocked){setSaved(false);return;}try{localStorage.setItem(SAVE,JSON.stringify(game));setSaved(true);}catch{setSaved(false);}},[game,saveBlocked]);
@@ -27,6 +30,10 @@ export default function Prototype(){
  useEffect(()=>{document.title='Everstead — A Living Frontier';},[]);
  const open=(p:Panel)=>{keyboard.hide();setSpeed(0);setPanel(p);setRestart('');};
  const changeView=(v:View)=>{keyboard.hide();setView(v);setPanel(null);setSelected(0);};
+
+ const tutSteps=[{title:'Build a cottage',text:'Tap “Build your town”, pick Cottage and build it. More beds let new settlers arrive.',done:game.buildings.filter(b=>b.kind==='cottage').length>tutBase.cottages},{title:'Give someone a job',text:'Open the Colony tab → “Manage your residents”, choose an unassigned resident and pick a workplace.',done:game.people.filter(p=>p.job!==null).length>tutBase.jobs},{title:'Press Next day',text:'Tap “Next day” at the bottom. Your town produces resources every day.',done:game.day>tutBase.day}];
+ const endTutorial=()=>{store.set(TUT,'1');setTutorial(-1);};
+ useEffect(()=>{if(tutorial<0)return;const i=tutSteps.findIndex(s=>!s.done);if(i===-1){endTutorial();setToast('Tutorial complete! Your town is in your hands.');}else if(i!==tutorial)setTutorial(i);});
  const ambitions=E.seasonalGoals(game);
  const production=E.production(game),resident=game.people.find(p=>p.id===selected)??game.people[0],destination=E.SITES.find(x=>x.id===site)!,currentSeason=E.season(game),objectives=E.objectives(game),objective=objectives.find(o=>!game.claimed.includes(o.id)),available=game.people.filter(p=>p.away===null&&!p.injury),selectedDef=E.BUILDINGS[kind];
  const SeasonIcon=currentSeason==='Winter'?SnowflakeIcon:currentSeason==='Autumn'?LeafIcon:SunIcon;
@@ -48,6 +55,7 @@ export default function Prototype(){
   </main></MobileScroll>
   <div className="time-strip"><button onClick={()=>act(E.tick)} disabled={!!game.event}><SunIcon/>Next day</button><button aria-label="Change simulation speed" onClick={()=>{if(!game.event)setSpeed(v=>v===0?1:v===1?3:v===3?8:0)}}>{speed?`${speed}× speed`:'Paused'}</button><button onClick={()=>open('settings')} aria-label="Save and settings"><GearIcon/>{saved?'Saved':'Save issue'}</button></div>
   <nav className="bottom-nav" aria-label="Game views">{nav.map(n=><button key={n.id} aria-current={view===n.id?'page':undefined} className={view===n.id?'active':''} onClick={()=>changeView(n.id)}><n.icon weight="fill"/><span>{n.name}</span></button>)}</nav>
+  {tutorial>=0&&!panel&&!game.event&&<div className="tutorial-card" role="dialog" aria-label="Tutorial"><span className="eyebrow">FIRST DAYS · STEP {tutorial+1} OF 3</span><b>{tutSteps[tutorial].title}</b><p>{tutSteps[tutorial].text}</p><button className="text-action" onClick={endTutorial}>Skip tutorial</button></div>}
   {toast&&!panel&&!game.event&&<div className="game-toast" role="status">{toast}</div>}
   <BottomSheet open={panel!==null} onOpenChange={v=>{if(!v)setPanel(null)}} title={panel==='expedition'?'Prepare your expedition':panel==='build'?'Build a living town':panel==='people'?'Your people':panel==='trade'?'Trade & neighbours':panel==='journal'?'The town chronicle':panel==='settings'?'Your settlement':panel==='stock'?'Stores & daily balance':panel==='craft'?'At the workshop':'Welcome to Everstead'} description="One world. Every decision carries forward." snap={.86}>
   <div className={`game-panel panel-${panel}`}><button className="close-panel" onClick={()=>setPanel(null)} aria-label="Close panel"><XIcon/></button>{toast&&<p className="panel-feedback" role="status">{toast}</p>}

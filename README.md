@@ -9,6 +9,8 @@ Two independent browser games, kept in separate folders.
 
 Each game has its own package manifest, lockfile, tests, source and README. No game source is shared between the folders.
 
+[Play Touchline on Cloudflare](https://touchline-93s.pages.dev/)
+
 ## Run either game
 
 Use Node.js 24. From this repository, enter the game folder, then run:

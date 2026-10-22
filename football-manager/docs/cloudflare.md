@@ -1,5 +1,9 @@
 # Touchline on Cloudflare
 
+[Open the live game](https://touchline-93s.pages.dev/)
+
+The production release was verified by starting a career, advancing a match and resuming it after reloading.
+
 Touchline has its own Cloudflare Pages project named `touchline`. It is independent of the Everstead project.
 
 ## Build a direct-upload release

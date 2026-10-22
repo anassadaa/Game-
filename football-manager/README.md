@@ -1,6 +1,6 @@
 # Touchline — Club Architect
 
-[Play Touchline](https://touchline-club-architect.anassadaacca.chatgpt.site) · Private to the owner’s ChatGPT account.
+[Play Touchline on Cloudflare](https://touchline-93s.pages.dev/) · [Private ChatGPT Site](https://touchline-club-architect.anassadaacca.chatgpt.site)
 
 ![Android phone preview](docs/screenshots/phone-preview.jpg)
 

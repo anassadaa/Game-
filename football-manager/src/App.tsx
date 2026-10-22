@@ -685,7 +685,49 @@ export default function App() {
                   <small>EXPECTED GOALS</small>
                   <span>{state.match.xgThem.toFixed(2)}</span>
                 </div>
-                <Pitch players={roster} compact />
+                {state.match.complete ? (
+                  <div className="ft-report">
+                    <h3>
+                      {state.match.us > state.match.them
+                        ? 'Victory!'
+                        : state.match.us < state.match.them
+                          ? 'Defeat'
+                          : 'All square'}
+                    </h3>
+                    <p className="ft-scorers">
+                      {state.match.timeline
+                        .filter((e) => e.kind === 'goal')
+                        .map(
+                          (e) =>
+                            `${e.side === 'us' ? (roster.find((p) => p.id === e.playerId)?.name ?? team.short) : opp.short} ${e.minute}′`,
+                        )
+                        .join(' · ') || 'No goals'}
+                    </p>
+                    <div className="ft-ratings">
+                      {starters
+                        .slice()
+                        .sort(
+                          (a, b) =>
+                            (state.match!.ratings?.[b.id] ?? 0) -
+                            (state.match!.ratings?.[a.id] ?? 0),
+                        )
+                        .map((p) => (
+                          <span
+                            key={p.id}
+                            className={p.id === state.match!.motm ? 'motm' : ''}
+                          >
+                            <small>{p.position}</small> {p.name}
+                            <b>
+                              {state.match!.motm === p.id && '★ '}
+                              {state.match!.ratings?.[p.id]?.toFixed(1) ?? '-'}
+                            </b>
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Pitch players={roster} compact />
+                )}
                 <div className="match-cta">
                   <button className="primary wide" onClick={matchAction}>
                     {actionLabel}
@@ -959,7 +1001,7 @@ export default function App() {
                       <span className="eyebrow">
                         ONE BADGE. {roster.length} STORIES.
                       </span>
-                      <h2>Your first team</h2>
+                      <h2>Your first team ({roster.length})</h2>
                       <p>
                         {starters.length} starters ·{' '}
                         {roster.filter((p) => p.injured).length} injuries ·{' '}

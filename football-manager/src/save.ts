@@ -1,5 +1,5 @@
 import type { GameState } from './game.ts';
-import { storyIds } from './game.ts';
+import { migrate, storyIds } from './game.ts';
 
 export const SAVE_KEY = 'touchline-career-v1';
 export const encodeSave = (state: GameState) => JSON.stringify(state);
@@ -8,9 +8,10 @@ export function decodeSave(raw: string): GameState | null {
   if (typeof raw !== 'string' || raw.length > 2_000_000) return null;
   try {
     const s = JSON.parse(raw) as GameState;
+    if (s && (s as { version: number }).version === 1) migrate(s);
     if (
       !s ||
-      s.version !== 1 ||
+      s.version !== 2 ||
       !Number.isInteger(s.seed) ||
       !Number.isInteger(s.season) ||
       s.season < 1 ||

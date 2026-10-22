@@ -60,6 +60,7 @@ export type MatchEvent = {
   text: string;
   side: 'us' | 'them' | 'neutral';
   kind: 'goal' | 'chance' | 'note';
+  playerId?: string;
 };
 export type Match = {
   minute: number;
@@ -71,6 +72,8 @@ export type Match = {
   xgThem: number;
   timeline: MatchEvent[];
   complete: boolean;
+  ratings?: Record<string, number>;
+  motm?: string;
 };
 export type CareerRecord = {
   season: number;
@@ -80,7 +83,7 @@ export type CareerRecord = {
   outcome: string;
 };
 export type GameState = {
-  version: 1;
+  version: 2;
   seed: number;
   season: number;
   week: number;
@@ -327,7 +330,7 @@ function makePlayer(
     age = academyGraduate ? 17 + int(s, 0, 2) : 18 + int(s, 0, 15);
   return {
     id: `p${s.season}-${s.week}-${i}-${s.seed}`,
-    name: `${pick(s, FIRST)} ${pick(s, LAST)}`,
+    name: uniqueName(s),
     age,
     position,
     rating,
@@ -343,6 +346,22 @@ function makePlayer(
     academyGraduate,
   };
 }
+function uniqueName(s: GameState): string {
+  const used = new Set([...s.players, ...s.market].map((p) => p.name));
+  for (let t = 0; t < 40; t++) {
+    const n = `${pick(s, FIRST)} ${pick(s, LAST)}`;
+    if (!used.has(n)) return n;
+  }
+  let n = `${pick(s, FIRST)} ${pick(s, LAST)}`,
+    k = 2;
+  while (used.has(`${n} ${k}`)) k++;
+  return `${n} ${k}`;
+}
+export function migrate(s: GameState): GameState {
+  const v = s as unknown as { version: number };
+  if (v.version === 1) v.version = 2;
+  return s;
+}
 function story(s: GameState): Story {
   const choices = STORY_TEMPLATES.filter((x) => x.id !== s.lastStory);
   const template = pick(s, choices);
@@ -356,15 +375,17 @@ function story(s: GameState): Story {
   };
 }
 function refreshMarket(s: GameState) {
-  s.market = Array.from({ length: 8 }, (_, i) =>
-    makePlayer(
-      s,
-      'market',
-      i,
-      pick(s, POSITIONS),
-      49 + s.scouting * 2 + int(s, -4, 12),
-    ),
-  );
+  s.market = [];
+  for (let i = 0; i < 8; i++)
+    s.market.push(
+      makePlayer(
+        s,
+        'market',
+        i,
+        pick(s, POSITIONS),
+        49 + s.scouting * 2 + int(s, -4, 12),
+      ),
+    );
   s.market.forEach((p) => {
     p.starting = false;
     p.price = Math.max(65, Math.round(p.price * (0.8 + next(s) * 0.6)));
@@ -394,7 +415,7 @@ export function newGame(
   if (!clubs.some((c) => c.id === clubId && c.division === 2))
     clubId = 'harbour';
   const s: GameState = {
-    version: 1,
+    version: 2,
     seed: seed >>> 0,
     season: 1,
     week: 0,
@@ -422,7 +443,7 @@ export function newGame(
     careerGames: 0,
     lastStory: '',
   };
-  s.players = POSITIONS.map((pos, i) => makePlayer(s, clubId, i, pos, 54));
+  POSITIONS.forEach((pos, i) => s.players.push(makePlayer(s, clubId, i, pos, 54)));
   refreshMarket(s);
   s.inbox = story(s);
   return s;
@@ -614,11 +635,25 @@ export function signPlayer(s: GameState, id: string): GameState {
   b.players.push(recruit);
   b.market = b.market.filter((p) => p.id !== id);
   b.budget -= p.price;
+  autoPlace(b, recruit.id);
   b.headlines = [
     `${p.name} joins ${club(b).name} for £${p.price}k.`,
     ...b.headlines,
   ].slice(0, 6);
   return b;
+}
+function autoPlace(b: GameState, id: string) {
+  const p = b.players.find((x) => x.id === id);
+  if (!p || p.injured) return false;
+  const weakest = b.players
+    .filter((x) => x.clubId === b.clubId && x.starting && x.position === p.position)
+    .sort((x, y) => x.rating - y.rating)[0];
+  if (weakest && weakest.rating < p.rating) {
+    weakest.starting = false;
+    p.starting = true;
+    return true;
+  }
+  return false;
 }
 export function sellPlayer(s: GameState, id: string): GameState {
   if (s.match) return s;
@@ -781,6 +816,7 @@ export function advanceMatch(s: GameState): GameState {
             : `${opponent(b).short} score after a dangerous spell.`,
           side,
           kind: 'goal',
+          playerId: scorer?.id,
         });
       } else
         m.timeline.push({
@@ -802,6 +838,7 @@ export function advanceMatch(s: GameState): GameState {
     });
   if (m.minute === 90) {
     m.complete = true;
+    rateMatch(b);
     m.timeline.push({
       minute: 90,
       text: `Full-time. ${club(b).short} ${m.us}–${m.them} ${opponent(b).short}.`,
@@ -811,6 +848,20 @@ export function advanceMatch(s: GameState): GameState {
   }
   m.timeline.sort((x, y) => x.minute - y.minute);
   return b;
+}
+function rateMatch(b: GameState) {
+  const m = b.match!,
+    diff = m.us - m.them,
+    ratings: Record<string, number> = {};
+  for (const p of b.players.filter((p) => p.clubId === b.clubId && p.starting)) {
+    let r = 6.2 + diff * 0.3 + (p.rating - 55) * 0.03 + (next(b) - 0.5) * 1.2;
+    const goals = m.timeline.filter((e) => e.kind === 'goal' && e.playerId === p.id).length;
+    r += goals * 1.0;
+    if ((p.position === 'DF' || p.position === 'GK') && m.them === 0) r += 0.7;
+    ratings[p.id] = Math.max(4, Math.min(10, Math.round(r * 10) / 10));
+  }
+  m.ratings = ratings;
+  m.motm = Object.entries(ratings).sort((x, y) => y[1] - x[1])[0]?.[0];
 }
 function result(a: Club, b: Club, ga: number, gb: number) {
   a.played++;

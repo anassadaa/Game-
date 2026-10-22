@@ -1,4 +1,4 @@
-import { EURO_QUOTA, LEAGUES, STARS, WORLD, league, sameCountry } from './world.ts';
+import { EURO_QUOTA, LEAGUES, WORLD, starsFor, league, sameCountry } from './world.ts';
 export type Position = 'GK' | 'DF' | 'MF' | 'FW';
 export type Mentality = 'cautious' | 'balanced' | 'attacking';
 export type Press = 'low' | 'normal' | 'high';
@@ -1303,7 +1303,10 @@ function makeRivals(s: GameState) {
   for (const c of s.clubs) {
     if (c.id === s.clubId) continue;
     const start = s.rivals.length;
-    SQUAD_SHAPE.forEach((pos, i) => s.rivals!.push(rivalPlayer(s, c, i, pos)));
+    // Clubs with look-alike data field their real-shaped first team (capped at 22 to keep phones fast).
+    const real = starsFor(c.id).slice(0, 22);
+    const shape = real.length >= 14 ? real.map((x) => x.position) : SQUAD_SHAPE;
+    shape.forEach((pos, i) => s.rivals!.push(rivalPlayer(s, c, i, pos)));
     applyStars(s, c, s.rivals.slice(start));
   }
 }
@@ -1656,7 +1659,7 @@ export function priceFor(rating: number, age: number) {
 /** Give famous look-alike stars to their club's squad. */
 function applyStars(_s: GameState, c: Club, squad: Player[]) {
   const used = new Set<string>();
-  for (const st of STARS.filter((x) => x.club === c.id)) {
+  for (const st of starsFor(c.id)) {
     const p = squad.find((x) => x.position === st.position && !used.has(x.id)) ?? squad.find((x) => !used.has(x.id) && x.position !== 'GK');
     if (!p) continue;
     used.add(p.id);

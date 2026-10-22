@@ -7,7 +7,7 @@ const play = (s) => { if (s.sacked) s = takeJob(s, s.offers[0]); s = startMatch(
 
 test('rival clubs have real squads and the market can be searched', () => {
   const s = newGame(11);
-  assert.equal(s.rivals.length, 151 * 14);
+  assert.ok(s.rivals.length >= 151 * 14 && s.rivals.length <= 151 * 22);
   assert.ok(searchMarket(s, { position: 'GK' }).every((p) => p.position === 'GK'));
   assert.ok(searchMarket(s, { maxAge: 21 }).every((p) => p.age <= 21));
   assert.ok(searchMarket(s, { source: 'clubs', maxPrice: 400 }).every((p) => askingPrice(p) <= 400 && p.clubId !== 'market'));

@@ -17,7 +17,7 @@ import type { Scout, ScoutReport } from './scouts.ts';
 import { recordRatings } from './highlights.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 import type { DeepTactics } from './tactics.ts';
-import { EURO_QUOTA, LEAGUES, WORLD, starsFor, league, sameCountry } from './world.ts';
+import { EURO_QUOTA, LEAGUES, PYRAMID, WORLD, pyramidOf, starsFor, league, sameCountry } from './world.ts';
 export type Position = 'GK' | 'DF' | 'MF' | 'FW';
 export type Mentality = 'cautious' | 'balanced' | 'attacking';
 export type Press = 'low' | 'normal' | 'high';
@@ -466,6 +466,13 @@ export function migrate(s: GameState): GameState {
   s.sacked ??= false;
   s.reputation ??= reputation(s);
   s.vacancies ??= [];
+  // New divisions added after this save was made: bring their clubs and squads in.
+  WORLD.forEach((w, i) => {
+    if (s.clubs.some((c) => c.id === w.id)) return;
+    const c = worldClub(w, i);
+    s.clubs.push(c);
+    rivalsFor(s, c);
+  });
   s.cup ??= newCup(s, []);
   s.euro ??= newEuro(s, true);
   s.youth ??= [];
@@ -503,13 +510,10 @@ function refreshMarket(s: GameState) {
   });
 }
 export const DEFAULT_CLUB = 'wrexham';
-export function newGame(
-  seed = Date.now() >>> 0,
-  clubId = DEFAULT_CLUB,
-  startRep?: number | null,
-): GameState {
-  const styles: Mentality[] = ['attacking', 'balanced', 'cautious'];
-  const clubs = WORLD.map((w, i): Club => ({
+const STYLES: Mentality[] = ['attacking', 'balanced', 'cautious'];
+function worldClub(w: (typeof WORLD)[number], i: number): Club {
+  const styles = STYLES;
+  return {
     id: w.id,
     name: w.name,
     short: w.name.split(' ').slice(-1)[0]!,
@@ -525,7 +529,14 @@ export function newGame(
     ga: 0,
     points: 0,
     form: [],
-  }));
+  };
+}
+export function newGame(
+  seed = Date.now() >>> 0,
+  clubId = DEFAULT_CLUB,
+  startRep?: number | null,
+): GameState {
+  const clubs = WORLD.map((w, i) => worldClub(w, i));
   if (!clubs.some((c) => c.id === clubId)) clubId = DEFAULT_CLUB;
   const s: GameState = {
     version: 2,
@@ -1217,20 +1228,22 @@ function train(s: GameState) {
     if (starter && p.fitness < 38 && next(s) < 0.09) p.injured = int(s, 1, 3);
   }
 }
+/** Reserve sides can never go up. */
+const RESERVE_SIDES = new Set(['sociedadb', 'benficab', 'portob', 'sportingb']);
 function rollSeason(s: GameState) {
-  const d1 = standings(s).filter((c) => c.division === 1),
-    d2 = standings(s).filter((c) => c.division === 2),
-    k = d1.length >= 20 ? 3 : 2,
+  const table = standings(s),
+    pyr = pyramidOf(club(s).division),
+    k = pyr?.k ?? 0,
     size = s.clubs.filter((c) => c.division === club(s).division).length,
     pos =
-      standings(s)
+      table
         .filter((c) => c.division === club(s).division)
         .findIndex((c) => c.id === s.clubId) + 1;
   const before = club(s).division;
   let outcome =
-    before === 2 && pos <= k
+    pyr?.second === before && pos <= k && !RESERVE_SIDES.has(s.clubId)
       ? 'Promoted'
-      : before === 1 && pos > size - k
+      : pyr?.top === before && pos > size - k
         ? 'Relegated'
         : pos === 1
           ? 'Champions'
@@ -1249,8 +1262,12 @@ function rollSeason(s: GameState) {
   addNews(s, ffpSeason(s));
   boardReview(s, pos, outcome);
   s.euro = newEuro(s);
-  d1.slice(-k).forEach((c) => (c.division = 2));
-  d2.slice(0, k).forEach((c) => (c.division = 1));
+  for (const p of PYRAMID) {
+    const d1 = table.filter((c) => c.division === p.top), d2 = table.filter((c) => c.division === p.second && !RESERVE_SIDES.has(c.id));
+    if (!d1.length || !d2.length) continue;
+    d1.slice(-p.k).forEach((c) => (c.division = p.second));
+    d2.slice(0, p.k).forEach((c) => (c.division = p.top));
+  }
   s.budget += league(before).tier === 1 ? 1250 : 850;
   s.trust = clamp(
     s.trust +
@@ -1430,17 +1447,18 @@ function rivalPlayer(s: GameState, c: Club, i: number, pos: Position, young = fa
   p.listed = next(s) < 0.12;
   return p;
 }
+function rivalsFor(s: GameState, c: Club) {
+  const start = s.rivals!.length;
+  // Look-alike data gives a real-shaped first team. Foreign second-tier squads are capped smaller to keep saves compact.
+  const cap = league(c.division).tier === 2 && !sameCountry(c.division, club(s).division) ? 16 : 22;
+  const real = starsFor(c.id).slice(0, cap);
+  const shape = real.length >= 14 ? real.map((x) => x.position) : SQUAD_SHAPE;
+  shape.forEach((pos, i) => s.rivals!.push(rivalPlayer(s, c, i, pos)));
+  applyStars(s, c, s.rivals!.slice(start));
+}
 function makeRivals(s: GameState) {
   s.rivals = [];
-  for (const c of s.clubs) {
-    if (c.id === s.clubId) continue;
-    const start = s.rivals.length;
-    // Clubs with look-alike data field their real-shaped first team (capped at 22 to keep phones fast).
-    const real = starsFor(c.id).slice(0, 22);
-    const shape = real.length >= 14 ? real.map((x) => x.position) : SQUAD_SHAPE;
-    shape.forEach((pos, i) => s.rivals!.push(rivalPlayer(s, c, i, pos)));
-    applyStars(s, c, s.rivals.slice(start));
-  }
+  for (const c of s.clubs) if (c.id !== s.clubId) rivalsFor(s, c);
 }
 /** Transfer windows: pre-season (weeks 1–4) and mid-season (weeks 10–11). */
 export const windowOpen = (s: Pick<GameState, 'week'>) => s.week <= 3 || s.week === 9 || s.week === 10;

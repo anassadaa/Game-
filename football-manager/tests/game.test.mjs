@@ -18,13 +18,13 @@ import {
 test('new careers are seeded and have a playable multi-league world', () => {
   const a = newGame(421, 'wrexham');
   assert.deepEqual(a, newGame(421, 'wrexham'));
-  assert.equal(a.clubs.length, 152);
+  assert.equal(a.clubs.length, 266);
   assert.equal(
     a.players.filter((p) => p.clubId === a.clubId && p.starting).length,
     11,
   );
   assert.equal(standings(a).filter((c) => c.division === 2).length, 20);
-  assert.equal(new Set(a.clubs.map((c) => c.division)).size, 8);
+  assert.equal(new Set(a.clubs.map((c) => c.division)).size, 14);
   assert.ok(a.inbox);
 });
 

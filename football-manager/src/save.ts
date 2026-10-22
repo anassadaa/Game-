@@ -84,7 +84,7 @@ export function decodeSave(raw: string): GameState | null {
       ) ||
       !s.players.every(validPlayer) ||
       !Array.isArray(s.rivals) ||
-      s.rivals.length > 5000 ||
+      s.rivals.length > 9000 ||
       !s.rivals.every(
         (p) =>
           validPlayer(p) &&

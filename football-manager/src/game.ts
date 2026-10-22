@@ -8,6 +8,8 @@ import { addTrophy, seasonAwards } from './stats.ts';
 import type { Award, Trophy } from './stats.ts';
 import { agentFee, ffpSeason, ffpSpend, releaseClause, saleIncome, sellOnReceipt } from './finance.ts';
 import type { Ffp, SellOn } from './finance.ts';
+import { developRival, retires, spawnRegen } from './regens.ts';
+import type { Retiree } from './regens.ts';
 import { scoutsWeek } from './scouts.ts';
 import type { Scout, ScoutReport } from './scouts.ts';
 import { recordRatings } from './highlights.ts';
@@ -50,6 +52,8 @@ export type Player = {
   contract?: number;
   clause?: number;
   sellOn?: { clubId: string; pct: number };
+  regenOf?: string;
+  peak?: number;
   loan?: boolean;
   counter?: number;
   listed?: boolean;
@@ -200,6 +204,7 @@ export type GameState = {
   ffp?: Ffp;
   sellOns?: SellOn[];
   embargo?: boolean;
+  retired?: Retiree[];
   scoutReports?: ScoutReport[];
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
@@ -1260,7 +1265,12 @@ function rollSeason(s: GameState) {
       leaving.push(`${p.name} (contract expired)`);
       return false;
     }
-    return p.age <= 36;
+    if (retires(s, p)) {
+      const r = spawnRegen(s, p, true);
+      leaving.push(`${p.name} (retired, regen ${r.name} emerges)`);
+      return false;
+    }
+    return true;
   });
   if (leaving.length) s.headlines = [`Departures: ${leaving.join(', ')}.`, ...s.headlines];
   const needsKeeper = !s.players.some((p) => p.position === 'GK');
@@ -1566,18 +1576,20 @@ function transferWeek(b: GameState) {
 }
 function rollRivals(b: GameState) {
   const rivals = b.rivals ?? [];
+  const retiring: Player[] = [];
   b.rivals = [];
   for (const p of rivals) {
     p.age++;
     p.goals = 0;
     p.assists = 0;
     delete p.counter;
-    if (p.age > 34) continue;
-    if (p.age <= 24 && p.rating < p.potential) p.rating = Math.min(p.potential, p.rating + int(b, 0, 4));
-    else if (p.age >= 31) p.rating = Math.max(35, p.rating - int(b, 0, 3));
-    p.price = priceFor(p.rating, p.age);
+    if (retires(b, p)) { retiring.push(p); continue; }
+    developRival(b, p);
     b.rivals.push(p);
   }
+  for (const p of retiring) spawnRegen(b, p);
+  const stars = retiring.filter((p) => (p.peak ?? p.rating) >= 72);
+  if (stars.length) addNews(b, `👴 Retirements: ${stars.slice(0, 3).map((p) => p.name).join(', ')}${stars.length > 3 ? ` and ${stars.length - 3} more` : ''}. Watch for their regens.`);
   for (const c of b.clubs) {
     if (c.id === b.clubId) continue;
     let n = b.rivals.filter((x) => x.clubId === c.id).length;

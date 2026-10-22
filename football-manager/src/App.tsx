@@ -62,6 +62,7 @@ import { LEAGUES, WORLD, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
 import { FinancePanel } from './Finance.tsx';
 import { agentFee, releaseClause } from './finance.ts';
+import { RegensPanel } from './Regens.tsx';
 import { ScoutsPanel } from './Scouts.tsx';
 import { StatsPanel } from './Stats.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
@@ -1254,6 +1255,7 @@ export default function App() {
                 <>
                   <ScoutsPanel state={state} onUpdate={update} />
                   <FinancePanel state={state} onUpdate={update} />
+                  <RegensPanel state={state} />
                   <div className="recruitment-summary">
                     <div>
                       <Search size={25} />

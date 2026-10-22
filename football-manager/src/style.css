@@ -3871,3 +3871,5 @@ th:last-child {
 .depth-chip{flex:none;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;min-height:44px;padding:6px 10px;border-radius:10px;border:1px solid rgba(127,127,127,.35);background:transparent;font-size:13px;white-space:nowrap}
 .depth-chip.start{border-color:#30a46c}.depth-chip.on{outline:2px solid #e5484d}.depth-chip small{opacity:.7;font-size:11px}
 .heat{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;aspect-ratio:3/2;max-width:100%;background:#2f6b3a;border:2px solid #fff;border-radius:6px;padding:2px;margin:6px 0}.heat i{border-radius:3px}
+.sidebar{overflow-y:auto;overscroll-behavior:contain}
+@media (max-height:500px){.sidebar nav button{min-height:40px;padding-top:6px;padding-bottom:6px}.sidebar{padding-top:10px;padding-bottom:10px}}

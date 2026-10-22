@@ -34,6 +34,7 @@ export type Player = {
   contract?: number;
   loan?: boolean;
   counter?: number;
+  listed?: boolean;
 };
 export type Instalment = { name: string; amount: number; weeks: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
@@ -148,7 +149,11 @@ export type GameState = {
   careerGames: number;
   lastStory: string;
   instalments?: Instalment[];
+  rivals?: Player[];
+  bids?: Bid[];
+  news?: string[];
 };
+export type Bid = { id: string; playerId: string; clubId: string; fee: number };
 
 const CLUBS: [string, string, string, number, Mentality][] = [
   ['northport', 'Northport Athletic', '#D9F06F', 66, 'attacking'],
@@ -392,7 +397,7 @@ function makePlayer(
   return player;
 }
 function uniqueName(s: GameState): string {
-  const used = new Set([...s.players, ...s.market].map((p) => p.name));
+  const used = new Set([...s.players, ...s.market, ...(s.rivals ?? [])].map((p) => p.name));
   for (let t = 0; t < 40; t++) {
     const n = `${pick(s, FIRST)} ${pick(s, LAST)}`;
     if (!used.has(n)) return n;
@@ -407,6 +412,9 @@ export function migrate(s: GameState): GameState {
   if (v.version === 1) v.version = 2;
   s.instalments ??= [];
   [...s.players, ...s.market].forEach(ensureProfile);
+  s.bids ??= [];
+  s.news ??= [];
+  if (!s.rivals) makeRivals(s);
   return s;
 }
 function story(s: GameState): Story {
@@ -490,10 +498,13 @@ export function newGame(
     careerGames: 0,
     lastStory: '',
     instalments: [],
+    bids: [],
+    news: [],
   };
   POSITIONS.forEach((pos, i) => s.players.push(makePlayer(s, clubId, i, pos, 54)));
   refreshMarket(s);
   s.inbox = story(s);
+  makeRivals(s);
   return s;
 }
 export function club(s: GameState) {
@@ -712,9 +723,11 @@ export type Offer = {
 };
 /** Negotiate with a transfer target. Returns the new state and a message for the manager. */
 export function negotiate(s: GameState, id: string, o: Offer): [GameState, string] {
-  const p = s.market.find((x) => x.id === id);
+  const p = s.market.find((x) => x.id === id) ?? s.rivals?.find((x) => x.id === id);
   const roster = s.players.filter((x) => x.clubId === s.clubId);
   if (s.match || !p) return [s, 'That player is no longer available.'];
+  const fromRival = p.clubId !== 'market';
+  if (fromRival && !windowOpen(s)) return [s, 'The transfer window is closed. Free agents only until it reopens.'];
   if (!(o.years >= 1 && o.years <= 5) || !Number.isFinite(o.fee) || o.fee < 0 || !Number.isFinite(o.wage))
     return [s, 'That offer is not valid.'];
   const swap = o.swapId ? roster.find((x) => x.id === o.swapId && !x.starting) : undefined;
@@ -723,8 +736,10 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
   const upfront = o.instalments ? Math.round(o.fee * 0.4) : o.fee;
   if (s.budget < upfront) return [s, 'You cannot afford that upfront payment.'];
   const b = copy(s),
-    t = b.market.find((x) => x.id === id)!;
-  const ask = t.counter ?? t.price,
+    t = (fromRival ? b.rivals! : b.market).find((x) => x.id === id)!;
+  const seller = b.clubs.find((c) => c.id === t.clubId);
+  const base = askingPrice(t);
+  const ask = t.counter ?? base,
     value = o.fee + (swap ? Math.round(swap.price * 0.8) : 0) - (o.instalments ? Math.round(o.fee * 0.05) : 0);
   const wantWage = Math.round(t.wage * (t.personality === 'Ambitious' ? 1.15 : 1));
   if (value < ask * 0.75) {
@@ -732,18 +747,21 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
     return [b, `Rejected. The club will not go below ${ask}k.`];
   }
   if (value < ask * 0.97) {
-    t.counter = Math.max(Math.round((ask + value) / 2), Math.round(t.price * 0.85));
+    t.counter = Math.max(Math.round((ask + value) / 2), Math.round(base * 0.85));
     return [b, `Counter-offer: they want £${t.counter}k.`];
   }
   if (o.wage < wantWage) return [b, `Fee agreed, but ${t.name} wants £${wantWage}k a week.`];
   t.clubId = b.clubId;
   t.starting = false;
+  t.listed = false;
   t.morale = 78;
   t.wage = Math.round(o.wage);
   t.contract = o.years;
   delete t.counter;
   b.players.push(t);
   b.market = b.market.filter((x) => x.id !== id);
+  b.rivals = (b.rivals ?? []).filter((x) => x.id !== id);
+  if (seller) addNews(b, `✍️ ${t.name} joins ${club(b).short} from ${seller.short} for £${o.fee}k.`);
   b.budget -= upfront;
   if (o.instalments)
     b.instalments = [...(b.instalments ?? []), { name: t.name, amount: Math.ceil((o.fee - upfront) / 6), weeks: 6 }];
@@ -1234,6 +1252,7 @@ export function advanceWeek(s: GameState): GameState {
   b.trust = clamp(b.trust + (m.us > m.them ? 3 : m.us < m.them ? -3 : 0));
   b.fans = clamp(b.fans + (m.us > m.them ? 2 : m.us < m.them ? -2 : 0));
   train(b);
+  transferWeek(b);
   b.headlines = [
     `${m.home ? 'Home' : 'Away'} to ${opp.name}: ${m.us}–${m.them}. ${m.us > m.them ? 'Three points banked.' : m.us < m.them ? 'Time to regroup.' : 'A point to build on.'}`,
     `Matchday income £${income}k · wages £${wages}k`,
@@ -1241,10 +1260,184 @@ export function advanceWeek(s: GameState): GameState {
   ].slice(0, 6);
   b.week++;
   b.match = null;
-  if (b.week === 18) rollSeason(b);
+  if (b.week === 18) {
+    rollSeason(b);
+    rollRivals(b);
+  }
   else {
     if (b.week % 3 === 0) refreshMarket(b);
     b.inbox = story(b);
   }
   return b;
+}
+
+// ---------- Transfer market: rival squads, windows, bids, AI trading ----------
+export const SQUAD_SHAPE: Position[] = ['GK', 'GK', 'DF', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'MF', 'FW', 'FW', 'FW'];
+function rivalPlayer(s: GameState, c: Club, i: number, pos: Position, young = false): Player {
+  const p = makePlayer(s, c.id, i, pos, c.rating - 8, young);
+  p.id = `r-${c.id}-${s.season}-${s.seed}-${i}`;
+  p.starting = false;
+  p.listed = next(s) < 0.12;
+  return p;
+}
+function makeRivals(s: GameState) {
+  s.rivals = [];
+  for (const c of s.clubs) {
+    if (c.id === s.clubId) continue;
+    SQUAD_SHAPE.forEach((pos, i) => s.rivals!.push(rivalPlayer(s, c, i, pos)));
+  }
+}
+/** Transfer windows: pre-season (weeks 1–4) and mid-season (weeks 10–11). */
+export const windowOpen = (s: Pick<GameState, 'week'>) => s.week <= 3 || s.week === 9 || s.week === 10;
+export const deadlineDay = (s: Pick<GameState, 'week'>) => s.week === 3 || s.week === 10;
+export function windowLabel(s: Pick<GameState, 'week'>) {
+  if (deadlineDay(s)) return 'Deadline day! Window closes after this match';
+  if (windowOpen(s)) return `Window open · closes in ${(s.week <= 3 ? 3 : 10) - s.week + 1} weeks`;
+  return `Window closed · reopens in ${(s.week < 9 ? 9 : 18) - s.week} weeks`;
+}
+/** What the owning club wants. Free agents cost their price; rivals want a premium unless listed. */
+export function askingPrice(p: Player) {
+  if (p.clubId === 'market') return p.price;
+  return Math.round(p.price * (p.listed ? 0.9 : 1.3));
+}
+export type MarketFilter = {
+  q?: string;
+  position?: Position | 'ALL';
+  maxAge?: number;
+  maxPrice?: number;
+  minStars?: number;
+  attr?: AttrKey | '';
+  minAttr?: number;
+  listedOnly?: boolean;
+  source?: 'all' | 'free' | 'clubs';
+  sort?: 'rating' | 'price' | 'potential' | 'age';
+};
+export function searchMarket(s: GameState, f: MarketFilter): Player[] {
+  const q = (f.q ?? '').trim().toLowerCase();
+  const pool = [...(f.source === 'clubs' ? [] : s.market), ...(f.source === 'free' ? [] : (s.rivals ?? []))];
+  const clubName = (id: string) => s.clubs.find((c) => c.id === id)?.name.toLowerCase() ?? '';
+  const out = pool.filter(
+    (p) =>
+      (!q || p.name.toLowerCase().includes(q) || clubName(p.clubId).includes(q)) &&
+      (!f.position || f.position === 'ALL' || p.position === f.position) &&
+      (!f.maxAge || p.age <= f.maxAge) &&
+      (!f.maxPrice || askingPrice(p) <= f.maxPrice) &&
+      (!f.minStars || potentialStars(p) >= f.minStars) &&
+      (!f.attr || attributes(p)[f.attr] >= (f.minAttr ?? 0)) &&
+      (!f.listedOnly || p.listed || p.clubId === 'market'),
+  );
+  const key = f.sort ?? 'rating';
+  out.sort((a, b) =>
+    key === 'price' ? askingPrice(a) - askingPrice(b) : key === 'age' ? a.age - b.age : b[key] - a[key],
+  );
+  return out;
+}
+function addNews(s: GameState, line: string) {
+  s.news = [`W${s.week + 1}: ${line}`, ...(s.news ?? [])].slice(0, 25);
+}
+export function toggleListed(s: GameState, id: string): GameState {
+  const p = s.players.find((x) => x.id === id && x.clubId === s.clubId && !x.loan);
+  if (s.match || !p) return s;
+  const b = copy(s),
+    t = b.players.find((x) => x.id === id)!;
+  t.listed = !t.listed;
+  if (!t.listed) b.bids = (b.bids ?? []).filter((x) => x.playerId !== id);
+  if (t.listed) addNews(b, `📋 ${club(b).short} transfer-list ${t.name}.`);
+  return b;
+}
+export function acceptBid(s: GameState, bidId: string): [GameState, string] {
+  const bid = s.bids?.find((x) => x.id === bidId);
+  const team = s.players.filter((p) => p.clubId === s.clubId);
+  const p = bid && team.find((x) => x.id === bid.playerId);
+  if (s.match || !bid || !p) return [s, 'That bid has expired.'];
+  if (team.length <= 14) return [s, 'You need at least 14 players. Sign a replacement first.'];
+  const b = copy(s),
+    t = b.players.find((x) => x.id === p.id)!,
+    buyer = b.clubs.find((c) => c.id === bid.clubId)!;
+  b.players = b.players.filter((x) => x.id !== t.id);
+  if (t.starting) {
+    const own = b.players.filter((x) => x.clubId === b.clubId && !x.starting && !x.injured);
+    const sub = own.filter((x) => x.position === t.position).sort((x, y) => y.rating - x.rating)[0] ??
+      own.filter((x) => (t.position === 'GK') === (x.position === 'GK')).sort((x, y) => y.rating - x.rating)[0] ??
+      b.players.filter((x) => x.clubId === b.clubId && !x.starting).sort((x, y) => y.rating - x.rating)[0];
+    if (sub) sub.starting = true;
+  }
+  Object.assign(t, { clubId: buyer.id, starting: false, listed: false, goals: 0, assists: 0 });
+  b.rivals = [...(b.rivals ?? []), t];
+  b.budget += bid.fee;
+  b.bids = (b.bids ?? []).filter((x) => x.playerId !== t.id);
+  addNews(b, `💰 ${t.name} leaves ${club(b).short} for ${buyer.short} (£${bid.fee}k).`);
+  b.headlines = [`${t.name} sold to ${buyer.name} for £${bid.fee}k.`, ...b.headlines].slice(0, 6);
+  return [b, `${t.name} sold to ${buyer.name} for £${bid.fee}k.`];
+}
+export function rejectBid(s: GameState, bidId: string): GameState {
+  const bid = s.bids?.find((x) => x.id === bidId);
+  if (!bid) return s;
+  const b = copy(s);
+  b.bids = b.bids!.filter((x) => x.id !== bidId);
+  const p = b.players.find((x) => x.id === bid.playerId);
+  if (p && !p.listed && p.personality === 'Ambitious' && bid.fee > p.price * 1.1) p.morale = clamp(p.morale - 8);
+  return b;
+}
+function transferWeek(b: GameState) {
+  b.bids = [];
+  const rivals = (b.rivals ??= []);
+  if (!windowOpen(b)) return;
+  const dd = deadlineDay(b) ? 1.7 : 1;
+  const ours = club(b);
+  // Incoming bids for our players
+  const own = b.players.filter((p) => p.clubId === b.clubId && !p.loan);
+  for (const p of own) {
+    if (b.bids.length >= 4) break;
+    const chance = (p.listed ? 0.45 : p.rating >= ours.rating + 4 ? 0.1 : 0.02) * dd;
+    if (next(b) >= chance) continue;
+    const buyers = b.clubs.filter((c) => c.id !== b.clubId && c.rating >= p.rating - 12);
+    if (!buyers.length) continue;
+    const buyer = pick(b, buyers);
+    const fee = Math.round(p.price * (p.listed ? 0.7 + next(b) * 0.3 : 1.0 + next(b) * 0.35) * (dd > 1 ? 1.1 : 1));
+    b.bids.push({ id: `bid-${b.season}-${b.week}-${p.id}`, playerId: p.id, clubId: buyer.id, fee });
+  }
+  if (b.bids.length) addNews(b, `📨 ${b.bids.length} bid${b.bids.length > 1 ? 's' : ''} received for your players.`);
+  // AI clubs trade with each other
+  const moves = int(b, 0, deadlineDay(b) ? 3 : 1);
+  for (let k = 0; k < moves; k++) {
+    const p = pick(b, rivals);
+    const from = b.clubs.find((c) => c.id === p.clubId)!;
+    if (rivals.filter((x) => x.clubId === from.id).length <= 13) continue;
+    const to = pick(b, b.clubs.filter((c) => c.id !== b.clubId && c.id !== from.id));
+    const fee = Math.round(p.price * (0.9 + next(b) * 0.5));
+    p.clubId = to.id;
+    p.listed = false;
+    delete p.counter;
+    addNews(b, `🔁 ${p.name} (${p.position}, ${p.rating}) moves from ${from.short} to ${to.short} for £${fee}k.`);
+  }
+  // Clubs keep squads topped up and occasionally list players
+  for (const c of b.clubs) {
+    if (c.id === b.clubId) continue;
+    const squad = rivals.filter((x) => x.clubId === c.id);
+    if (squad.length < 14) rivals.push(rivalPlayer(b, c, 100 + b.week * 10 + squad.length, pick(b, POSITIONS)));
+    if (squad.length > 17) squad.sort((x, y) => x.rating - y.rating)[0]!.listed = true;
+  }
+  if (deadlineDay(b)) addNews(b, '⏰ Deadline day! The window shuts after this week.');
+}
+function rollRivals(b: GameState) {
+  const rivals = b.rivals ?? [];
+  b.rivals = [];
+  for (const p of rivals) {
+    p.age++;
+    p.goals = 0;
+    p.assists = 0;
+    delete p.counter;
+    if (p.age > 34) continue;
+    if (p.age <= 24 && p.rating < p.potential) p.rating = Math.min(p.potential, p.rating + int(b, 0, 4));
+    else if (p.age >= 31) p.rating = Math.max(35, p.rating - int(b, 0, 3));
+    p.price = Math.max(65, Math.round((p.rating - 30) * 7 + (24 - p.age) * 5));
+    b.rivals.push(p);
+  }
+  for (const c of b.clubs) {
+    if (c.id === b.clubId) continue;
+    let n = b.rivals.filter((x) => x.clubId === c.id).length;
+    while (n < 14) b.rivals.push(rivalPlayer(b, c, 200 + n++, pick(b, POSITIONS), true));
+  }
+  b.news = [`Season ${b.season}: the summer window is open!`, ...(b.news ?? [])].slice(0, 25);
 }

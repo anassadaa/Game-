@@ -3795,3 +3795,25 @@ th:last-child {
 .deal-field { display: grid; gap: 6px; margin: 10px 0; font-size: 0.95rem; }
 .deal-field input[type=range], .deal-field select { width: 100%; min-height: 36px; }
 .deal-check { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: 0.9rem; }
+/* Transfer market */
+.tm { display: grid; gap: 14px; padding: 14px; }
+.tm-window { padding: 10px 12px; border-radius: 10px; font-weight: 700; background: rgba(255,255,255,0.06); }
+.tm-window.open { background: rgba(163,230,53,0.14); color: #d9f99d; }
+.tm-window.deadline { background: rgba(250,204,21,0.18); color: #fde68a; animation: tmpulse 1.4s ease-in-out infinite; }
+.tm-window.closed { color: #cbd5e1; }
+@keyframes tmpulse { 50% { opacity: 0.7; } }
+.tm-block h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.tm-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.tm-filters input, .tm-filters select { min-height: 40px; font-size: 16px; padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: inherit; min-width: 0; }
+.tm-filters input { grid-column: 1 / -1; }
+.tm-filters .deal-check { grid-column: 1 / -1; }
+.tm-results { display: grid; gap: 6px; }
+.tm-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 8px; border-radius: 10px; background: rgba(255,255,255,0.04); }
+.tm-name { min-width: 0; display: grid; }
+.tm-name b, .tm-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-name small { opacity: 0.75; font-size: 0.82rem; }
+.tm-ovr { font-size: 1.2rem; }
+.tm-row button { min-height: 38px; padding: 4px 10px; white-space: nowrap; }
+.tm-news { max-height: 240px; overflow-y: auto; display: grid; gap: 4px; }
+.tm-news p { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+.row-list > div > span { min-width: 0; overflow-wrap: anywhere; }

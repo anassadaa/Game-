@@ -8,7 +8,7 @@ export function decodeSave(raw: string): GameState | null {
   if (typeof raw !== 'string' || raw.length > 2_000_000) return null;
   try {
     const s = JSON.parse(raw) as GameState;
-    if (s && (s as { version: number }).version === 1) migrate(s);
+    if (s && [1, 2].includes((s as { version: number }).version) && Array.isArray(s.players) && Array.isArray(s.market) && Array.isArray(s.clubs)) migrate(s);
     if (
       !s ||
       s.version !== 2 ||
@@ -75,6 +75,28 @@ export function decodeSave(raw: string): GameState | null {
         (p) => validPlayer(p) && p.clubId === 'market' && !p.starting,
       ) ||
       !s.players.every(validPlayer) ||
+      !Array.isArray(s.rivals) ||
+      s.rivals.length > 600 ||
+      !s.rivals.every(
+        (p) =>
+          validPlayer(p) &&
+          !p.starting &&
+          typeof p.id === 'string' &&
+          typeof p.name === 'string' &&
+          ['GK', 'DF', 'MF', 'FW'].includes(p.position) &&
+          [p.age, p.rating, p.potential].every(Number.isFinite) &&
+          s.clubs.some((c) => c.id === p.clubId && c.id !== s.clubId),
+      ) ||
+      listedTypeInvalid(s) ||
+      !Array.isArray(s.bids) ||
+      s.bids.length > 10 ||
+      !s.bids.every(
+        (b) =>
+          b && typeof b.id === 'string' && typeof b.playerId === 'string' && typeof b.clubId === 'string' && Number.isFinite(b.fee) && b.fee >= 0,
+      ) ||
+      !Array.isArray(s.news) ||
+      s.news.length > 50 ||
+      !s.news.every((n) => typeof n === 'string') ||
       !s.headlines.every((n) => typeof n === 'string') ||
       (s.instalments !== undefined &&
         (!Array.isArray(s.instalments) ||
@@ -149,8 +171,8 @@ export function decodeSave(raw: string): GameState | null {
       own.length < 14 ||
       own.filter((p) => p.starting).length !== 11 ||
       ids.size !== s.players.length ||
-      new Set([...s.players, ...s.market].map((p) => p.id)).size !==
-        s.players.length + s.market.length ||
+      new Set([...s.players, ...s.market, ...s.rivals!].map((p) => p.id)).size !==
+        s.players.length + s.market.length + s.rivals!.length ||
       own.filter((p) => p.starting && p.position === 'GK').length !== 1 ||
       !s.players.every(
         (p) =>
@@ -238,4 +260,8 @@ export function storeSave(state: GameState): boolean {
   } catch {
     return false;
   }
+}
+
+function listedTypeInvalid(s: GameState) {
+  return [...s.players, ...(s.rivals ?? [])].some((p) => p.listed !== undefined && typeof p.listed !== 'boolean');
 }

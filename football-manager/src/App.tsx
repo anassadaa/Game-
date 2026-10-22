@@ -57,6 +57,8 @@ import type {
   Tempo,
   Training,
 } from './game.ts';
+import { TransferMarket } from './Market.tsx';
+import { askingPrice } from './game.ts';
 import { decodeSave, encodeSave, loadSave, storeSave } from './save.ts';
 
 const money = (n: number) =>
@@ -1267,6 +1269,22 @@ export default function App() {
                       </span>
                     </div>
                   </div>
+                  <SectionTitle eyebrow="BUY · SELL · SCOUT" title="Transfer market" />
+                  <TransferMarket
+                    state={state}
+                    locked={locked}
+                    onUpdate={update}
+                    onNegotiate={(p) =>
+                      setDeal({
+                        id: p.id,
+                        fee: p.counter ?? Math.round(askingPrice(p) * 0.85),
+                        wage: p.wage,
+                        years: 3,
+                        instalments: false,
+                        swapId: '',
+                      })
+                    }
+                  />
                   <SectionTitle
                     eyebrow="EYES ON THE FUTURE"
                     title="The shortlist"
@@ -1618,8 +1636,9 @@ export default function App() {
         </div>
       )}
       {deal && (() => {
-        const t = state.market.find((p) => p.id === deal.id);
+        const t = state.market.find((p) => p.id === deal.id) ?? state.rivals?.find((p) => p.id === deal.id);
         if (!t) return null;
+        const ask = askingPrice(t);
         return (
           <div className="modal-backdrop" onClick={() => setDeal(null)}>
             <section className="help-modal" role="dialog" aria-label="Negotiate" onClick={(e) => e.stopPropagation()}>
@@ -1627,10 +1646,10 @@ export default function App() {
               <span className="eyebrow">NEGOTIATION</span>
               <h2>{t.name}</h2>
               <p>
-                Value {money(t.price)}{t.counter ? ` · they ask ${money(t.counter)}` : ''} · wants about {money(t.wage)}/wk · {t.personality}
+                {t.clubId === 'market' ? 'Free agent' : state.clubs.find((c) => c.id === t.clubId)?.name}{t.listed ? ' (listed)' : ''} · asking {money(ask)}{t.counter ? ` · they ask ${money(t.counter)}` : ''} · wants about {money(t.wage)}/wk · {t.personality}
               </p>
               <label className="deal-field">Fee offer: <b>{money(deal.fee)}</b>
-                <input type="range" min={Math.round(t.price * 0.5)} max={Math.round(t.price * 1.3)} value={deal.fee} onChange={(e) => setDeal({ ...deal, fee: +e.target.value })} />
+                <input type="range" min={Math.round(ask * 0.5)} max={Math.round(ask * 1.3)} value={deal.fee} onChange={(e) => setDeal({ ...deal, fee: +e.target.value })} />
               </label>
               <label className="deal-field">Weekly wage: <b>{money(deal.wage)}</b>
                 <input type="range" min={Math.max(1, Math.round(t.wage * 0.6))} max={Math.round(t.wage * 1.6) + 2} value={deal.wage} onChange={(e) => setDeal({ ...deal, wage: +e.target.value })} />
@@ -1653,8 +1672,9 @@ export default function App() {
                 const [next, msg] = negotiate(state, deal.id, { ...deal, swapId: deal.swapId || undefined });
                 if (next !== state) setState(next);
                 setToast(msg);
-                if (!next.market.some((p) => p.id === deal.id)) setDeal(null);
-                else { const c = next.market.find((p) => p.id === deal.id)?.counter; if (c) setDeal({ ...deal, fee: c }); }
+                const still = next.market.find((p) => p.id === deal.id) ?? next.rivals?.find((p) => p.id === deal.id);
+                if (!still) setDeal(null);
+                else { const c = still.counter; if (c) setDeal({ ...deal, fee: c }); }
               }}>Submit offer <ArrowRight size={17} /></button>
             </section>
           </div>

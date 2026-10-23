@@ -11,19 +11,38 @@ export const TONES: { id: Tone; label: string }[] = [
 const own = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId);
 export const harmony = (s: GameState) => s.harmony ?? 70;
 
+/** Expected morale change for one player from a tone, given the score difference (us − them). */
+export function toneEffect(p: Player, tone: Tone, diff: number) {
+  let d = tone === 'praise' ? (diff > 0 ? 6 : -4) : tone === 'demand' ? (diff < 0 ? 5 : diff > 0 ? -2 : 2) : tone === 'calm' ? (diff >= 0 ? 3 : 0) : diff <= 0 ? 4 : 2;
+  const pers = p.personality;
+  if (tone === 'demand' && (pers === 'Temperamental' || pers === 'Easy-going')) d -= 4;
+  if (tone === 'demand' && (pers === 'Ambitious' || pers === 'Professional')) d += 2;
+  if (tone === 'calm' && (pers === 'Easy-going' || pers === 'Temperamental')) d += 2;
+  if (tone === 'calm' && pers === 'Ambitious') d -= 1;
+  if (tone === 'praise' && (pers === 'Loyal' || pers === 'Easy-going')) d += 1;
+  if (tone === 'praise' && pers === 'Professional' && diff <= 0) d -= 1;
+  if (tone === 'encourage' && p.age < 22) d += 2;
+  return d;
+}
+/** Best tone for the current XI and score, with the reason. */
+export function recommendTalk(s: GameState, diff = s.match ? s.match.us - s.match.them : 0): { tone: Tone; why: string } {
+  const xi = own(s).filter((x) => x.starting);
+  const score = (t: Tone) => xi.reduce((n, p) => n + toneEffect(p, t, diff), 0);
+  const tone = TONES.map((t) => t.id).sort((a, b) => score(b) - score(a))[0]!;
+  const hot = xi.filter((p) => p.personality === 'Temperamental' || p.personality === 'Easy-going').length;
+  const why = diff > 0 ? `We're ahead; ${tone === 'praise' ? 'they have earned praise' : 'keep the level'}.` : diff < 0 ? `We're behind; ${tone === 'demand' ? 'they need a jolt' : hot >= 3 ? `${hot} sensitive players won't take a rollicking` : 'lift them'}.` : hot >= 3 ? `${hot} sensitive characters in the XI; go easy.` : 'Level game; set the tone.';
+  return { tone, why };
+}
+
 /** Team talk before kick-off or at half-time. Personalities react differently. */
 export function teamTalk(s: GameState, tone: Tone): GameState {
   const m = s.match;
   if (!m || m.complete || (m.minute !== 0 && m.minute !== 45) || !TONES.some((t) => t.id === tone)) return s;
   if ((m.talks ?? []).includes(m.minute)) return s;
   const b = copy(s), bm = b.match!, diff = bm.us - bm.them;
-  const fit = tone === 'praise' ? (diff > 0 ? 6 : -4) : tone === 'demand' ? (diff < 0 ? 5 : diff > 0 ? -2 : 2) : tone === 'calm' ? (diff >= 0 ? 3 : 0) : diff <= 0 ? 4 : 2;
   let up = 0, down = 0;
   for (const p of own(b).filter((x) => x.starting)) {
-    let d = fit + Math.round((next(b) - 0.5) * 4);
-    if (tone === 'demand' && (p.personality === 'Temperamental' || p.personality === 'Easy-going')) d -= 4;
-    if (tone === 'demand' && (p.personality === 'Ambitious' || p.personality === 'Professional')) d += 2;
-    if (tone === 'encourage' && p.age < 22) d += 2;
+    const d = toneEffect(p, tone, diff) + Math.round((next(b) - 0.5) * 4);
     p.morale = clamp(p.morale + d);
     d > 0 ? up++ : d < 0 && down++;
   }

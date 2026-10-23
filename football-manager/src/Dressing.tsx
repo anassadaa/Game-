@@ -1,19 +1,22 @@
+import { best } from './staff.ts';
 import type { GameState } from './game.ts';
 import { AssistantTip } from './Staff.tsx';
 import { canMentor, giveRaise, groups, hierarchy, raiseCost, setMentor } from './room.ts';
-import { TONES, answerPress, handleUnhappy, harmony, pressQuestion, teamTalk } from './dressing.ts';
+import { TONES, recommendTalk, answerPress, handleUnhappy, harmony, pressQuestion, teamTalk } from './dressing.ts';
 
 type Up = (s: GameState, m?: string) => void;
 export function TeamTalk({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
   const m = state.match;
   if (!m || m.complete || (m.minute !== 0 && m.minute !== 45) || (m.talks ?? []).includes(m.minute)) return null;
+  const rec = best(state, 'assistant') ? recommendTalk(state) : null;
   return (
     <div className="talk">
       <b>{m.minute === 0 ? 'Pre-match team talk' : 'Half-time team talk'}</b>
       <AssistantTip state={state} />
+      {rec && <p className="small muted">🗣 Recommends: <b>{TONES.find((t) => t.id === rec.tone)!.label}</b> — {rec.why}</p>}
       <div className="seg-row">
         {TONES.map((t) => (
-          <button key={t.id} onClick={() => onUpdate(teamTalk(state, t.id))}>{t.label}</button>
+          <button key={t.id} className={rec?.tone === t.id ? 'on' : ''} onClick={() => onUpdate(teamTalk(state, t.id))}>{t.label}</button>
         ))}
       </div>
     </div>

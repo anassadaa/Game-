@@ -4019,3 +4019,9 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .room .groups { margin: 0; padding-left: 16px; font-size: 0.8rem; }
 .mentor-row { display: flex; gap: 6px; align-items: center; justify-content: space-between; font-size: 0.8rem; flex-wrap: wrap; }
 .mentor-row select { max-width: 100%; min-width: 0; flex: 1 1 140px; }
+.tactic-sets { display: grid; gap: 6px; margin: 8px 0; }
+.tactic-sets .seg-row { flex-wrap: wrap; }
+.set-chip { display: inline-flex; gap: 2px; max-width: 100%; }
+.set-chip button { min-width: 0; overflow-wrap: anywhere; }
+.set-save { display: flex; gap: 6px; flex-wrap: wrap; }
+.set-save input { flex: 1 1 120px; min-width: 0; }

@@ -241,6 +241,7 @@ export type GameState = {
   cupRotate?: boolean;
   familiar?: Record<string, number>;
   boardAsk?: import('./scoutrange.ts').BoardAsk;
+  tacticSets?: import('./tacticsets.ts').TacticSet[];
   bids?: Bid[];
   news?: string[];
   board?: Board;

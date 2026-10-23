@@ -1,3 +1,4 @@
+import { TacticSets } from './TacticSets.tsx';
 import { abilityRange, rangeText } from './scoutrange.ts';
 import { EXT_LABEL, FOOT_LABEL, ext, footOf, slotOf } from './positions.ts';
 import { MatchStatsPanel } from './MatchStats.tsx';
@@ -826,6 +827,7 @@ export default function App() {
                 ) : null}
                 <TeamTalk state={state} onUpdate={update} />
                 <MatchStatsPanel state={state} />
+                <TacticSets state={state} onUpdate={update} compact />
                 <Shouts state={state} onUpdate={update} />
                 <PressRoom state={state} onUpdate={update} />
                 <SubsPanel state={state} onUpdate={update} />

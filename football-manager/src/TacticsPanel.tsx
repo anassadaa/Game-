@@ -1,3 +1,4 @@
+import { TacticSets } from './TacticSets.tsx';
 import { familiarity, pressReadiness } from './familiarity.ts';
 import { squadNote } from './aisquads.ts';
 import { CORNER, MARKING } from './setpieces.ts';
@@ -50,6 +51,7 @@ export function DeepTacticsPanel({ state, onUpdate }: { state: GameState; onUpda
       </section>
       <section className="card panel">
         <span className="eyebrow">TEAM INSTRUCTIONS</span>
+        <TacticSets state={state} onUpdate={onUpdate} />
         <Seg label="Width" value={t.width ?? 'normal'} values={WIDTHS} change={(v) => onUpdate(setTactics(state, { width: v as never }))} />
         <Seg label="Defensive line" value={t.line ?? 'normal'} values={LINES} change={(v) => onUpdate(setTactics(state, { line: v as never }))} />
         <Seg label="Passing" value={t.passing ?? 'mixed'} values={PASSING} change={(v) => onUpdate(setTactics(state, { passing: v as never }))} />

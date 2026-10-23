@@ -1,5 +1,6 @@
 import type { GameState } from './game.ts';
 import { AssistantTip } from './Staff.tsx';
+import { canMentor, giveRaise, groups, hierarchy, raiseCost, setMentor } from './room.ts';
 import { TONES, answerPress, handleUnhappy, harmony, pressQuestion, teamTalk } from './dressing.ts';
 
 type Up = (s: GameState, m?: string) => void;
@@ -53,6 +54,7 @@ export function DressingPanel({ state, onUpdate }: { state: GameState; onUpdate:
               </span>
               {p.unhappy && (
                 <span className="row-btns">
+                  {p.unhappy === 'wages' && <button className="secondary" disabled={!!state.match} onClick={() => onUpdate(giveRaise(state, p.id), `${p.name} accepts a raise.`)}>Raise to £{raiseCost(state, p)}k</button>}
                   <button className="secondary" disabled={!!state.match} onClick={() => onUpdate(handleUnhappy(state, p.id, 'promise'))}>Promise</button>
                   <button className="ghost" disabled={!!state.match} onClick={() => onUpdate(handleUnhappy(state, p.id, 'talk'))}>Talk</button>
                   <button className="ghost" disabled={!!state.match} onClick={() => onUpdate(handleUnhappy(state, p.id, 'list'))}>List</button>
@@ -62,6 +64,31 @@ export function DressingPanel({ state, onUpdate }: { state: GameState; onUpdate:
           ))}
         </div>
       )}
+      <RoomStructure state={state} onUpdate={onUpdate} />
     </section>
+  );
+}
+function RoomStructure({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  const squad = state.players.filter((p) => p.clubId === state.clubId);
+  const top = hierarchy(state).filter((x) => x.tier !== 'Other');
+  const kids = squad.filter((k) => squad.some((m) => canMentor(m, k)));
+  const name = (id: string) => squad.find((p) => p.id === id)?.name ?? '?';
+  return (
+    <div className="room">
+      <p className="eyebrow">HIERARCHY</p>
+      <div className="chips">{top.map((x) => <span key={x.id} className={`chip tier-${x.tier.split(' ')[0]!.toLowerCase()}`}>{x.name} · {x.tier}</span>)}</div>
+      <p className="eyebrow">SOCIAL GROUPS</p>
+      <ul className="groups">{groups(state).map((g) => <li key={g.name}><b>{g.name}</b> ({g.ids.length}): {g.ids.slice(0, 5).map(name).join(', ')}{g.ids.length > 5 ? '…' : ''}</li>)}</ul>
+      {kids.length > 0 && <p className="eyebrow">MENTORING</p>}
+      {kids.map((k) => (
+        <label key={k.id} className="mentor-row">
+          <span>{k.name} ({k.age})</span>
+          <select value={k.mentor ?? ''} disabled={!!state.match} onChange={(e) => onUpdate(setMentor(state, k.id, e.target.value || null))}>
+            <option value="">No mentor</option>
+            {squad.filter((m) => canMentor(m, k)).map((m) => <option key={m.id} value={m.id}>{m.name} ({m.age}, {m.personality ?? '—'})</option>)}
+          </select>
+        </label>
+      ))}
+    </div>
   );
 }

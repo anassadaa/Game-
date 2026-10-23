@@ -27,6 +27,7 @@ import { captainWeek, formSwing, hidden, leaderEdge, ppmEffect, revealWeek } fro
 import { dropSuspended, matchCards, resetCards, settleCards, type Card } from './cards.ts';
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { midweekLoad } from './calendar.ts';
+import { roomWeek } from './room.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
@@ -97,6 +98,7 @@ export type Player = {
   sharp?: number;
   unhappy?: string;
   promise?: { weeks: number; kept: number };
+  mentor?: string;
   careerGoals?: number;
   careerApps?: number;
   known?: boolean;
@@ -1527,6 +1529,7 @@ export function advanceWeek(s: GameState): GameState {
   aiInjuriesWeek(b);
   revealWeek(b);
   captainWeek(b);
+  roomWeek(b);
   staffWeek(b);
   agentsWeek(b);
   loansWeek(b);

@@ -23,6 +23,7 @@ import { validSlots } from './positions.ts';
 import { validPlan } from './setpieces.ts';
 import { validSquadRef } from './aisquads.ts';
 import { validRotate } from './calendar.ts';
+import { validMentors } from './room.ts';
 import { LEAGUES } from './world.ts';
 import { ATTRS, PERSONALITIES, migrate, storyIds } from './game.ts';
 
@@ -137,6 +138,7 @@ export function decodeSave(raw: string): GameState | null {
       !validPlan(s.tactics?.sp) ||
       !validSquadRef(s.squadRef) ||
       !validRotate(s.cupRotate) ||
+      !validMentors(s) ||
       !s.euro ||
       !Array.isArray(s.euro.alive) ||
       !s.euro.alive.every((id) => s.clubs.some((c) => c.id === id)) ||

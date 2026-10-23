@@ -4012,3 +4012,10 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .congestion.congested b { color: #f59e0b; }
 .rotate-toggle { display: inline-flex; gap: 6px; align-items: center; }
 .fixture-list li.midweek { opacity: 0.85; font-style: italic; }
+.room { margin-top: 10px; display: grid; gap: 6px; }
+.room .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.room .chip { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.08); max-width: 100%; overflow-wrap: anywhere; }
+.room .tier-team { background: rgba(245,158,11,0.25); }
+.room .groups { margin: 0; padding-left: 16px; font-size: 0.8rem; }
+.mentor-row { display: flex; gap: 6px; align-items: center; justify-content: space-between; font-size: 0.8rem; flex-wrap: wrap; }
+.mentor-row select { max-width: 100%; min-width: 0; flex: 1 1 140px; }

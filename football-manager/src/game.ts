@@ -1,3 +1,4 @@
+import { cornerConv } from './setpieces.ts';
 import { repairSlots } from './positions.ts';
 import { passage, reason, segmentStats, shotStat } from './narrate.ts';
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
@@ -1166,7 +1167,7 @@ export function advanceMatch(s: GameState): GameState {
         const taker = setPieceTaker(b, kind);
         if (taker) {
           const a = attributes(taker);
-          const conv = kind === 'pens' ? 0.55 + a.shooting / 400 : kind === 'corners' ? 0.06 + a.passing / 900 : 0.05 + (a.shooting + a.passing) / 1600;
+          const conv = kind === 'pens' ? 0.55 + a.shooting / 400 : kind === 'corners' ? cornerConv(b, taker, a.passing) : 0.05 + (a.shooting + a.passing) / 1600;
           const label = kind === 'pens' ? 'penalty' : kind === 'corners' ? 'corner' : 'free kick';
           if (next(b) < conv) {
             m.us++;

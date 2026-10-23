@@ -1,3 +1,4 @@
+import { setPieceProfile } from './setpieces.ts';
 import { slotProfile } from './positions.ts';
 // Deeper tactics: formations, roles, individual instructions, team instructions, set pieces and scouting.
 import type { Club, GameState, Player, Position, Tactics } from './game.ts';
@@ -61,6 +62,7 @@ export type DeepTactics = {
   /** Shape and stance without the ball. */
   oopShape?: string;
   oopMode?: OopMode;
+  sp?: import('./setpieces.ts').SetPlan;
   roles?: Record<string, string>;
   instr?: Record<string, Instruction>;
   pens?: string;
@@ -120,6 +122,7 @@ export function tacticProfile(s: GameState, oppStyle: Club['style']) {
   if (ps === 'direct') att += avg('pace') > 62 ? 0.02 : 0.005;
   if (t.counter) { att += oppStyle === 'attacking' ? 0.04 : -0.01; def += 0.01; if (oppStyle === 'attacking') notes.push('counter-attacks will hurt them'); }
   const sp = slotProfile(s); att += sp.att; def += sp.def; notes.push(...sp.notes);
+  const spp = setPieceProfile(s); att += spp.att; def += spp.def; notes.push(...spp.notes);
   // Out of possession: a second shape and a stance (press / mid block / low block).
   const fo = t.oopShape ? FORM_BIAS[t.oopShape] : undefined;
   if (fo) { def += (fo.def - f.def) * 0.012; notes.push(`${t.oopShape} without the ball`); }

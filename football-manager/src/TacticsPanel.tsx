@@ -1,3 +1,4 @@
+import { CORNER, MARKING } from './setpieces.ts';
 import { applyScoutSuggestion, club, opponent, setPlayerTactic, setTactics } from './game.ts';
 import type { GameState } from './game.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, OOP_MODES, PASSING, ROLES, WIDTHS, roleFit, roleOf, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
@@ -90,6 +91,9 @@ export function DeepTacticsPanel({ state, onUpdate }: { state: GameState; onUpda
       </section>
       <section className="card panel">
         <span className="eyebrow">SET-PIECE TAKERS</span>
+        <Seg label="Corners" value={t.sp?.corner ?? 'far'} values={CORNER} change={(v) => onUpdate(setTactics(state, { sp: { ...t.sp, corner: v as never } }))} />
+        <Seg label="Defending set pieces" value={t.sp?.marking ?? 'zonal'} values={MARKING} change={(v) => onUpdate(setTactics(state, { sp: { ...t.sp, marking: v as never } }))} />
+        <Seg label="Left up for the counter" value={String(t.sp?.stayUp ?? 1)} values={['0', '1', '2']} change={(v) => onUpdate(setTactics(state, { sp: { ...t.sp, stayUp: Number(v) as 0 | 1 | 2 } }))} />
         {(['pens', 'corners', 'freekicks'] as const).map((k) => (
           <label className="sp-row" key={k}>
             <span>{k === 'pens' ? 'Penalties' : k === 'corners' ? 'Corners' : 'Free kicks'}</span>

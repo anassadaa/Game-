@@ -61,7 +61,7 @@ export function freeAsk(s: GameState, p: Player) {
 export function signFreeAgent(s: GameState, id: string, o: FreeOffer): [GameState, string] {
   const p = s.market.find((x) => x.id === id);
   if (s.match || !p) return [s, 'That player is no longer available.'];
-  if (s.players.filter((x) => x.clubId === s.clubId).length >= 30) return [s, 'Your squad is full (30).'];
+  if (s.players.filter((x) => x.clubId === s.clubId).length >= 25) return [s, 'Your squad is full (25).'];
   if (o.bonus < 0 || o.wage <= 0 || o.years < 1 || o.years > 5) return [s, 'Invalid offer.'];
   if (o.bonus > s.budget) return [s, 'You cannot afford that signing bonus.'];
   if (p.rating > ceiling(s) + 3) return [s, `${p.name} isn't interested in a club of your stature.`];

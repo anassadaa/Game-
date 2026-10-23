@@ -46,10 +46,11 @@ test('players have attributes, personality and potential stars', () => {
 test('negotiation counters low bids and accepts fair ones', () => {
   let s = g.newGame(12);
   s.budget = 99999;
-  const t = s.market[0];
-  let [a, msg] = g.negotiate(s, t.id, { fee: Math.round(t.price * 0.8), wage: t.wage * 2, years: 3 });
+  // Free agents are wage-only now, so haggle over a rival club's player.
+  const t = s.rivals.find((p) => p.clubId !== s.clubId && p.rating < 70);
+  let [a, msg] = g.negotiate(s, t.id, { fee: Math.round(g.askingPrice(t) * 0.85), wage: t.wage * 2, years: 3 });
   assert.match(msg, /Counter/);
-  [a, msg] = g.negotiate(a, t.id, { fee: t.price * 2, wage: t.wage * 2, years: 3, instalments: true });
+  [a, msg] = g.negotiate(a, t.id, { fee: g.askingPrice(t) * 2, wage: t.wage * 2, years: 3, instalments: true });
   assert.ok(a.players.some((p) => p.id === t.id));
   assert.equal(a.instalments.length, 1);
   assert.ok(decodeSave(JSON.stringify(a)));

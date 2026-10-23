@@ -11,6 +11,7 @@ import {
   Goal,
   Home,
   Landmark,
+  ArrowLeftRight,
   Radio,
   Search,
   Settings2,
@@ -33,7 +34,6 @@ import {
   potentialStars,
   club,
   homeFixture,
-  loanIn,
   negotiate,
   newGame,
   renewContract,
@@ -62,7 +62,7 @@ import { BACKGROUNDS, locked as clubLocked, repNeeded } from './start.ts';
 import { LEAGUES, WORLD, clubOutlook, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
 import { FinancePanel } from './Finance.tsx';
-import { agentFee, releaseClause } from './finance.ts';
+import { agentFee, ffpLimit, ffpNet, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
 import { JobCentre } from './Jobs.tsx';
@@ -92,6 +92,7 @@ const nav = [
   { id: 'home', label: 'Overview', icon: Home },
   { id: 'squad', label: 'Squad', icon: Users },
   { id: 'tactics', label: 'Tactics', icon: Settings2 },
+  { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight },
   { id: 'recruitment', label: 'Recruitment', icon: Search },
   { id: 'club', label: 'Club', icon: Landmark },
 ] as const;
@@ -378,6 +379,7 @@ function PlayerCard({
 export default function App() {
   const [state, setState] = useState<GameState | null>(loadSave);
   const [tab, setTab] = useState<Tab>('home');
+  const [seenOffers, setSeenOffers] = useState<string[]>([]);
   const [chosen, setChosen] = useState('wrexham');
   const [pickLeague, setPickLeague] = useState(2);
   const [bg, setBg] = useState('sandbox');
@@ -399,6 +401,11 @@ export default function App() {
   } | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLElement>(null);
+  const offerIds = state ? [...(state.bids ?? []).map((b) => b.id), ...(state.agentMsgs ?? []).map((m) => m.id)] : [];
+  const unread = offerIds.filter((x) => !seenOffers.includes(x)).length;
+  useEffect(() => {
+    if (tab === 'transfers' && unread) setSeenOffers(offerIds);
+  }, [tab, unread]);
   useEffect(() => {
     if (state) setSaveOk(storeSave(state));
   }, [state]);
@@ -637,6 +644,7 @@ export default function App() {
               {id === 'home' && state.inbox && !state.inbox.resolved && (
                 <span className="nav-dot" />
               )}
+              {id === 'transfers' && unread > 0 && <span className="nav-badge" aria-label={`${unread} unread offers`}>{unread}</span>}
             </button>
           ))}
         </nav>
@@ -697,7 +705,9 @@ export default function App() {
                       ? 'The people behind the badge.'
                       : tab === 'tactics'
                         ? 'Give your football an identity.'
-                        : tab === 'recruitment'
+                        : tab === 'transfers'
+                          ? 'Do the deals that shape the season.'
+                          : tab === 'recruitment'
                           ? 'Find your next difference-maker.'
                           : 'Build beyond the next result.'}
               </h1>
@@ -710,8 +720,10 @@ export default function App() {
                       ? 'Start a reserve to replace an injured teammate first, then the lowest-rated starter in the same position.'
                       : tab === 'tactics'
                         ? 'Balance risk, preparation and the strengths of the opposition.'
-                        : tab === 'recruitment'
-                          ? 'The market refreshes every three weeks. Keep an eye on your wage bill.'
+                        : tab === 'transfers'
+                          ? 'Offers, agents, free agents and the market, all in one place.'
+                          : tab === 'recruitment'
+                          ? 'Your scouts and their reports.'
                           : 'Keep the club healthy, develop tomorrow’s talent and protect your legacy.'}
               </p>
             </div>
@@ -872,13 +884,6 @@ export default function App() {
             <>
               {tab === 'home' && (
                 <>
-                  <Inbox
-                    state={state}
-                    onUpdate={update}
-                    onTalks={(p, wage) =>
-                      setDeal({ id: p.id, fee: p.counter ?? Math.round(askingPrice(p) * 0.85), wage, years: 3, instalments: false, swapId: '' })
-                    }
-                  />
                   <div className="overview-grid">
                     <section className="fixture-hero">
                       <div className="fixture-top">
@@ -1277,8 +1282,6 @@ export default function App() {
               {tab === 'recruitment' && (
                 <>
                   <ScoutsPanel state={state} onUpdate={update} />
-                  <FreeAgents state={state} onUpdate={update} />
-                  <FinancePanel state={state} onUpdate={update} />
                   <RegensPanel state={state} />
                   <div className="recruitment-summary">
                     <div>
@@ -1300,7 +1303,39 @@ export default function App() {
                       </span>
                     </div>
                   </div>
-                  <SectionTitle eyebrow="BUY · SELL · SCOUT" title="Transfer market" />
+                </>
+              )}
+              {tab === 'transfers' && (
+                <>
+                  <Inbox
+                    state={state}
+                    onUpdate={update}
+                    onTalks={(p, wage) =>
+                      setDeal({ id: p.id, fee: p.counter ?? Math.round(askingPrice(p) * 0.85), wage, years: 3, instalments: false, swapId: '' })
+                    }
+                  />
+                  <FinancePanel state={state} onUpdate={update} />
+                  <div className="recruitment-summary">
+                    <div>
+                      <Search size={25} />
+                      <span>
+                        FFP net spend<b>{money(ffpNet(state))} / {money(ffpLimit(state))}</b>
+                      </span>
+                    </div>
+                    <div>
+                      <Wallet size={25} />
+                      <span>
+                        Transfer funds<b>{money(state.budget)}</b>
+                      </span>
+                    </div>
+                    <div>
+                      <Users size={25} />
+                      <span>
+                        Squad spaces<b>{roster.length}/25</b>
+                      </span>
+                    </div>
+                  </div>
+                  <SectionTitle eyebrow="BUY · SELL · LOAN" title="Transfer market" />
                   <TransferMarket
                     state={state}
                     locked={locked}
@@ -1316,6 +1351,7 @@ export default function App() {
                       })
                     }
                   />
+                  <FreeAgents state={state} onUpdate={update} />
                   <SectionTitle
                     eyebrow="EYES ON THE FUTURE"
                     title="The shortlist"
@@ -1363,7 +1399,7 @@ export default function App() {
                             Weekly wage<b>{money(p.wage)}</b>
                           </span>
                           <span>
-                            Transfer fee<b>{money(p.price)}</b>
+                            Transfer fee<b>Free</b>
                           </span>
                         </div>
                         <div className="btn-row">
@@ -1372,7 +1408,7 @@ export default function App() {
                             onClick={() =>
                               setDeal({
                                 id: p.id,
-                                fee: p.counter ?? Math.round(p.price * 0.85),
+                                fee: 0,
                                 wage: p.wage,
                                 years: 3,
                                 instalments: false,
@@ -1380,24 +1416,9 @@ export default function App() {
                               })
                             }
                           >
-                            Negotiate <ArrowUpRight size={16} />
-                          </button>
-                          <button
-                            className="text-button"
-                            disabled={
-                              state.budget < Math.round(p.price * 0.15) ||
-                              roster.length >= 25
-                            }
-                            onClick={() =>
-                              update(loanIn(state, p.id), `${p.name} joins on loan.`)
-                            }
-                          >
-                            Loan {money(Math.round(p.price * 0.15))}
+                            Offer contract <ArrowUpRight size={16} />
                           </button>
                         </div>
-                        {p.counter && (
-                          <small className="muted">Asking: {money(p.counter)}</small>
-                        )}
                       </article>
                     ))}
                   </div>
@@ -1607,7 +1628,8 @@ export default function App() {
               onClick={() => setTab(id)}
             >
               <Icon size={21} />
-              <span>{label === 'Recruitment' ? 'Scouting' : label}</span>
+              <span>{label === 'Recruitment' ? 'Scouting' : label === 'Overview' ? 'Home' : label}</span>
+              {id === 'transfers' && unread > 0 && <span className="nav-badge" aria-label={`${unread} unread offers`}>{unread}</span>}
             </button>
           ))}
         </nav>
@@ -1687,23 +1709,24 @@ export default function App() {
               <span className="eyebrow">NEGOTIATION</span>
               <h2>{t.name}</h2>
               <p>
-                {t.clubId === 'market' ? 'Free agent' : state.clubs.find((c) => c.id === t.clubId)?.name}{t.listed ? ' (listed)' : ''} · asking {money(ask)}{t.counter ? ` · they ask ${money(t.counter)}` : ''} · wants about {money(t.wage)}/wk · {t.personality}
+                {t.clubId === 'market' ? 'Free agent' : state.clubs.find((c) => c.id === t.clubId)?.name}{t.listed ? ' (listed)' : ''}{t.clubId === 'market' ? '' : ` · asking ${money(ask)}`}{t.counter ? ` · they ask ${money(t.counter)}` : ''} · wants about {money(t.wage)}/wk · {t.personality}
               </p>
-              <label className="deal-field">Fee offer: <b>{money(deal.fee)}</b>
+              {t.clubId === 'market' && <p className="muted small">Free agent: no transfer fee, no agent fee. Wages only.</p>}
+              {t.clubId !== 'market' && <label className="deal-field">Fee offer: <b>{money(deal.fee)}</b>
                 <input type="range" min={Math.round(ask * 0.5)} max={Math.round(ask * 1.3)} value={deal.fee} onChange={(e) => setDeal({ ...deal, fee: +e.target.value })} />
-              </label>
+              </label>}
               <label className="deal-field">Weekly wage: <b>{money(deal.wage)}</b>
                 <input type="range" min={Math.max(1, Math.round(t.wage * 0.6))} max={Math.round(t.wage * 1.6) + 2} value={deal.wage} onChange={(e) => setDeal({ ...deal, wage: +e.target.value })} />
               </label>
               <label className="deal-field">Contract: <b>{deal.years} years</b>
                 <input type="range" min={1} max={5} value={deal.years} onChange={(e) => setDeal({ ...deal, years: +e.target.value })} />
               </label>
-              <label className="deal-check">
+              {t.clubId !== 'market' && <><label className="deal-check">
                 <input type="checkbox" checked={deal.instalments} onChange={(e) => setDeal({ ...deal, instalments: e.target.checked })} /> Pay in instalments (40% now, rest over 6 weeks, +5% cost)
               </label>
               <p className="muted small">
                 Agent fee £{Math.round(agentFee(t, deal.fee) * dofDiscount(state))}k{t.clubId !== 'market' && releaseClause(t) ? ` · release clause £${releaseClause(t)}k (meet it and they must sell)` : ''}
-              </p>
+              </p></>}
               {t.clubId !== 'market' && (
                 <div className="seg-row" aria-label="Sell-on clause">
                   {[0, 10, 20, 30].map((v) => (
@@ -1711,14 +1734,14 @@ export default function App() {
                   ))}
                 </div>
               )}
-              <label className="deal-field">Swap a reserve (counts 80% of value)
+              {t.clubId !== 'market' && <label className="deal-field">Swap a reserve (counts 80% of value)
                 <select value={deal.swapId} onChange={(e) => setDeal({ ...deal, swapId: e.target.value })}>
                   <option value="">No swap</option>
                   {roster.filter((p) => !p.starting).map((p) => (
                     <option key={p.id} value={p.id}>{p.name} ({p.position} {p.rating}, {money(Math.round(p.price * 0.8))})</option>
                   ))}
                 </select>
-              </label>
+              </label>}
               <button className="primary wide" onClick={() => {
                 const [next, msg] = negotiate(state, deal.id, { ...deal, swapId: deal.swapId || undefined });
                 if (next !== state) setState(next);

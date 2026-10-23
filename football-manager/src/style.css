@@ -3883,3 +3883,12 @@ th:last-child {
 .free-offer { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; align-items: flex-end; margin-top: 6px; }
 .free-offer label { display: flex; flex-direction: column; font-size: 0.75rem; }
 .free-offer input, .free-offer select { width: 4.5rem; min-height: 36px; }
+.nav-badge { position: absolute; top: 2px; right: 50%; transform: translateX(16px); min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e5484d; color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+nav button { position: relative; }
+.sidebar nav .nav-badge { position: static; transform: none; margin-left: auto; }
+@media (max-width: 900px) {
+  .mobile-nav { overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
+  .mobile-nav::-webkit-scrollbar { display: none; }
+  .mobile-nav button { min-width: 54px; position: relative; }
+  .mobile-nav button span:not(.nav-badge) { white-space: nowrap; }
+}

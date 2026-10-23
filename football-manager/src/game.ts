@@ -13,7 +13,8 @@ import type { Retiree } from './regens.ts';
 import { jobsWeek, repSacked, repSeason, reputation, reputationOffers, stature } from './jobs.ts';
 import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
-import { agentsWeek, release, type AgentMsg } from './agents.ts';
+import { loansReturn, loansWeek } from './loans.ts';
+import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, injuryFactor, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
 import type { Staff } from './staff.ts';
 import type { Scout, ScoutReport } from './scouts.ts';
@@ -28,7 +29,7 @@ export type Tempo = 'patient' | 'normal' | 'quick';
 export type Formation = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '5-3-2' | '4-1-4-1' | '3-4-3';
 export type Training =
   'balanced' | 'fitness' | 'attack' | 'defence' | 'bonding';
-export type Tab = 'home' | 'squad' | 'tactics' | 'recruitment' | 'club';
+export type Tab = 'home' | 'squad' | 'tactics' | 'transfers' | 'recruitment' | 'club';
 export type Tactics = {
   formation: Formation;
   mentality: Mentality;
@@ -63,6 +64,8 @@ export type Player = {
   counter?: number;
   listed?: boolean;
   released?: boolean;
+  loanListed?: boolean;
+  loanClub?: string;
   apps?: number;
   ratingSum?: number;
   motm?: number;
@@ -215,6 +218,7 @@ export type GameState = {
   retired?: Retiree[];
   reputation?: number;
   agentMsgs?: AgentMsg[];
+  loansOut?: Player[];
   vacancies?: Vacancy[];
   applied?: string[];
   resigned?: boolean;
@@ -845,6 +849,8 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
   const roster = s.players.filter((x) => x.clubId === s.clubId);
   if (s.match || !p) return [s, 'That player is no longer available.'];
   const fromRival = p.clubId !== 'market';
+  // Free agents never cost a fee: wages only.
+  if (!fromRival) return signFreeAgent(s, id, { wage: Math.round(o.wage), years: o.years, bonus: 0 });
   if (fromRival && s.embargo) return [s, 'FFP embargo: you cannot sign players from clubs this season.'];
   if (fromRival && !windowOpen(s)) return [s, 'The transfer window is closed. Free agents only until it reopens.'];
   if (!(o.years >= 1 && o.years <= 5) || !Number.isFinite(o.fee) || o.fee < 0 || !Number.isFinite(o.wage))
@@ -1297,6 +1303,7 @@ function rollSeason(s: GameState) {
     c.form = [];
     c.rating = clamp(c.rating + int(s, -2, 2), 40, 85);
   });
+  loansReturn(s);
   const leaving: string[] = [];
   const freed: Player[] = [];
   s.players = s.players.filter((p) => {
@@ -1435,6 +1442,7 @@ export function advanceWeek(s: GameState): GameState {
   scoutsWeek(b);
   staffWeek(b);
   agentsWeek(b);
+  loansWeek(b);
   jobsWeek(b, m.us, m.them, m.opponentId);
   transferWeek(b);
   b.headlines = [
@@ -1504,6 +1512,9 @@ export type MarketFilter = {
   minStars?: number;
   attr?: AttrKey | '';
   minAttr?: number;
+  minRating?: number;
+  division?: number;
+  country?: string;
   listedOnly?: boolean;
   source?: 'all' | 'free' | 'clubs';
   sort?: 'rating' | 'price' | 'potential' | 'age';
@@ -1512,11 +1523,15 @@ export function searchMarket(s: GameState, f: MarketFilter): Player[] {
   const q = (f.q ?? '').trim().toLowerCase();
   const pool = [...(f.source === 'clubs' ? [] : s.market), ...(f.source === 'free' ? [] : (s.rivals ?? []))];
   const clubName = (id: string) => s.clubs.find((c) => c.id === id)?.name.toLowerCase() ?? '';
+  const divOf = (id: string) => s.clubs.find((c) => c.id === id)?.division ?? -1;
   const out = pool.filter(
     (p) =>
       (!q || p.name.toLowerCase().includes(q) || clubName(p.clubId).includes(q)) &&
       (!f.position || f.position === 'ALL' || p.position === f.position) &&
       (!f.maxAge || p.age <= f.maxAge) &&
+      (!f.minRating || p.rating >= f.minRating) &&
+      (f.division === undefined || divOf(p.clubId) === f.division) &&
+      (!f.country || (p.clubId !== 'market' && league(divOf(p.clubId)).country === f.country)) &&
       (!f.maxPrice || askingPrice(p) <= f.maxPrice) &&
       (!f.minStars || potentialStars(p) >= f.minStars) &&
       (!f.attr || attributes(p)[f.attr] >= (f.minAttr ?? 0)) &&

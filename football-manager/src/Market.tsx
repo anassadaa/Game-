@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import {
   ATTRS,
-  acceptBid,
   askingPrice,
   deadlineDay,
   potentialStars,
-  rejectBid,
   searchMarket,
   toggleListed,
   windowLabel,
   windowOpen,
 } from './game.ts';
+import { LEAGUES } from './world.ts';
+import { loansOut, toggleLoanListed } from './loans.ts';
 import type { AttrKey, GameState, MarketFilter, Player, Position } from './game.ts';
 
 const money = (n: number) => (n >= 1000 ? `£${(n / 1000).toFixed(1)}m` : `£${n}k`);
@@ -42,39 +42,6 @@ export function TransferMarket({
         {deadlineDay(state) ? '⏰ ' : open ? '🟢 ' : '🔒 '}
         {windowLabel(state)}
       </div>
-      {!!state.bids?.length && (
-        <div className="tm-block">
-          <h3>Incoming bids</h3>
-          <div className="row-list">
-            {state.bids.map((b) => {
-              const p = state.players.find((x) => x.id === b.playerId);
-              if (!p) return null;
-              return (
-                <div key={b.id}>
-                  <span>
-                    <b>{clubName(b.clubId)}</b> bid <b>{money(b.fee)}</b> for {p.name} ({p.position} {p.rating}, value {money(p.price)})
-                  </span>
-                  <span className="btn-row">
-                    <button
-                      className="secondary"
-                      disabled={locked}
-                      onClick={() => {
-                        const [next, msg] = acceptBid(state, b.id);
-                        onUpdate(next, msg);
-                      }}
-                    >
-                      Accept
-                    </button>
-                    <button className="text-button" onClick={() => onUpdate(rejectBid(state, b.id), 'Bid rejected.')}>
-                      Reject
-                    </button>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
       <div className="tm-block">
         <h3>Search players</h3>
         <div className="tm-filters">
@@ -101,6 +68,24 @@ export function TransferMarket({
               <option key={a} value={a}>≤ {money(a)}</option>
             ))}
             <option value={Math.max(1, state.budget)}>Affordable</option>
+          </select>
+          <select aria-label="Minimum rating" value={f.minRating ?? 0} onChange={(e) => set({ minRating: +e.target.value || undefined })}>
+            <option value={0}>Any rating</option>
+            {[50, 55, 60, 65, 70, 75, 80].map((a) => (
+              <option key={a} value={a}>OVR ≥ {a}</option>
+            ))}
+          </select>
+          <select aria-label="League" value={f.division ?? -1} onChange={(e) => set({ division: +e.target.value < 0 ? undefined : +e.target.value })}>
+            <option value={-1}>Any league</option>
+            {LEAGUES.map((l) => (
+              <option key={l.division} value={l.division}>{l.flag} {l.name}</option>
+            ))}
+          </select>
+          <select aria-label="Country" value={f.country ?? ''} onChange={(e) => set({ country: e.target.value || undefined })}>
+            <option value="">Any country</option>
+            {[...new Set(LEAGUES.map((l) => l.country))].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
           <select value={f.minStars ?? 0} onChange={(e) => set({ minStars: +e.target.value || undefined })}>
             <option value={0}>Any potential</option>
@@ -162,7 +147,7 @@ export function TransferMarket({
       </div>
       <div className="tm-block">
         <h3>Your transfer list</h3>
-        <p className="muted">List a player to attract bids while a window is open. Listed players get far more offers.</p>
+        <p className="muted">List a player to attract bids while a window is open. Loan-listed reserves may be taken on loan for the season (the borrower pays a fee and his wages).</p>
         <div className="row-list">
           {roster
             .filter((p) => !p.loan)
@@ -175,12 +160,25 @@ export function TransferMarket({
                 <button className={p.listed ? 'secondary' : 'text-button'} disabled={locked} onClick={() => onUpdate(toggleListed(state, p.id))}>
                   {p.listed ? '📋 Listed · unlist' : 'List for sale'}
                 </button>
+                <button className={p.loanListed ? 'secondary' : 'text-button'} disabled={locked || p.starting} onClick={() => onUpdate(toggleLoanListed(state, p.id))}>
+                  {p.loanListed ? '🔁 Loan-listed · unlist' : 'Loan list'}
+                </button>
               </div>
             ))}
         </div>
       </div>
+      {!!loansOut(state).length && (
+        <div className="tm-block">
+          <h3>Out on loan</h3>
+          <div className="row-list">
+            {loansOut(state).map((p) => (
+              <div key={p.id}><span>{p.position} <b>{p.name}</b> {p.rating} · at {clubName(p.loanClub ?? '')} until season end</span></div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="tm-block">
-        <h3>Transfer news</h3>
+        <h3>{deadlineDay(state) ? '⏰ Deadline day news' : 'Transfer news'}</h3>
         <div className="tm-news">
           {(state.news ?? []).length ? (
             state.news!.map((n, i) => <p key={i}>{n}</p>)

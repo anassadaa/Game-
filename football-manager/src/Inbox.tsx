@@ -12,7 +12,6 @@ export function Inbox({ state, onUpdate, onTalks }: { state: GameState; onUpdate
   const msgs = agentMsgs(state);
   const bids = state.bids ?? [];
   const say = (r: [GameState, string]) => { setMsg(r[1]); onUpdate(r[0], r[1]); };
-  if (!msgs.length && !bids.length && !msg) return null;
   return (
     <section className="card inbox">
       <p className="eyebrow">INBOX · {msgs.length + bids.length}</p>

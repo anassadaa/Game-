@@ -1,10 +1,11 @@
-import { CUP_PRIZE, CUP_ROUNDS, CUP_WEEKS, EURO_PRIZE, EURO_WEEKS, LCUP_PRIZE, LCUP_WEEKS, cupOpponent } from './game.ts';
+import { CUP_PRIZE, CUP_ROUNDS, CUP_WEEKS, EURO_PRIZE, EURO_WEEKS, LCUP_PRIZE, LCUP_WEEKS, EURO2_PRIZE, EURO2_WEEKS, cupOpponent } from './game.ts';
 import type { Cup, GameState } from './game.ts';
 
-export type CupKind = 'cup' | 'euro' | 'lcup';
+export type CupKind = 'cup' | 'euro' | 'lcup' | 'euro2';
 export const COMPS: Record<CupKind, { title: string; weeks: number[]; prize: number[]; continental: boolean; entry: string }> = {
   cup: { title: 'NATIONAL CUP', weeks: CUP_WEEKS, prize: CUP_PRIZE, continental: false, entry: '' },
   lcup: { title: '🥈 LEAGUE CUP', weeks: LCUP_WEEKS, prize: LCUP_PRIZE, continental: false, entry: '' },
+  euro2: { title: '🌍 CONTINENTAL TROPHY', weeks: EURO2_WEEKS, prize: EURO2_PRIZE, continental: true, entry: 'win the national cup, finish just below the Champions Cup places, or win a big second tier' },
   euro: { title: '⭐ CHAMPIONS CUP', weeks: EURO_WEEKS, prize: EURO_PRIZE, continental: true, entry: 'finish near the top of a big league to enter' },
 };
 

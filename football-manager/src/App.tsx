@@ -1517,6 +1517,7 @@ export default function App() {
                   <CupPanel state={state} />
                   <CupPanel state={state} kind="lcup" />
                   <CupPanel state={state} euro />
+                  <CupPanel state={state} kind="euro2" />
                   <WorldPanel state={state} onUpdate={update} />
                   <div className="content-columns">
                     <section className="card club-foundation">
@@ -1610,7 +1611,7 @@ export default function App() {
                     </select>
                     <Table state={state} full division={tableDiv ?? team.division} />
                     <p className="table-note">
-                      England: top three of the Championship go up, bottom three of the Premier Division go down. Top finishers in the big leagues qualify for the Champions Cup. Points: 3 for a win, 1 for a draw.
+                      England: top three of the Championship go up, bottom three of the Premier Division go down. Top finishers in the big leagues qualify for the Champions Cup; the next-best finishers, the national cup winner and second-tier champions enter the Continental Trophy. Points: 3 for a win, 1 for a draw.
                     </p>
                   </section>
                   <FixturesCard state={state} onUpdate={update} />

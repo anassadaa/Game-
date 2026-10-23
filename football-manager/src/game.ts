@@ -256,6 +256,7 @@ export type GameState = {
   cup?: Cup;
   euro?: Cup;
   lcup?: Cup;
+  euro2?: Cup;
   youth?: Player[];
   drills?: string[];
   trainingReport?: TrainingReport;
@@ -550,8 +551,9 @@ export function migrate(s: GameState): GameState {
     rivalsFor(s, c);
   });
   s.cup ??= newCup(s, []);
-  if (!validCup(s.lcup)) s.lcup = newLeagueCup(s, []);
+  if (!validCup(s.lcup, s)) s.lcup = newLeagueCup(s, []);
   s.euro ??= newEuro(s, true);
+  if (!validCup(s.euro2, s)) s.euro2 = newEuro2(s, true, s.euro.alive);
   s.youth ??= [];
   s.drills ??= [];
   facilities(s);
@@ -670,6 +672,7 @@ export function newGame(
   s.cup = newCup(s, []);
   s.lcup = newLeagueCup(s, []);
   s.euro = newEuro(s, true);
+  s.euro2 = newEuro2(s, true, s.euro.alive);
   s.youth = [];
   s.drills = [];
   facilities(s);
@@ -1371,6 +1374,7 @@ function rollSeason(s: GameState) {
   addNews(s, ffpSeason(s));
   boardReview(s, pos, outcome);
   s.euro = newEuro(s);
+  s.euro2 = newEuro2(s, false, s.euro.alive);
   for (const p of PYRAMID) {
     const d1 = table.filter((c) => c.division === p.top), d2 = table.filter((c) => c.division === p.second && !RESERVE_SIDES.has(c.id));
     if (!d1.length || !d2.length) continue;
@@ -1562,6 +1566,12 @@ export function advanceWeek(s: GameState): GameState {
   runCup(b, b.cup, CUP_WEEKS, CUP_PRIZE, 'Cup');
   runCup(b, b.euro, EURO_WEEKS, EURO_PRIZE, 'Champions Cup');
   runCup(b, b.lcup, LCUP_WEEKS, LCUP_PRIZE, 'League Cup');
+  { // Continental Trophy ties draw from a side stream so they don't reshuffle league randomness.
+    const keep = b.seed;
+    b.seed = (keep ^ 0x9e3779b9) >>> 0;
+    runCup(b, b.euro2, EURO2_WEEKS, EURO2_PRIZE, 'Continental Trophy');
+    b.seed = keep;
+  }
   boardWeek(b);
   if (b.week === INTAKE_WEEK + 1) youthIntake(b);
   if (b.week === 18) {
@@ -1956,9 +1966,9 @@ function newLeagueCup(s: GameState, winners: Cup['winners'], wins = 0): Cup {
   for (let i = alive.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [alive[i], alive[j]] = [alive[j]!, alive[i]!]; }
   return { season: s.season, round: 0, alive, log: [], winners: winners.slice(0, 30), wins };
 }
-export function validCup(c: unknown): c is Cup {
+export function validCup(c: unknown, s?: GameState): c is Cup {
   const x = c as Cup;
-  return !!x && typeof x === 'object' && Number.isInteger(x.season) && Number.isInteger(x.round) && x.round >= 0 && x.round <= 4 &&
+  return !!x && (!s || (Array.isArray(x.alive) && x.alive.every((id) => s.clubs.some((k) => k.id === id)))) && typeof x === 'object' && Number.isInteger(x.season) && Number.isInteger(x.round) && x.round >= 0 && x.round <= 4 &&
     Array.isArray(x.alive) && x.alive.every((id) => typeof id === 'string') && Array.isArray(x.log) && x.log.every((l) => typeof l === 'string') &&
     Array.isArray(x.winners) && x.winners.every((w) => w && typeof w.clubId === 'string' && Number.isInteger(w.season)) && Number.isInteger(x.wins);
 }
@@ -1973,6 +1983,28 @@ export function newEuro(s: GameState, byRating = false): Cup {
     picked.push(...table.filter((c) => c.division === +div).slice(0, n).map((c) => c.id));
   for (const c of [...s.clubs].sort((a, b) => b.rating - a.rating)) if (picked.length < 16 && !picked.includes(c.id)) picked.push(c.id);
   const alive = picked.slice(0, 16).sort(() => next(s) - 0.5);
+  return { season: s.season + (byRating ? 0 : 1), round: 0, alive, log: [], winners: (prev?.winners ?? []).slice(0, 30), wins: prev?.wins ?? 0 };
+}
+/** Continental Trophy: second-tier continental cup on its own midweeks, mid-size prizes. */
+export const EURO2_WEEKS = [3, 7, 11, 15];
+export const EURO2_PRIZE = [180, 300, 500, 900];
+/** Entrants (never Champions Cup clubs): this season's national cup winner, the next-best league finishers
+ *  (half the Champions Cup quota, rounded up, per big league), each big league's second-tier champions, then the strongest others. */
+export function newEuro2(s: GameState, byRating = false, euroIds: string[] = s.euro?.alive ?? []): Cup {
+  const prev = s.euro2;
+  const table = byRating ? [...s.clubs].sort((a, b) => a.division - b.division || b.rating - a.rating) : standings(s);
+  const out = new Set(euroIds), picked: string[] = [];
+  const add = (id?: string) => { if (id && !out.has(id) && !picked.includes(id) && s.clubs.some((c) => c.id === id)) picked.push(id); };
+  const cw = s.cup?.winners[0];
+  if (!byRating && cw && cw.season === s.season) add(cw.clubId);
+  for (const [div, n] of Object.entries(EURO_QUOTA))
+    table.filter((c) => c.division === +div && !out.has(c.id)).slice(0, Math.ceil(n / 2)).forEach((c) => add(c.id));
+  for (const p of PYRAMID) if (EURO_QUOTA[p.top]) add(table.find((c) => c.division === p.second)?.id);
+  for (const c of [...s.clubs].sort((a, b) => b.rating - a.rating)) if (picked.length < 16) add(c.id);
+  const alive = picked.slice(0, 16);
+  let h = (s.season + (byRating ? 0 : 1)) * 104729 + 7;
+  const rnd = () => ((h = (Math.imul(h, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+  for (let i = alive.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [alive[i], alive[j]] = [alive[j]!, alive[i]!]; }
   return { season: s.season + (byRating ? 0 : 1), round: 0, alive, log: [], winners: (prev?.winners ?? []).slice(0, 30), wins: prev?.wins ?? 0 };
 }
 function runCup(b: GameState, c: Cup | undefined, weeks: number[], prizes: number[], label: string) {

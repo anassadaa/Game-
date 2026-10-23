@@ -17,6 +17,7 @@ import { scoutsWeek } from './scouts.ts';
 import { loansReturn, loansWeek } from './loans.ts';
 import { fillXI, topUpBench } from './lineup.ts';
 import { buildReview, recordResult, type Result, type SeasonReview } from './fixtures.ts';
+import { shoutEffect, type ShoutId } from './shouts.ts';
 import { dropSuspended, matchCards, resetCards, settleCards, type Card } from './cards.ts';
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
@@ -182,6 +183,7 @@ export type Match = {
   bench0?: string[];
   down?: string[];
   cards?: Card[];
+  shout?: { id: ShoutId; at: number };
   redThem?: number;
   yellowThem?: number;
 };
@@ -1077,7 +1079,7 @@ export function advanceMatch(s: GameState): GameState {
   m.minute = Math.min(90, m.minute + 15);
   const energyCost =
     (b.tactics.press === 'high' ? 3 : b.tactics.press === 'normal' ? 2 : 1) +
-    (b.tactics.tempo === 'quick' ? 1 : 0);
+    (b.tactics.tempo === 'quick' ? 1 : 0) + shoutEffect(b).energy;
   b.players
     .filter((p) => p.starting)
     .forEach(
@@ -1121,6 +1123,8 @@ export function advanceMatch(s: GameState): GameState {
     }
     const prof = tacticProfile(b, opponent(b).style);
     edge += us ? prof.att : -prof.def;
+    const sh = shoutEffect(b);
+    edge += us ? sh.att : -sh.def;
     const chance = Math.max(
       0.2,
       Math.min(0.88, 0.52 + edge + (m.home && us ? 0.04 : 0)),

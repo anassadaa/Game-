@@ -3981,3 +3981,6 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .review-grid span{display:flex;flex-direction:column;font-size:12px;opacity:.85}
 .review-grid b{font-size:15px;opacity:1}
 .review-verdict{font-weight:600}
+.shout-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.shout-row button{flex:1 1 30%;min-height:38px;padding:6px 8px;border-radius:10px;font-size:12px}
+.shout-row button.active{outline:2px solid #c8f169}

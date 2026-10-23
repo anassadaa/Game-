@@ -1,6 +1,7 @@
 // Discipline: yellow and red cards in matches, accumulation and suspensions.
 import type { GameState, Player } from './game.ts';
 import { next } from './game.ts';
+import { shoutEffect } from './shouts.ts';
 
 export const YELLOW_RATE = 0.026, RED_RATE = 0.0012, BAN_AT = 5;
 export type Card = { id: string; y: number; red?: boolean };
@@ -10,7 +11,7 @@ export function cardRisk(s: GameState, p: Player) {
   const press = s.tactics.press === 'high' ? 1.3 : s.tactics.press === 'low' ? 0.8 : 1;
   const tired = 1 + Math.max(0, 60 - p.fitness) / 80;
   const def = p.position === 'DF' || p.position === 'MF' ? 1.2 : p.position === 'GK' ? 0.25 : 0.8;
-  return press * tired * def;
+  return press * tired * def * shoutEffect(s).cards;
 }
 const line = (s: GameState, text: string, side: 'us' | 'them', playerId?: string) =>
   s.match!.timeline.push({ minute: Math.min(90, s.match!.minute - 15 + Math.ceil(next(s) * 14)), text, side, kind: 'note', ...(playerId ? { playerId } : {}) });

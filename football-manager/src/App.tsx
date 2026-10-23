@@ -1,3 +1,4 @@
+import { Shouts } from './Shouts.tsx';
 import { FixturesCard, ReviewModal } from './Fixtures.tsx';
 import { SubTabs } from './SubTabs.tsx';
 import { pickSub } from './subtabs.ts';
@@ -814,6 +815,7 @@ export default function App() {
                   </div>
                 ) : null}
                 <TeamTalk state={state} onUpdate={update} />
+                <Shouts state={state} onUpdate={update} />
                 <PressRoom state={state} onUpdate={update} />
                 <SubsPanel state={state} onUpdate={update} />
                 <Highlights state={state} onSkip={() => update(simToEnd(state))} />

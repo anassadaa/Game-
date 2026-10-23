@@ -3949,3 +3949,13 @@ nav button { position: relative; }
 .subs-btn { min-height: 48px; flex: 1 1 160px; font-weight: 700; }
 .subs-auto { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; }
 .subs-auto input { width: 22px; height: 22px; }
+
+/* App-like feel: no selection, callouts, pull-to-refresh or overscroll glow */
+html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+input, textarea, select { -webkit-user-select: text; user-select: text; }
+img { -webkit-user-drag: none; }
+main, .main, .content { animation: tl-tab-in .18s ease-out; }
+@keyframes tl-tab-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { main, .main, .content { animation: none; } }

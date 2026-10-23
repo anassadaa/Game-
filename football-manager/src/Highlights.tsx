@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { haptic, keepAwake } from './native';
 import type { GameState } from './game.ts';
 import { highlightPath, highlights } from './highlights.ts';
 
@@ -31,6 +32,10 @@ export function Highlights({ state, onSkip }: { state: GameState; onSkip?: () =>
   const [t, setT] = useState(0);
   useEffect(() => setIdx(Math.max(0, list.length - 1)), [list.length]);
   const e = list[idx];
+  useEffect(() => { void keepAwake(true); return () => void keepAwake(false); }, []);
+  useEffect(() => { if (e?.kind === 'goal') void haptic('goal'); }, [idx, e?.kind]);
+  const complete = !!state.match?.complete;
+  useEffect(() => { if (complete) void haptic('whistle'); }, [complete]);
   useEffect(() => {
     setT(0);
     if (!e) return;

@@ -64,6 +64,7 @@ import { FinancePanel } from './Finance.tsx';
 import { agentFee, ffpLimit, ffpNet, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
+import { setBackHandler } from './native';
 import { AssignSheet, LineupPicker } from './Lineup.tsx';
 import { SubsPanel } from './Subs.tsx';
 import { placeOf } from './lineup.ts';
@@ -348,7 +349,8 @@ function PlayerCard({
 
 export default function App() {
   const [state, setState] = useState<GameState | null>(loadSave);
-  const [tab, setTab] = useState<Tab>('home');
+  const [tab, setTabRaw] = useState<Tab>(() => { const t = localStorage.getItem('touchline-tab'); return (['home','squad','tactics','transfers','recruitment','club'] as string[]).includes(t ?? '') ? (t as Tab) : 'home'; });
+  const setTab = (t: Tab) => { setTabRaw(t); try { localStorage.setItem('touchline-tab', t); } catch { /* ignore */ } };
   const [seenOffers, setSeenOffers] = useState<string[]>([]);
   const [chosen, setChosen] = useState('wrexham');
   const [pickLeague, setPickLeague] = useState(2);
@@ -360,6 +362,13 @@ export default function App() {
   const [saveOk, setSaveOk] = useState(true);
   const [filter, setFilter] = useState('All');
   const [assign, setAssign] = useState<string | null>(null);
+  useEffect(() => {
+    setBackHandler(() => {
+      if (assign) { setAssign(null); return true; }
+      if (tab !== 'home') { setTab('home'); return true; }
+      return false;
+    });
+  });
   const [confirmReset, setConfirmReset] = useState(false);
   const [deal, setDeal] = useState<{
     id: string;
@@ -654,7 +663,7 @@ export default function App() {
             <span className="manager-avatar">YOU</span>
           </div>
         </header>
-        <main ref={container}>
+        <main ref={container} key={tab}>
           {!saveOk && (
             <div className="save-warning">
               Autosave is unavailable. Export your career from Club before

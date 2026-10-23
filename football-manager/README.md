@@ -68,3 +68,17 @@ Research checked 23 October 2026. These official sources informed general mechan
 - [EA SPORTS FC career features](https://www.ea.com/games/ea-sports-fc/fc-26/features/fc-26-career-mode) — changing situations and unexpected events renew the manager’s priorities.
 
 The original visual direction uses warm paper, dark ink, lime highlights, custom club shields and a CSS tactical pitch. Fonts: Barlow Condensed and DM Sans via Fontsource. Icons: Lucide. Built with React, TypeScript and Vite.
+
+## Android app (APK)
+
+Touchline ships as an offline Android app via [Capacitor](https://capacitorjs.com) (`com.anassadaa.touchline`). The Vite build in `dist/` is bundled into the APK, so no network or Cloudflare worker is needed.
+
+Requirements: JDK 21, Android SDK (platform 35, build-tools 35), `ANDROID_HOME` set.
+
+```bash
+npm run build:apk   # → android/app/build/outputs/apk/release/app-release.apk
+```
+
+Release signing reads `/workspace/touchline-keystore/keystore.properties` (override with `TOUCHLINE_KEYSTORE_PROPS`); without it Gradle produces an unsigned release APK. The keystore is never committed — keep it, as updates must be signed with the same key.
+
+Native touches: splash screen and adaptive icon (sources in `assets/`, regenerate with `npx @capacitor/assets generate --android`), themed status/navigation bars, cutout-safe layout, Android back button (closes sheets → returns to Home → exit confirm), haptics, keep-awake during highlights, and resume on the last tab.

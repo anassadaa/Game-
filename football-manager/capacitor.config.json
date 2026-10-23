@@ -1,0 +1,22 @@
+{
+  "appId": "com.anassadaa.touchline",
+  "appName": "Touchline",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#101c20"
+  },
+  "plugins": {
+    "StatusBar": {
+      "backgroundColor": "#101c20",
+      "style": "DARK",
+      "overlaysWebView": false
+    },
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": false,
+      "backgroundColor": "#101c20",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    }
+  }
+}

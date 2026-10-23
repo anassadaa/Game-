@@ -26,6 +26,10 @@ export function SubsPanel({ state, onUpdate }: { state: GameState; onUpdate: Up 
           🔁 Subs {used}/{MAX_SUBS}{flagged ? ` · ⚠️ ${flagged}` : ''}
         </button>
       )}
+      {!m.complete && (m.down ?? []).map((id) => {
+        const p = state.players.find((x) => x.id === id && x.starting);
+        return p ? <p key={id} className="subs-alert">🚑 {p.name} is injured — sub him off or play on with 10.</p> : null;
+      })}
       <label className="subs-auto">
         <input type="checkbox" checked={!!state.autoSubs} onChange={toggleAuto} /> Auto subs when simulating
       </label>

@@ -1,3 +1,4 @@
+import { validInjuries } from './injuries.ts';
 import { validSubs } from './subs.ts';
 import { validLineup } from './lineup.ts';
 import { validLoans } from './loans.ts';
@@ -208,7 +209,7 @@ export function decodeSave(raw: string): GameState | null {
       if (p.retrain !== undefined && (!['GK', 'DF', 'MF', 'FW'].includes(p.retrain?.to) || !Number.isFinite(p.retrain.progress))) delete p.retrain;
       if (p.sharp !== undefined && !Number.isFinite(p.sharp)) delete p.sharp;
     }
-    if (!validFacilities(s.facilities) || !validTrophies(s) || !validScouts(s) || !validStaff(s) || !validAgents(s) || !validLoans(s) || !validLineup(s) || !validSubs(s) || !validFinance(s) || !validRegens(s) || !validJobs(s)) return null;
+    if (!validFacilities(s.facilities) || !validTrophies(s) || !validScouts(s) || !validStaff(s) || !validAgents(s) || !validLoans(s) || !validLineup(s) || !validSubs(s) || !validInjuries(s) || !validFinance(s) || !validRegens(s) || !validJobs(s)) return null;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {
       if (p.unhappy !== undefined && typeof p.unhappy !== 'string') delete p.unhappy;

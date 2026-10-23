@@ -58,6 +58,7 @@ export function makeSub(s: GameState, offId: string, onId: string): [GameState, 
   m.played = [...new Set([...(m.played ?? []), on.id])];
   const msg = `🔁 ${on.name} replaces ${off.name}${off.injured ? ' (injured)' : off.fitness < TIRED ? ' (tired)' : ''}.`;
   m.timeline.push({ minute: m.minute, text: msg, side: 'us', kind: 'note', playerId: on.id });
+  if (m.down) m.down = m.down.filter((x) => x !== off.id);
   return [b, msg];
 }
 /** Assistant's suggested changes: injured or tired starters swapped for the most suitable bench player. */
@@ -111,4 +112,19 @@ export function validSubs(s: GameState) {
   if (m.subs !== undefined && !(Array.isArray(m.subs) && m.subs.length <= MAX_SUBS && m.subs.every((x: Sub) => x && typeof x.off === 'string' && typeof x.on === 'string' && Number.isFinite(x.minute)))) return false;
   if (m.windows !== undefined && !(Array.isArray(m.windows) && m.windows.length <= MAX_WINDOWS && m.windows.every(Number.isFinite))) return false;
   return m.oppSubs === undefined || (Number.isInteger(m.oppSubs) && (m.oppSubs as number) >= 0 && (m.oppSubs as number) <= MAX_SUBS);
+}
+/** Simulate mode: an injured player is always replaced (best fit from the bench) if a change is allowed. */
+export function subInjured(s: GameState): GameState {
+  let b = s;
+  for (const id of s.match?.down ?? []) {
+    const off = own(b).find((p) => p.id === id && p.starting);
+    if (!off) continue;
+    const pool = subsBench(b);
+    const on = pool.find((p) => p.position === off.position) ?? pool.find((p) => p.position !== 'GK') ?? pool[0];
+    if (!on) break;
+    const [n] = makeSub(b, off.id, on.id);
+    if (n === b) break;
+    b = n;
+  }
+  return b;
 }

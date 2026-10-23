@@ -3959,3 +3959,9 @@ img { -webkit-user-drag: none; }
 main, .main, .content { animation: tl-tab-in .18s ease-out; }
 @keyframes tl-tab-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { main, .main, .content { animation: none; } }
+.subs-alert{flex-basis:100%;margin:4px 0;color:#ff8a80;font-weight:600;font-size:.9rem}
+.med-row{padding:8px 0;border-top:1px solid rgba(255,255,255,.08);min-width:0}
+.med-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.med-top strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.med-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:6px 0;overflow:hidden}
+.med-bar i{display:block;height:100%;background:#4caf50}

@@ -79,6 +79,8 @@ import { FacilityRows } from './Facilities.tsx';
 import { TrainingPanel } from './Training.tsx';
 import { YouthPanel } from './Youth.tsx';
 import { Highlights } from './Highlights.tsx';
+import { injuryName } from './injuries.ts';
+import { MedicalNews, MedicalPanel } from './Medical.tsx';
 import { simToEnd, avgRating } from './highlights.ts';
 import { DeepTacticsPanel } from './TacticsPanel.tsx';
 import { FORMATIONS } from './tactics.ts';
@@ -285,7 +287,7 @@ function PlayerCard({
         </h3>
         <p>
           {player.age} years · {player.position} · {money(player.wage)}/wk
-          {player.injured ? ` · Injured ${player.injured}w` : ''}
+          {player.injured ? ` · 🚑 ${injuryName(player.injury?.type)} ${player.injured}w` : ''}
         </p>
         <p>
           {player.personality} · <Stars p={player} /> ·{' '}
@@ -1067,6 +1069,7 @@ export default function App() {
                 <>
                   <DressingPanel state={state} onUpdate={update} />
                   <DepthPanel state={state} onUpdate={update} />
+                  <MedicalPanel state={state} onUpdate={update} />
                   <div className="squad-banner">
                     <div>
                       <span className="eyebrow">
@@ -1276,6 +1279,7 @@ export default function App() {
               )}
               {tab === 'transfers' && (
                 <>
+                  <MedicalNews state={state} />
                   <Inbox
                     state={state}
                     onUpdate={update}

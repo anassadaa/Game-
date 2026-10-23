@@ -15,9 +15,10 @@ import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
 import { loansReturn, loansWeek } from './loans.ts';
 import { fillXI } from './lineup.ts';
+import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
-import { dofDiscount, injuryFactor, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
+import { dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
 import type { Staff } from './staff.ts';
 import type { Scout, ScoutReport } from './scouts.ts';
 import { recordRatings } from './highlights.ts';
@@ -55,6 +56,9 @@ export type Player = {
   assists: number;
   academyGraduate?: boolean;
   injured?: number;
+  injury?: { type: string; total: number; week?: number };
+  injuries?: number;
+  rushed?: number;
   attrs?: Attrs;
   personality?: Personality;
   contract?: number;
@@ -170,6 +174,7 @@ export type Match = {
   xi0?: string[];
   lineup0?: string[];
   bench0?: string[];
+  down?: string[];
 };
 export type CareerRecord = {
   season: number;
@@ -231,6 +236,7 @@ export type GameState = {
   lineup?: string[];
   bench?: string[];
   autoSubs?: boolean;
+  medNews?: { week: number; text: string }[];
   vacancies?: Vacancy[];
   applied?: string[];
   resigned?: boolean;
@@ -489,6 +495,7 @@ export function migrate(s: GameState): GameState {
   s.sacked ??= false;
   s.reputation ??= reputation(s);
   s.vacancies ??= [];
+  migrateInjuries(s);
   s.agentMsgs ??= [];
   if (!s.staffMarket) refreshStaffMarket(s);
   // New divisions added after this save was made: bring their clubs and squads in.
@@ -984,7 +991,7 @@ function strength(s: GameState, ourSide: boolean): number {
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
   const quality =
     starters.reduce((sum, p) => sum + p.rating * (p.injured ? 0.65 : 1) * (0.95 + 0.05 * sharpness(p) / 100), 0) /
-    Math.max(1, starters.length);
+    Math.max(1, starters.length) - Math.max(0, 11 - starters.length) * 4;
   const fitness =
     starters.reduce((sum, p) => sum + p.fitness, 0) /
     Math.max(1, starters.length);
@@ -1147,6 +1154,7 @@ export function advanceMatch(s: GameState): GameState {
     }
   }
   aiSubs(b, () => next(b));
+  if (!m.complete) matchInjuries(b);
   if (m.minute === 45)
     m.timeline.push({
       minute: 45,
@@ -1235,7 +1243,6 @@ function simulateScore(s: GameState, a: Club, b: Club): [number, number] {
 }
 function train(s: GameState) {
   for (const p of s.players.filter((p) => p.clubId === s.clubId)) {
-    p.injured = Math.max(0, (p.injured ?? 0) - 1) || undefined;
     const starter = p.starting;
     p.fitness = clamp(
       p.fitness +
@@ -1262,8 +1269,8 @@ function train(s: GameState) {
       p.rating++;
     if (p.personality === 'Temperamental') p.morale = clamp(p.morale + int(s, -4, 4));
     if (p.personality === 'Professional' && p.age < 27 && p.rating < p.potential && next(s) < 0.04) p.rating++;
-    if (starter && p.fitness < 38 && next(s) < 0.09 * injuryFactor(s)) p.injured = int(s, 1, 3);
   }
+  injuryWeek(s);
 }
 /** Reserve sides can never go up. */
 const RESERVE_SIDES = new Set(['sociedadb', 'benficab', 'portob', 'sportingb']);
@@ -1753,12 +1760,12 @@ export function pickXI(s: GameState) {
   own.forEach((p) => (p.starting = false));
   const fit = own.filter((p) => !p.injured);
   const gk = (fit.filter((p) => p.position === 'GK').sort((a, b) => b.rating - a.rating)[0] ??
-    own.filter((p) => p.position === 'GK').sort((a, b) => b.rating - a.rating)[0])!;
-  gk.starting = true;
+    own.filter((p) => p.position === 'GK').sort((a, b) => b.rating - a.rating)[0]);
+  if (gk) gk.starting = true;
   [...fit, ...own.filter((p) => p.injured)]
     .filter((p) => p.position !== 'GK')
     .sort((a, b) => b.rating - a.rating)
-    .slice(0, 10)
+    .slice(0, gk ? 10 : 11)
     .forEach((p) => (p.starting = true));
 }
 /** Accept a job offer: your old squad stays behind and you inherit the new club's players. */

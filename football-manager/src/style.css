@@ -3897,6 +3897,8 @@ nav button { position: relative; }
 .sidebar::-webkit-scrollbar { display: none; }
 @media (max-height: 500px) { .sidebar nav button { min-height: 36px; } .sidebar .brand, .sidebar .side-club { margin-bottom: 6px; } }
 /* ---------- Lineup picker ---------- */
+.lineup { min-width: 0; max-width: 100%; }
+.lu-row > .lu-info { flex: 1; }
 .lineup h3 { margin-bottom: 10px; }
 .lu-actions { display: flex; gap: 10px; margin-bottom: 12px; }
 .lu-big { min-height: 48px; flex: 1; font-size: 15px; font-weight: 700; }

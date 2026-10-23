@@ -3892,3 +3892,7 @@ nav button { position: relative; }
   .mobile-nav button { min-width: 54px; position: relative; }
   .mobile-nav button span:not(.nav-badge) { white-space: nowrap; }
 }
+/* Six tabs: let the sidebar scroll on short landscape phones so Club is never cut off. */
+.sidebar { overflow-y: auto; scrollbar-width: none; }
+.sidebar::-webkit-scrollbar { display: none; }
+@media (max-height: 500px) { .sidebar nav button { min-height: 36px; } .sidebar .brand, .sidebar .side-club { margin-bottom: 6px; } }

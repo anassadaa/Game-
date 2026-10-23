@@ -17,3 +17,12 @@ test('the gap between clubs matters: favourites win, the side tipped for last st
   assert.ok(top.ppg >= 1.8, `top ppg ${top.ppg.toFixed(2)}`);
   assert.ok(top.ppg - bottom.ppg >= 0.8, `gap ${(top.ppg - bottom.ppg).toFixed(2)}`);
 });
+test('goals per game land around 2.6-2.8 in our matches and across the league', () => {
+  const clubs = div('leicester'), mid = season(clubs[9].id, [1, 2, 3, 4, 5, 6]);
+  assert.ok(mid.goals >= 2.45 && mid.goals <= 3.0, `our goals/game ${mid.goals.toFixed(2)}`);
+  let s = newGame(7, clubs[9].id);
+  for (let w = 0; w < 17; w++) { s = simToEnd(startMatch(autoPick(s))); s = advanceWeek(s); if (s.sacked) break; }
+  const lg = s.clubs.filter((c) => c.division === clubs[0].division);
+  const g = lg.reduce((t, c) => t + c.gf, 0) / (lg.reduce((t, c) => t + c.wins + c.draws + c.losses, 0) / 2);
+  assert.ok(g >= 2.45 && g <= 3.0, `league goals/game ${g.toFixed(2)}`);
+});

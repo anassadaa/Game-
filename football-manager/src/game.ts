@@ -993,7 +993,7 @@ export function upgradeFacility(
   return b;
 }
 /** Match engine tuning: how much a strength point shifts chance share, and finishing quality. */
-export const EDGE_PER_POINT = 0.026, FINISH = 1.1;
+export const EDGE_PER_POINT = 0.026, FINISH = 1.4;
 function strength(s: GameState, ourSide: boolean): number {
   if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s) + level(s).ai + adaptive(s);
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
@@ -1241,12 +1241,12 @@ function simulateScore(s: GameState, a: Club, b: Club): [number, number] {
       next(s) <
       Math.max(0.12, Math.min(0.72, 0.39 + (a.rating - b.rating) * 0.011))
     )
-      if (next(s) < 0.28) x++;
+      if (next(s) < 0.56) x++;
     if (
       next(s) <
       Math.max(0.12, Math.min(0.72, 0.38 + (b.rating - a.rating) * 0.011))
     )
-      if (next(s) < 0.28) y++;
+      if (next(s) < 0.56) y++;
   }
   return [x, y];
 }

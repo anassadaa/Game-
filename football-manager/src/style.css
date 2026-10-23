@@ -3965,3 +3965,7 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .med-top strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .med-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:6px 0;overflow:hidden}
 .med-bar i{display:block;height:100%;background:#4caf50}
+.subtabs{display:flex;gap:6px;overflow-x:auto;margin:0 0 12px;padding-bottom:2px;scrollbar-width:none;grid-column:1/-1}
+.subtabs::-webkit-scrollbar{display:none}
+.subtabs button{flex:0 0 auto;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:inherit;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600}
+.subtabs button.active{background:#c8f169;color:#0b1410;border-color:#c8f169}

@@ -1,3 +1,5 @@
+import { SubTabs } from './SubTabs.tsx';
+import { pickSub } from './subtabs.ts';
 import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -360,6 +362,9 @@ export default function App() {
   const [pickLeague, setPickLeague] = useState(2);
   const [bg, setBg] = useState('sandbox');
   const bgRep = BACKGROUNDS.find((b) => b.id === bg)?.rep ?? null;
+  const [subs, setSubs] = useState<Record<string, string>>(() => { try { return JSON.parse(localStorage.getItem('touchline-subtabs') ?? '{}') ?? {}; } catch { return {}; } });
+  const sub = pickSub(tab, subs[tab]);
+  const setSub = (id: string) => { const n = { ...subs, [tab]: id }; setSubs(n); localStorage.setItem('touchline-subtabs', JSON.stringify(n)); };
   const [tableDiv, setTableDiv] = useState<number | null>(null);
   const [toast, setToast] = useState('');
   const [help, setHelp] = useState(false);
@@ -1075,9 +1080,17 @@ export default function App() {
               )}
               {tab === 'squad' && (
                 <>
+<SubTabs tab={tab} value={sub} onChange={setSub} />
+{sub === 'dressing' && (<>
                   <DressingPanel state={state} onUpdate={update} />
+</>)}
+{sub === 'depth' && (<>
                   <DepthPanel state={state} onUpdate={update} />
+</>)}
+{sub === 'medical' && (<>
                   <MedicalPanel state={state} onUpdate={update} />
+</>)}
+{sub === 'players' && (<>
                   <div className="squad-banner">
                     <div>
                       <span className="eyebrow">
@@ -1134,11 +1147,16 @@ export default function App() {
                         />
                       ))}
                   </div>
+</>)}
                 </>
               )}
               {tab === 'tactics' && (
                 <div className="tactics-grid">
+<SubTabs tab={tab} value={sub} onChange={setSub} />
+{sub === 'lineup' && (<>
                   <LineupPicker state={state} onUpdate={update} />
+</>)}
+{sub === 'shape' && (<>
                   <section className="card tactic-settings">
                     <SectionTitle
                       eyebrow="YOUR FOOTBALL, YOUR WAY"
@@ -1193,6 +1211,8 @@ export default function App() {
                     </div>
                   </section>
                   <DeepTacticsPanel state={state} onUpdate={update} />
+</>)}
+{sub === 'training' && (<>
                   <section className="card training-card">
                     <SectionTitle
                       eyebrow="WORK ON THE TRAINING GROUND"
@@ -1257,6 +1277,7 @@ export default function App() {
                     </div>
                   </section>
                   <TrainingPanel state={state} onUpdate={update} />
+</>)}
                 </div>
               )}
               {tab === 'recruitment' && (
@@ -1287,6 +1308,8 @@ export default function App() {
               )}
               {tab === 'transfers' && (
                 <>
+<SubTabs tab={tab} value={sub} onChange={setSub} />
+{sub === 'offers' && (<>
                   <MedicalNews state={state} />
                   <Inbox
                     state={state}
@@ -1295,6 +1318,8 @@ export default function App() {
                       setDeal({ id: p.id, fee: p.counter ?? Math.round(askingPrice(p, state) * 0.85), wage, years: 3, instalments: false, swapId: '' })
                     }
                   />
+</>)}
+{sub === 'money' && (<>
                   <FinancePanel state={state} onUpdate={update} />
                   <div className="recruitment-summary">
                     <div>
@@ -1316,6 +1341,8 @@ export default function App() {
                       </span>
                     </div>
                   </div>
+</>)}
+{sub === 'market' && (<>
                   <SectionTitle eyebrow="BUY · SELL · LOAN" title="Transfer market" />
                   <TransferMarket
                     state={state}
@@ -1403,6 +1430,8 @@ export default function App() {
                       </article>
                     ))}
                   </div>
+</>)}
+{sub === 'sell' && (<>
                   <section className="departures">
                     <SectionTitle
                       eyebrow="CREATE ROOM TO GROW"
@@ -1430,6 +1459,7 @@ export default function App() {
                         ))}
                     </div>
                   </section>
+</>)}
                 </>
               )}
               {tab === 'club' && (

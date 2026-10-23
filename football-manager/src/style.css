@@ -3997,3 +3997,9 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .ledger-weeks i{flex:1;border-radius:3px 3px 0 0;min-width:4px}
 .ledger-weeks i.pos{background:#30a46c}.ledger-weeks i.neg{background:#e5484d}
 @media (max-width:400px){.ledger-cols{grid-template-columns:1fr}}
+.trait-line{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.trait-line .chip{font-size:10px;padding:2px 6px;border-radius:8px;background:rgba(255,255,255,.07);white-space:nowrap}
+.trait-line .chip.trait{background:rgba(200,241,105,.15);color:#c8f169}
+.trait-line .chip.hidden.high{color:#7fe08a}.trait-line .chip.hidden.low{color:#ff7b7b}
+.cap-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:13px}
+.cap-row select{max-width:62%;min-height:36px}

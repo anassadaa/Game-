@@ -3,6 +3,7 @@ import type { GameState, Player } from './game.ts';
 import { attributes, clamp, copy, int, next } from './game.ts';
 import { facilities } from './facilities.ts';
 import { injuryFactor } from './staff.ts';
+import { hidden } from './traits.ts';
 
 export type InjuryType = { id: string; name: string; min: number; max: number; weight: number };
 export const INJURIES: InjuryType[] = [
@@ -33,6 +34,7 @@ export function injuryRisk(s: GameState, p: Player, ctx: RiskCtx = {}): number {
   if (ctx.heavy) r *= 1.35;                                // fixture congestion
   r *= ctx.tackle === 'high' ? 1.4 : ctx.tackle === 'low' ? 0.8 : 1;
   if (injuryProne(p)) r *= 1.6;
+  r *= 0.7 + hidden(p).proneness * 0.03;  // hidden natural proneness
   if (p.rushed) r *= 2.2;
   return Math.max(0, r * injuryFactor(s));
 }

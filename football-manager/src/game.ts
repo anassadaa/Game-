@@ -19,6 +19,7 @@ import { loansReturn, loansWeek } from './loans.ts';
 import { fillXI, topUpBench } from './lineup.ts';
 import { buildReview, recordResult, type Result, type SeasonReview } from './fixtures.ts';
 import { shoutEffect, type ShoutId } from './shouts.ts';
+import { captainWeek, formSwing, hidden, leaderEdge, ppmEffect, revealWeek } from './traits.ts';
 import { dropSuspended, matchCards, resetCards, settleCards, type Card } from './cards.ts';
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
@@ -91,6 +92,7 @@ export type Player = {
   promise?: { weeks: number; kept: number };
   careerGoals?: number;
   careerApps?: number;
+  known?: boolean;
 };
 export type Instalment = { name: string; amount: number; weeks: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
@@ -216,6 +218,8 @@ export type GameState = {
   history: CareerRecord[];
   headlines: string[];
   ledger?: Ledger;
+  captain?: string;
+  vice?: string;
   careerWins: number;
   careerGames: number;
   lastStory: string;
@@ -1017,8 +1021,9 @@ export const EDGE_PER_POINT = 0.026, FINISH = 1.4;
 function strength(s: GameState, ourSide: boolean): number {
   if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s) + level(s).ai + adaptive(s) - (s.match?.redThem ?? 0) * 4;
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
+  const big = !!s.match && standings(s).filter((c) => c.division === club(s).division).findIndex((c) => c.id === s.match!.opponentId) < 3;
   const quality =
-    starters.reduce((sum, p) => sum + p.rating * (p.injured ? 0.65 : 1) * (0.95 + 0.05 * sharpness(p) / 100), 0) /
+    starters.reduce((sum, p) => sum + (p.rating + formSwing(s, p, big)) * (p.injured ? 0.65 : 1) * (0.95 + 0.05 * sharpness(p) / 100), 0) /
     Math.max(1, starters.length) - Math.max(0, 11 - starters.length) * 4;
   const fitness =
     starters.reduce((sum, p) => sum + p.fitness, 0) /
@@ -1129,13 +1134,15 @@ export function advanceMatch(s: GameState): GameState {
     edge += us ? prof.att : -prof.def;
     const sh = shoutEffect(b);
     edge += us ? sh.att : -sh.def;
+    const pe = ppmEffect(b);
+    edge += us ? pe.att + leaderEdge(b) : -pe.def;
     const chance = Math.max(
       0.2,
       Math.min(0.88, 0.52 + edge + (m.home && us ? 0.04 : 0)),
     );
     if (next(b) < chance) {
       const minute = prev + int(b, 2, 14),
-        xg = Math.round((0.13 + next(b) * 0.33) * 100) / 100;
+        xg = Math.round((0.13 + next(b) * 0.33) * (us ? pe.xg : 1) * 100) / 100;
       if (us) m.xgUs = Math.round((m.xgUs + xg) * 100) / 100;
       else m.xgThem = Math.round((m.xgThem + xg) * 100) / 100;
       const scorer = us
@@ -1303,6 +1310,7 @@ function train(s: GameState) {
     )
       p.rating++;
     if (p.personality === 'Temperamental') p.morale = clamp(p.morale + int(s, -4, 4));
+    if (hidden(p).professionalism >= 14) p.fitness = clamp(p.fitness + 2);
     if (p.personality === 'Professional' && p.age < 27 && p.rating < p.potential && next(s) < 0.04) p.rating++;
   }
   injuryWeek(s);
@@ -1513,6 +1521,8 @@ export function advanceWeek(s: GameState): GameState {
   facilitiesWeek(b);
   dressingWeek(b, played);
   scoutsWeek(b);
+  revealWeek(b);
+  captainWeek(b);
   staffWeek(b);
   agentsWeek(b);
   loansWeek(b);

@@ -1,3 +1,4 @@
+import { CaptaincyCard, TraitLine } from './Traits.tsx';
 import { Shouts } from './Shouts.tsx';
 import { FixturesCard, ReviewModal } from './Fixtures.tsx';
 import { SubTabs } from './SubTabs.tsx';
@@ -308,6 +309,7 @@ function PlayerCard({
           </p>
         )}
         <AttrGrid p={player} />
+        <TraitLine p={player} />
         <div className="player-bars">
           <span>
             FIT <Meter value={player.fitness} />
@@ -1088,6 +1090,7 @@ export default function App() {
                 <>
 <SubTabs tab={tab} value={sub} onChange={setSub} />
 {sub === 'dressing' && (<>
+                  <CaptaincyCard state={state} onUpdate={update} />
                   <DressingPanel state={state} onUpdate={update} />
 </>)}
 {sub === 'depth' && (<>

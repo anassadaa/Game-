@@ -2,6 +2,7 @@
 import type { GameState, Player } from './game.ts';
 import { next } from './game.ts';
 import { shoutEffect } from './shouts.ts';
+import { playerCardMul } from './traits.ts';
 
 export const YELLOW_RATE = 0.026, RED_RATE = 0.0012, BAN_AT = 5;
 export type Card = { id: string; y: number; red?: boolean };
@@ -32,7 +33,7 @@ export function matchCards(s: GameState) {
       c.red = true;
       line(s, `🟥 ${p.name} is sent off for a reckless challenge!`, 'us', p.id);
       sendOff(s, p);
-    } else if (next(s) < YELLOW_RATE * k) {
+    } else if (next(s) < YELLOW_RATE * k * playerCardMul(p)) {
       if (!c) m.cards.push((c = { id: p.id, y: 0 }));
       c.y++;
       if (c.y >= 2) {

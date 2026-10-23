@@ -17,6 +17,7 @@ import { validResults } from './fixtures.ts';
 import { validCards } from './cards.ts';
 import { validShout } from './shouts.ts';
 import { validLedger } from './finance.ts';
+import { validTraits } from './traits.ts';
 import { LEAGUES } from './world.ts';
 import { ATTRS, PERSONALITIES, migrate, storyIds } from './game.ts';
 
@@ -125,6 +126,7 @@ export function decodeSave(raw: string): GameState | null {
       !validCards(s) ||
       !validShout(s) ||
       !validLedger(s) ||
+      !validTraits(s) ||
       !s.euro ||
       !Array.isArray(s.euro.alive) ||
       !s.euro.alive.every((id) => s.clubs.some((c) => c.id === id)) ||

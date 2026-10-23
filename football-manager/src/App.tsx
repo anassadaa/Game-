@@ -65,7 +65,7 @@ import { TransferMarket } from './Market.tsx';
 import { BACKGROUNDS, locked as clubLocked, repNeeded } from './start.ts';
 import { LEAGUES, WORLD, clubOutlook, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
-import { FinancePanel } from './Finance.tsx';
+import { FinancePanel, LedgerCard } from './Finance.tsx';
 import { agentFee, ffpLimit, ffpNet, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
@@ -1326,6 +1326,7 @@ export default function App() {
                   />
 </>)}
 {sub === 'money' && (<>
+                  <LedgerCard state={state} />
                   <FinancePanel state={state} onUpdate={update} />
                   <div className="recruitment-summary">
                     <div>

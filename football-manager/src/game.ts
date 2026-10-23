@@ -8,7 +8,8 @@ import { dressingWeek } from './dressing.ts';
 import { addTrophy, seasonAwards } from './stats.ts';
 import type { Award, Trophy } from './stats.ts';
 import { agentFee, ffpSeason, ffpSpend, releaseClause, saleIncome, sellOnReceipt } from './finance.ts';
-import type { Ffp, SellOn } from './finance.ts';
+import type { Ffp, SellOn, Ledger } from './finance.ts';
+import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
 import type { Retiree } from './regens.ts';
 import { jobsWeek, repSacked, repSeason, reputation, reputationOffers, stature } from './jobs.ts';
@@ -214,6 +215,7 @@ export type GameState = {
   match: Match | null;
   history: CareerRecord[];
   headlines: string[];
+  ledger?: Ledger;
   careerWins: number;
   careerGames: number;
   lastStory: string;
@@ -509,6 +511,7 @@ export function migrate(s: GameState): GameState {
   s.sacked ??= false;
   if (!isDifficulty(s.difficulty)) s.difficulty = 'medium';
   s.results ??= [];
+  ledger(s);
   s.reputation ??= reputation(s);
   s.vacancies ??= [];
   migrateInjuries(s);
@@ -644,6 +647,7 @@ export function newGame(
   s.drills = [];
   facilities(s);
   topUpBench(s);
+  ledger(s);
   return s;
 }
 export function club(s: GameState) {
@@ -1347,7 +1351,11 @@ function rollSeason(s: GameState) {
     d1.slice(-p.k).forEach((c) => (c.division = p.second));
     d2.slice(0, p.k).forEach((c) => (c.division = p.top));
   }
-  s.budget += league(before).tier === 1 ? 1250 : 850;
+  const pay = seasonPayout(league(before).tier, pos, size, outcome === 'Promoted' || outcome === 'Champions');
+  s.budget += pay.tv + pay.prize;
+  book(s, 'tv', pay.tv); book(s, 'prize', pay.prize);
+  addNews(s, `💷 Season payment: TV £${pay.tv}k · prize money £${pay.prize}k.`);
+  closeLedger(s);
   s.trust = clamp(
     s.trust +
       (outcome === 'Promoted' || outcome === 'Champions'
@@ -1454,6 +1462,9 @@ export function advanceWeek(s: GameState): GameState {
   if (!s.match?.complete) return s;
   const b = copy(s),
     m = b.match!,
+    before = ledger(b).last;
+  sync(b, 'deals');
+  const
     us = club(b),
     opp = opponent(b);
   const home = m.home ? us : opp,
@@ -1478,11 +1489,13 @@ export function advanceWeek(s: GameState): GameState {
   const wages = b.players
     .filter((p) => p.clubId === b.clubId)
     .reduce((sum, p) => sum + p.wage, 0);
-  const income =
-    (league(club(b).division).tier === 1 ? 130 : 90) +
-    (m.home ? 90 + Math.round(b.fans * 0.5) : 35) +
-    Math.round(b.fans * 0.2);
-  b.budget += Math.round(income * level(b).money) - wages + stadiumBonus(b, m.home);
+  const mult = level(b).money,
+    tv = Math.round((league(club(b).division).tier === 1 ? 130 : 90) * mult),
+    gate = Math.round((m.home ? 90 + Math.round(b.fans * 0.5) : 35) * mult) + stadiumBonus(b, m.home),
+    sponsor = Math.round(Math.round(b.fans * 0.2) * mult),
+    income = tv + gate + sponsor;
+  b.budget += income - wages;
+  book(b, 'tv', tv); book(b, 'gate', gate); book(b, 'sponsor', sponsor); book(b, 'wages', wages);
   for (const i of b.instalments ?? []) {
     b.budget -= i.amount;
     i.weeks--;
@@ -1527,6 +1540,8 @@ export function advanceWeek(s: GameState): GameState {
     if (b.week % 3 === 0) refreshMarket(b);
     b.inbox = story(b);
   }
+  sync(b, 'running');
+  weekNet(b, before);
   return b;
 }
 
@@ -1919,6 +1934,7 @@ function runCup(b: GameState, c: Cup | undefined, weeks: number[], prizes: numbe
       const won = winners[winners.length - 1] === b.clubId;
       if (won) {
         b.budget += prizes[c.round]!;
+        book(b, 'prize', prizes[c.round]!);
         b.fans = clamp(b.fans + 2);
       }
       b.headlines = [`🏆 ${label} ${line}${won ? ` · prize £${prizes[c.round]}k` : ' · knocked out'}`, ...b.headlines].slice(0, 6);

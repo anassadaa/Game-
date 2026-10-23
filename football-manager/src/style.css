@@ -3984,3 +3984,16 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .shout-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .shout-row button{flex:1 1 30%;min-height:38px;padding:6px 8px;border-radius:10px;font-size:12px}
 .shout-row button.active{outline:2px solid #c8f169}
+.ledger-card h3 .pos{color:#7fe08a}.ledger-card h3 .neg{color:#ff7b7b}
+.ledger-bars{display:grid;gap:6px;margin:8px 0}
+.ledger-bars div{position:relative;font-size:12px}
+.ledger-bars i{display:block;height:8px;border-radius:6px;margin-top:3px}
+.ledger-bars i.in{background:#30a46c}.ledger-bars i.out{background:#e5484d}
+.ledger-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ledger-cols dl{margin:0;display:grid;gap:4px}
+.ledger-cols dl div{display:flex;justify-content:space-between;gap:6px;font-size:12px}
+.ledger-cols dt{opacity:.75}.ledger-cols dd{margin:0;font-weight:600}
+.ledger-weeks{display:flex;align-items:flex-end;gap:3px;height:52px;margin:10px 0 4px}
+.ledger-weeks i{flex:1;border-radius:3px 3px 0 0;min-width:4px}
+.ledger-weeks i.pos{background:#30a46c}.ledger-weeks i.neg{background:#e5484d}
+@media (max-width:400px){.ledger-cols{grid-template-columns:1fr}}

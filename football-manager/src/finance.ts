@@ -50,3 +50,47 @@ export const validFinance = (s: GameState) =>
   (s.ffp === undefined || (Number.isFinite(s.ffp.spend) && Number.isFinite(s.ffp.income) && Number.isFinite(s.ffp.fines))) &&
   (s.sellOns === undefined || (Array.isArray(s.sellOns) && s.sellOns.every((x) => x && typeof x.playerId === 'string' && x.pct > 0 && x.pct <= 50))) &&
   s.players.every((p) => (p.clause === undefined || Number.isFinite(p.clause)) && (p.sellOn === undefined || (typeof p.sellOn.clubId === 'string' && p.sellOn.pct > 0 && p.sellOn.pct <= 50)));
+
+// ---- Club ledger: where the money comes from and goes, per season ----
+export type InKind = 'gate' | 'tv' | 'sponsor' | 'prize' | 'sales' | 'other';
+export type OutKind = 'wages' | 'running' | 'signings';
+export type Ledger = { season: number; inc: Record<InKind, number>; out: Record<OutKind, number>; last: number; weeks: { w: number; net: number }[]; prev?: { season: number; income: number; costs: number } };
+const zeroIn = (): Record<InKind, number> => ({ gate: 0, tv: 0, sponsor: 0, prize: 0, sales: 0, other: 0 });
+const zeroOut = (): Record<OutKind, number> => ({ wages: 0, running: 0, signings: 0 });
+export function ledger(s: GameState): Ledger {
+  return (s.ledger ??= { season: s.season, inc: zeroIn(), out: zeroOut(), last: s.budget, weeks: [] });
+}
+export function book(s: GameState, kind: InKind | OutKind, amount: number) {
+  const l = ledger(s), a = Math.round(amount);
+  if (kind in l.inc) l.inc[kind as InKind] += a; else l.out[kind as OutKind] += a;
+  l.last += kind in l.inc ? a : -a;
+}
+/** Anything not booked explicitly since the last sync: user deals (signings/sales) or weekly running costs. */
+export function sync(s: GameState, how: 'deals' | 'running') {
+  const l = ledger(s), d = Math.round(s.budget - l.last);
+  if (d > 0) l.inc[how === 'deals' ? 'sales' : 'other'] += d;
+  else if (d < 0) l.out[how === 'deals' ? 'signings' : 'running'] += -d;
+  l.last = s.budget;
+}
+export const totalIn = (l: Ledger) => Object.values(l.inc).reduce((a, b) => a + b, 0);
+export const totalOut = (l: Ledger) => Object.values(l.out).reduce((a, b) => a + b, 0);
+export function weekNet(s: GameState, before: number) {
+  const l = ledger(s);
+  l.weeks = [...l.weeks, { w: s.week, net: Math.round(s.budget - before) }].slice(-18);
+}
+export function closeLedger(s: GameState) {
+  const l = ledger(s);
+  sync(s, 'running');
+  s.ledger = { season: s.season, inc: zeroIn(), out: zeroOut(), last: s.budget, weeks: [], prev: { season: l.season, income: totalIn(l), costs: totalOut(l) } };
+}
+/** Season-end central payment: TV share by tier plus merit money by league position, and a promotion bonus. */
+export function seasonPayout(tier: number, pos: number, size: number, promoted: boolean) {
+  const tv = tier === 1 ? 900 : 600, merit = (Math.max(0, size - pos)) * (tier === 1 ? 70 : 45);
+  return { tv, prize: merit + (promoted ? 300 : 0) };
+}
+export function validLedger(s: GameState) {
+  const l = s.ledger;
+  if (l === undefined) return true;
+  const nums = (o: unknown) => !!o && typeof o === 'object' && Object.values(o as object).every((v) => Number.isFinite(v));
+  return Number.isInteger(l.season) && nums(l.inc) && nums(l.out) && Number.isFinite(l.last) && Array.isArray(l.weeks) && l.weeks.length <= 18;
+}

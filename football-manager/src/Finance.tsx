@@ -1,6 +1,6 @@
 import type { GameState } from './game.ts';
 import { renewContract } from './game.ts';
-import { ffpLimit, ffpNet } from './finance.ts';
+import { ffpLimit, ffpNet, ledger, totalIn, totalOut } from './finance.ts';
 
 type Up = (s: GameState, m?: string) => void;
 export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
@@ -35,6 +35,34 @@ export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: 
           {state.sellOns?.map((x) => <div key={x.playerId}><span>We get {x.pct}% when {x.name} moves on</span></div>)}
         </div></>
       )}
+    </section>
+  );
+}
+
+const IN_LABEL = { gate: 'Matchday gate', tv: 'TV rights', sponsor: 'Sponsorship', prize: 'Prize money', sales: 'Player sales', other: 'Other' } as const;
+const OUT_LABEL = { wages: 'Player wages', running: 'Staff, scouts & upkeep', signings: 'Signings & upgrades' } as const;
+export function LedgerCard({ state }: { state: GameState }) {
+  const l = ledger(state), inc = totalIn(l), out = totalOut(l), net = inc - out;
+  const max = Math.max(1, inc, out);
+  const peak = Math.max(1, ...l.weeks.map((w) => Math.abs(w.net)));
+  return (
+    <section className="card ledger-card">
+      <p className="eyebrow">FINANCES · SEASON {l.season + 1}</p>
+      <h3>£{state.budget}k cash · <span className={net >= 0 ? 'pos' : 'neg'}>{net >= 0 ? '+' : '−'}£{Math.abs(net)}k</span> this season</h3>
+      <div className="ledger-bars">
+        <div><span>Income £{inc}k</span><i className="in" style={{ width: `${(inc / max) * 100}%` }} /></div>
+        <div><span>Costs £{out}k</span><i className="out" style={{ width: `${(out / max) * 100}%` }} /></div>
+      </div>
+      <div className="ledger-cols">
+        <dl>{(Object.keys(IN_LABEL) as (keyof typeof IN_LABEL)[]).filter((k) => l.inc[k]).map((k) => <div key={k}><dt>{IN_LABEL[k]}</dt><dd>£{l.inc[k]}k</dd></div>)}</dl>
+        <dl>{(Object.keys(OUT_LABEL) as (keyof typeof OUT_LABEL)[]).filter((k) => l.out[k]).map((k) => <div key={k}><dt>{OUT_LABEL[k]}</dt><dd>£{l.out[k]}k</dd></div>)}</dl>
+      </div>
+      {!!l.weeks.length && (
+        <div className="ledger-weeks" aria-label="Weekly cash flow">
+          {l.weeks.map((w) => <i key={w.w} title={`Week ${w.w}: ${w.net >= 0 ? '+' : ''}£${w.net}k`} className={w.net >= 0 ? 'pos' : 'neg'} style={{ height: `${8 + (Math.abs(w.net) / peak) * 40}px` }} />)}
+        </div>
+      )}
+      <p className="muted small">TV money and prize money are paid at season end and rise with league position — finishing higher and keeping wages in check grows the bank.{l.prev ? ` Last season: in £${l.prev.income}k, out £${l.prev.costs}k.` : ''}</p>
     </section>
   );
 }

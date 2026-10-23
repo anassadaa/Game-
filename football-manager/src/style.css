@@ -4069,3 +4069,7 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 /* Toasts must never eat taps (they sat on top of "Submit offer" after a counter-offer). */
 .toast { pointer-events: none; }
 body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; top: max(12px, env(safe-area-inset-top)); }
+.wage-why dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 6px 0; font-size: 13px; }
+.wage-why dt { color: #4b5a45; min-width: 0; }
+.wage-why dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.wage-why .neg { color: #c0392b; } .wage-why .pos { color: #2f855a; }

@@ -1,6 +1,6 @@
 import type { GameState } from './game.ts';
 import { renewContract } from './game.ts';
-import { salaryList, wageBill, wageLimit, wageRoom } from './budget.ts';
+import { salaryList, wageBill, wageBreakdown, wageLimit, wageRoom } from './budget.ts';
 import { ffpLimit, ffpNet, ledger, totalIn, totalOut } from './finance.ts';
 
 type Up = (s: GameState, m?: string) => void;
@@ -20,7 +20,24 @@ export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: 
       <div className="wage-budget">
         <p><b>Wage bill £{bill}k / £{wl}k a week</b> · <span className={room < 0 ? 'neg' : 'pos'}>{room >= 0 ? `£${room}k left` : `£${-room}k over budget`}</span></p>
         <div className="ffp-bar"><i style={{ width: `${wpct}%`, background: room < 0 ? '#e5484d' : wpct >= 85 ? '#f5a524' : '#30a46c' }} /></div>
-        <p className="muted small">The wage budget is the board's guide for weekly salaries. Going over doesn't block a deal, but wages are paid from your funds every week.</p>
+        {(() => { const w = wageBreakdown(state); const sign = (n: number) => (n >= 0 ? `+£${n}k` : `−£${-n}k`); return (
+        <div className="wage-why">
+          <p className="eyebrow">HOW THE BOARD SET IT</p>
+          <dl>
+            <dt>Income / week</dt><dd>£{w.incomeWk}k</dd>
+            <dt>Costs / week (wages, running, signings)</dt><dd>£{w.costsWk}k</dd>
+            <dt>Profit / loss per week</dt><dd className={w.pnlWk < 0 ? 'neg' : 'pos'}>{sign(w.pnlWk)}</dd>
+            <dt>Share of income for wages</dt><dd>{Math.round(w.share * 100)}%</dd>
+            <dt>Bank balance {state.budget < 0 ? '(debt)' : ''}</dt><dd>×{w.balance.toFixed(2)}</dd>
+            <dt>Difficulty</dt><dd>×{w.difficulty.toFixed(2)}</dd>
+            <dt>Board target</dt><dd><b>£{w.target}k/wk</b></dd>
+          </dl>
+          <p className="muted small">
+            {w.fromHistory ? `Based on ${w.weeks >= 4 ? `this season so far (${w.weeks} weeks) blended with ` : ''}last season's accounts.` : 'No accounts yet, so the board uses projected TV, gate, sponsor and prize money.'}{' '}
+            The board gives 62% of income to wages, more when you make a profit and less when you make a loss (55–70%). Cash in the bank raises it, debt cuts it.
+            It reviews the budget every 4 weeks and at the start of each season, moving part of the way to the target. The budget is advice only: going over never blocks a deal, but wages come out of your funds every week.
+          </p>
+        </div>); })()}
         <details className="salary-list" open>
           <summary>Salaries ({salaryList(state).length} players)</summary>
           <div className="row-list">{salaryList(state).map((x) => (

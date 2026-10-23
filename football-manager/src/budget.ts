@@ -1,6 +1,6 @@
 import type { GameState, Player } from './game.ts';
 import { club, windowOpen } from './game.ts';
-import { agentFee } from './finance.ts';
+import { agentFee, ledger, seasonPayout, totalIn, totalOut } from './finance.ts';
 import { level } from './difficulty.ts';
 import { dofDiscount } from './staff.ts';
 import { league } from './world.ts';
@@ -8,11 +8,51 @@ import { league } from './world.ts';
 const ours = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId);
 /** Total weekly wages of everyone registered to us (incl. loanees we pay). */
 export const wageBill = (s: GameState) => ours(s).reduce((a, p) => a + (p.wage || 0), 0);
-/** Board's weekly wage budget: scales with TV money, crowd and difficulty. Advisory (never blocks). */
-export function wageLimit(s: GameState) {
-  const tv = league(club(s).division).tier === 1 ? 130 : 90;
-  return Math.round((tv + 80 + (s.fans ?? 0) * 0.45) * level(s).money * 1.4);
+/** Stored board decision so the budget is smoothed instead of jumping. */
+export type WageBudget = { limit: number; season: number; week: number };
+const clampN = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
+const SEASON_WEEKS = 18;
+/** Projected weekly income with no history yet: TV + average gate + sponsors + share of the season payout. */
+function projectedIncome(s: GameState) {
+  const tier = league(club(s).division).tier, mult = level(s).money, fans = s.fans ?? 0;
+  const tv = (tier === 1 ? 130 : 90) * mult;
+  const gate = ((90 + fans * 0.5 + 35) / 2) * mult, sponsor = fans * 0.2 * mult;
+  const pay = seasonPayout(tier, 10, 20, false);
+  return tv + gate + sponsor + (pay.tv + pay.prize) / SEASON_WEEKS;
 }
+/** How the board derives the weekly wage budget from the club's books (FM-style). */
+export function wageBreakdown(s: GameState) {
+  const l = ledger({ ...s } as GameState); // never mutate state while reading
+  const n = Math.min(SEASON_WEEKS, l.weeks.length);
+  const prevInc = l.prev ? l.prev.income / SEASON_WEEKS : null, prevCost = l.prev ? l.prev.costs / SEASON_WEEKS : null;
+  const baseInc = prevInc ?? projectedIncome(s), baseCost = prevCost ?? wageBill(s);
+  // season-to-date figures take over as the season goes on
+  // the central TV/prize payment lands at season end, so in-season income counts its expected weekly share
+  const tier = league(club(s).division).tier, pay = seasonPayout(tier, 10, 20, false);
+  const curInc = n ? totalIn(l) / n + (pay.tv + pay.prize) / SEASON_WEEKS : baseInc, curCost = n ? totalOut(l) / n : baseCost;
+  const w = n >= 4 ? n / SEASON_WEEKS : 0;
+  const incomeWk = Math.round(curInc * w + baseInc * (1 - w)), costsWk = Math.round(curCost * w + baseCost * (1 - w));
+  const pnlWk = incomeWk - costsWk;
+  const margin = incomeWk > 0 ? pnlWk / incomeWk : -1;
+  const share = Math.round(clampN(0.62 + margin * 0.4, 0.55, 0.70) * 100) / 100;
+  const cash = s.budget;
+  const balance = Math.round((cash < 0 ? clampN(1 + (cash / Math.max(1, incomeWk * 10)) * 0.15, 0.85, 1) : clampN(1 + cash / Math.max(1, incomeWk * 52), 1, 1.2)) * 100) / 100;
+  const difficulty = Math.round((0.85 + 0.15 * level(s).money) * 100) / 100;
+  const target = Math.max(1, Math.round(incomeWk * share * balance * difficulty));
+  return { incomeWk, costsWk, pnlWk, share, balance, difficulty, target, fromHistory: prevInc !== null || n >= 4, weeks: n };
+}
+export const wageTarget = (s: GameState) => wageBreakdown(s).target;
+/** Board review (season start, every 4 weeks): move 40% toward target, max ±15% per review. */
+export function refreshWageBudget(s: GameState, weight = 0.4) {
+  const t = wageTarget(s), old = s.wageBudget?.limit;
+  const limit = old === undefined ? Math.max(t, Math.round(wageBill(s) * 1.05))
+    : Math.round(clampN(old + (t - old) * weight, old * 0.85, old * 1.15));
+  s.wageBudget = { limit, season: s.season, week: s.week };
+  return s;
+}
+/** Board's weekly wage budget. Advisory (never blocks a deal). */
+export const wageLimit = (s: GameState) => s.wageBudget?.limit ?? Math.max(wageTarget(s), Math.round(wageBill(s) * 1.05));
+export const validWageBudget = (w: unknown) => w === undefined || (!!w && typeof w === 'object' && Number.isFinite((w as WageBudget).limit) && (w as WageBudget).limit > 0 && Number.isFinite((w as WageBudget).season) && Number.isFinite((w as WageBudget).week));
 export const wageRoom = (s: GameState) => wageLimit(s) - wageBill(s);
 export const salaryList = (s: GameState) =>
   ours(s).map((p) => ({ id: p.id, name: p.name, position: p.position, wage: p.wage || 0, years: p.contract ?? 0 })).sort((a, b) => b.wage - a.wage);

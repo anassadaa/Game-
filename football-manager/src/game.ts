@@ -13,6 +13,8 @@ import { addTrophy, seasonAwards } from './stats.ts';
 import type { Award, Trophy } from './stats.ts';
 import { agentFee, ffpSeason, ffpSpend, releaseClause, saleIncome, sellOnReceipt } from './finance.ts';
 import type { Ffp, SellOn, Ledger } from './finance.ts';
+import { refreshWageBudget } from './budget.ts';
+import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
 import type { Retiree } from './regens.ts';
@@ -230,6 +232,7 @@ export type GameState = {
   history: CareerRecord[];
   headlines: string[];
   ledger?: Ledger;
+  wageBudget?: WageBudget;
   captain?: string;
   vice?: string;
   careerWins: number;
@@ -669,6 +672,7 @@ export function newGame(
   facilities(s);
   topUpBench(s);
   ledger(s);
+  refreshWageBudget(s);
   return s;
 }
 export function club(s: GameState) {
@@ -1375,6 +1379,7 @@ function rollSeason(s: GameState) {
   book(s, 'tv', pay.tv); book(s, 'prize', pay.prize);
   addNews(s, `💷 Season payment: TV £${pay.tv}k · prize money £${pay.prize}k.`);
   closeLedger(s);
+  refreshWageBudget(s, 0.5);
   s.trust = clamp(
     s.trust +
       (outcome === 'Promoted' || outcome === 'Champions'
@@ -1567,6 +1572,7 @@ export function advanceWeek(s: GameState): GameState {
   }
   sync(b, 'running');
   weekNet(b, before);
+  if (b.week % 4 === 0) refreshWageBudget(b);
   return b;
 }
 

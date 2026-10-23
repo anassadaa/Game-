@@ -64,7 +64,8 @@ import { FinancePanel } from './Finance.tsx';
 import { agentFee, ffpLimit, ffpNet, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
-import { LineupPicker } from './Lineup.tsx';
+import { AssignSheet, LineupPicker } from './Lineup.tsx';
+import { placeOf } from './lineup.ts';
 import { JobCentre } from './Jobs.tsx';
 import { ScoutsPanel } from './Scouts.tsx';
 import { FreeAgents, Inbox } from './Inbox.tsx';
@@ -250,12 +251,16 @@ export function AttrGrid({ p }: { p: Player }) {
 function PlayerCard({
   player,
   onStart,
+  onAssign,
+  place,
   onSell,
   onRenew,
   locked,
 }: {
   player: Player;
   onStart?: () => void;
+  onAssign?: () => void;
+  place?: string;
   onSell?: () => void;
   onRenew?: () => void;
   locked: boolean;
@@ -305,7 +310,14 @@ function PlayerCard({
         <small>OVR</small>
       </div>
       <div className="player-actions">
-        {player.starting ? (
+        {onAssign ? (
+          <>
+            <span className="place-tag">{place}</span>
+            <button className="secondary assign-btn" disabled={locked} onClick={onAssign}>
+              Assign
+            </button>
+          </>
+        ) : player.starting ? (
           <span className="xi-badge">
             <Check size={12} /> XI
           </span>
@@ -346,6 +358,7 @@ export default function App() {
   const [help, setHelp] = useState(false);
   const [saveOk, setSaveOk] = useState(true);
   const [filter, setFilter] = useState('All');
+  const [assign, setAssign] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [deal, setDeal] = useState<{
     id: string;
@@ -674,7 +687,7 @@ export default function App() {
                   : tab === 'home'
                     ? `${team.name}. A new week. A chance to write the next chapter.`
                     : tab === 'squad'
-                      ? 'Start a reserve to replace an injured teammate first, then the lowest-rated starter in the same position.'
+                      ? 'Tap Assign on any player to put him in a position, on the bench or in the reserves.'
                       : tab === 'tactics'
                         ? 'Balance risk, preparation and the strengths of the opposition.'
                         : tab === 'transfers'
@@ -1068,10 +1081,11 @@ export default function App() {
                         key={v}
                         onClick={() => setFilter(v)}
                       >
-                        {v === 'All' ? 'All players' : v}
+                        {({ All: 'All', GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'ATT' } as Record<string, string>)[v]}
                       </button>
                     ))}
                   </div>
+                  {assign && <AssignSheet state={state} playerId={assign} onUpdate={update} onClose={() => setAssign(null)} />}
                   <div className="squad-grid">
                     {roster
                       .filter((p) => filter === 'All' || p.position === filter)
@@ -1085,6 +1099,8 @@ export default function App() {
                           key={p.id}
                           player={p}
                           locked={locked}
+                          place={placeOf(state, p.id)}
+                          onAssign={() => setAssign(p.id)}
                           onRenew={() =>
                             update(
                               renewContract(state, p.id, 3),

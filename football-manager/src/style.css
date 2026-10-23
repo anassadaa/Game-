@@ -3937,3 +3937,11 @@ nav button { position: relative; }
 .lu-pick.here { opacity: 0.55; }
 @media (max-width: 380px) { .lu-slot { width: 58px; } .lu-slot span { max-width: 54px; } }
 @media (orientation: landscape) and (max-height: 500px) { .lu-pitch { aspect-ratio: 4 / 3; max-height: 80dvh; } .lu-slot { min-height: 50px; } }
+.as-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.as-slot { min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 4px; background: #fff; border: 1px solid #e0e6d6; border-radius: 10px; color: inherit; }
+.as-slot b { font-size: 16px; }
+.as-slot small { font-size: 11px; color: #5c6b55; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.as-slot em.fit { margin: 0; }
+.as-slot.here { outline: 2px solid #132225; }
+.assign-btn { min-height: 44px; min-width: 76px; }
+.place-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #e8efdf; }

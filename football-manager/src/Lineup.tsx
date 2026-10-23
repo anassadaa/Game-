@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { GameState, Player } from './game.ts';
 import { sharpness } from './training.ts';
-import { BENCH, autoPick, bench, clearSlot, clearXI, fit, layout, setSlot, slotsFor, suitability, toggleBench, warnings } from './lineup.ts';
+import { BENCH, autoPick, bench, clearSlot, clearXI, fit, layout, moveTo, placeOf, setSlot, slotsFor, suitability, toggleBench, warnings } from './lineup.ts';
 
 type Up = (s: GameState, m?: string) => void;
 const surname = (n: string) => n.split(' ').slice(-1)[0];
@@ -117,5 +117,42 @@ function PlayerInfo({ p, fitTo, where }: { p: Player; fitTo?: 'natural' | 'awkwa
         <small className="lu-stats">Fit {p.fitness}% · Sharp {sharpness(p)}% · Morale {p.morale}</small>
       </span>
     </span>
+  );
+}
+/** Squad-tab sheet: put one player into any formation slot, the bench or the reserves. */
+export function AssignSheet({ state, playerId, onUpdate, onClose }: { state: GameState; playerId: string; onUpdate: Up; onClose: () => void }) {
+  const p = state.players.find((x) => x.id === playerId);
+  if (!p) return null;
+  const slots = slotsFor(state.tactics.formation), xi = layout(state), here = placeOf(state, p.id);
+  const done = (s: GameState, m: string) => { onUpdate(s, m); onClose(); };
+  return (
+    <div className="lu-sheet-backdrop" onClick={onClose}>
+      <section className="lu-sheet" role="dialog" aria-label={`Assign ${p.name}`} onClick={(e) => e.stopPropagation()}>
+        <header>
+          <span className="lu-info"><span className="lu-rating">{p.rating}</span><span className="lu-name"><b>{p.name}</b><small>{p.position} · now: {here}{p.injured ? ` · 🚑 ${p.injured}wk` : ''}</small></span></span>
+          <button className="ghost lu-btn" onClick={onClose}>Close</button>
+        </header>
+        <div className="lu-sheet-list">
+          <p className="eyebrow">STARTING XI · {state.tactics.formation}</p>
+          <div className="as-grid">
+            {slots.map((sl, i) => {
+              const occ = xi[i], f = fit(p, sl.pos), mine = occ?.id === p.id;
+              return (
+                <button key={i} className={`as-slot ${mine ? 'here' : ''}`} disabled={mine || !!state.match}
+                  onClick={() => done(setSlot(state, i, p.id), `${p.name} now plays ${sl.label}${occ ? `; ${occ.name} moves` : ''}.`)}>
+                  <b>{sl.label}</b>
+                  <em className={`fit ${f}`}>{FIT_LABEL[f]}</em>
+                  <small>{mine ? 'Here now' : occ ? `swap ${surname(occ.name)} ${occ.rating}` : 'Empty'}</small>
+                </button>
+              );
+            })}
+          </div>
+          <div className="lu-actions">
+            <button className="secondary lu-big" disabled={here === 'Bench' || !!state.match} onClick={() => done(moveTo(state, p.id, 'bench'), `${p.name} named on the bench.`)}>Bench</button>
+            <button className="ghost lu-big" disabled={here === 'Reserve' || !!state.match} onClick={() => done(moveTo(state, p.id, 'reserves'), `${p.name} drops to the reserves.`)}>Reserves</button>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

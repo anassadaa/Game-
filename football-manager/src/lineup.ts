@@ -152,3 +152,26 @@ export function validLineup(s: GameState) {
   const ok = (a: unknown, n: number) => a === undefined || (Array.isArray(a) && a.length <= n && a.every((x) => typeof x === 'string' && x.length <= 64));
   return ok(s.lineup, 11) && ok(s.bench, BENCH);
 }
+/** Move a player to the bench (leaving his XI slot empty) or to the reserves. */
+export function moveTo(s: GameState, id: string, where: 'bench' | 'reserves'): GameState {
+  if (s.match) return s;
+  const p = own(s).find((x) => x.id === id);
+  if (!p) return s;
+  const b = copy(s), xi = layout(b);
+  const i = xi.findIndex((x) => x?.id === id);
+  if (i >= 0) xi[i] = undefined;
+  commit(b, xi);
+  const cur = (b.bench ?? []).filter((x) => x !== id);
+  if (where === 'bench') {
+    if (cur.length >= BENCH) cur.pop();
+    cur.unshift(id);
+  }
+  b.bench = cur;
+  return b;
+}
+/** Where a player currently sits: slot label, Bench or Reserve. */
+export function placeOf(s: GameState, id: string): string {
+  const i = layout(s).findIndex((x) => x?.id === id);
+  if (i >= 0) return slotsFor(s.tactics.formation)[i]!.label;
+  return (s.bench ?? []).includes(id) ? 'Bench' : 'Reserve';
+}

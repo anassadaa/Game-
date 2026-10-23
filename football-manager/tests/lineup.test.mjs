@@ -48,3 +48,13 @@ test('bench toggle and save round trip', () => {
   const d = decodeSave(encodeSave(s));
   assert.deepEqual(d.lineup, s.lineup); assert.deepEqual(d.bench, s.bench);
 });
+import { moveTo, placeOf } from '../src/lineup.ts';
+test('assign: moveTo bench / reserves and placeOf', () => {
+  let s = autoPick(newGame(9, 'arsenal', 60));
+  const p = layout(s)[3];
+  assert.equal(placeOf(s, p.id), slotsFor(s.tactics.formation)[3].label);
+  s = moveTo(s, p.id, 'bench');
+  assert.equal(placeOf(s, p.id), 'Bench'); assert.ok(!layout(s)[3]); assert.ok(bench(s).length <= 7);
+  s = moveTo(s, p.id, 'reserves'); assert.equal(placeOf(s, p.id), 'Reserve');
+  s = setSlot(s, 3, p.id); assert.equal(layout(s)[3].id, p.id);
+});

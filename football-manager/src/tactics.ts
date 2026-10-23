@@ -21,6 +21,8 @@ const FORM_BIAS: Record<string, { att: number; def: number; mid: number; beats: 
 export const WIDTHS = ['narrow', 'normal', 'wide'] as const;
 export const LINES = ['deep', 'normal', 'high'] as const;
 export const PASSING = ['short', 'mixed', 'direct'] as const;
+export const OOP_MODES = ['press', 'mid', 'block'] as const;
+export type OopMode = (typeof OOP_MODES)[number];
 export type Width = (typeof WIDTHS)[number];
 export type Line = (typeof LINES)[number];
 export type Passing = (typeof PASSING)[number];
@@ -55,6 +57,9 @@ export type DeepTactics = {
   line?: Line;
   passing?: Passing;
   counter?: boolean;
+  /** Shape and stance without the ball. */
+  oopShape?: string;
+  oopMode?: OopMode;
   roles?: Record<string, string>;
   instr?: Record<string, Instruction>;
   pens?: string;
@@ -113,6 +118,18 @@ export function tacticProfile(s: GameState, oppStyle: Club['style']) {
   if (ps === 'short') att += avg('passing') > 62 ? 0.025 : -0.01;
   if (ps === 'direct') att += avg('pace') > 62 ? 0.02 : 0.005;
   if (t.counter) { att += oppStyle === 'attacking' ? 0.04 : -0.01; def += 0.01; if (oppStyle === 'attacking') notes.push('counter-attacks will hurt them'); }
+  // Out of possession: a second shape and a stance (press / mid block / low block).
+  const fo = t.oopShape ? FORM_BIAS[t.oopShape] : undefined;
+  if (fo) { def += (fo.def - f.def) * 0.012; notes.push(`${t.oopShape} without the ball`); }
+  if (t.oopMode === 'press') {
+    const legs = avg('pace') > 60 ? 1 : 0.4;
+    att += 0.015 * legs; def += 0.012 * legs - (fo && fo.def < 1 ? 0.01 : 0);
+    notes.push(legs === 1 ? 'the press wins the ball high' : 'the press lacks legs');
+  }
+  if (t.oopMode === 'block') {
+    att -= 0.015; def += 0.03 + (oppStyle === 'attacking' ? 0.01 : 0);
+    notes.push('a low block shuts the space');
+  }
   return { att, def, notes };
 }
 

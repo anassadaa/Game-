@@ -1090,7 +1090,8 @@ export function advanceMatch(s: GameState): GameState {
   m.minute = Math.min(90, m.minute + 15);
   const energyCost =
     (b.tactics.press === 'high' ? 3 : b.tactics.press === 'normal' ? 2 : 1) +
-    (b.tactics.tempo === 'quick' ? 1 : 0) + shoutEffect(b).energy;
+    (b.tactics.tempo === 'quick' ? 1 : 0) + shoutEffect(b).energy +
+    (b.tactics.oopMode === 'press' ? 1 : b.tactics.oopMode === 'block' ? -0.5 : 0);
   b.players
     .filter((p) => p.starting)
     .forEach(

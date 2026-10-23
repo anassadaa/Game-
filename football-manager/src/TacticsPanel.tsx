@@ -1,6 +1,6 @@
 import { applyScoutSuggestion, club, opponent, setPlayerTactic, setTactics } from './game.ts';
 import type { GameState } from './game.ts';
-import { INSTRUCTIONS, LINES, PASSING, ROLES, WIDTHS, roleFit, roleOf, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
+import { FORMATIONS, INSTRUCTIONS, LINES, OOP_MODES, PASSING, ROLES, WIDTHS, roleFit, roleOf, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 
 type Up = (s: GameState, m?: string) => void;
 function Seg({ label, value, values, change }: { label: string; value: string; values: readonly string[]; change: (v: string) => void }) {
@@ -46,6 +46,13 @@ export function DeepTacticsPanel({ state, onUpdate }: { state: GameState; onUpda
         <Seg label="Width" value={t.width ?? 'normal'} values={WIDTHS} change={(v) => onUpdate(setTactics(state, { width: v as never }))} />
         <Seg label="Defensive line" value={t.line ?? 'normal'} values={LINES} change={(v) => onUpdate(setTactics(state, { line: v as never }))} />
         <Seg label="Passing" value={t.passing ?? 'mixed'} values={PASSING} change={(v) => onUpdate(setTactics(state, { passing: v as never }))} />
+        <Seg label="Without the ball" value={t.oopMode ?? 'mid'} values={OOP_MODES} change={(v) => onUpdate(setTactics(state, { oopMode: v as never }))} />
+        <label className="cap-row">Out-of-possession shape
+          <select value={t.oopShape ?? ''} onChange={(e) => onUpdate(setTactics(state, { oopShape: e.target.value || undefined }))}>
+            <option value="">Same as in possession</option>
+            {FORMATIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </label>
         <Seg label="Counter-attack" value={t.counter ? 'on' : 'off'} values={['off', 'on']} change={(v) => onUpdate(setTactics(state, { counter: v === 'on' }))} />
         <p className="tac-impact">
           Attack <b>{pct(prof.att)}</b> · Defence <b>{pct(prof.def)}</b> vs {opp.short}

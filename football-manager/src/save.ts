@@ -10,7 +10,7 @@ import { validFinance } from './finance.ts';
 import { validScouts } from './scouts.ts';
 import { validTrophies } from './stats.ts';
 import { validFacilities } from './facilities.ts';
-import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, WIDTHS } from './tactics.ts';
+import { FORMATIONS, INSTRUCTIONS, LINES, OOP_MODES, PASSING, WIDTHS } from './tactics.ts';
 import type { GameState } from './game.ts';
 import { isDifficulty } from './difficulty.ts';
 import { validResults } from './fixtures.ts';
@@ -261,6 +261,8 @@ export function decodeSave(raw: string): GameState | null {
       (s.tactics.line !== undefined && !(LINES as readonly string[]).includes(s.tactics.line)) ||
       (s.tactics.passing !== undefined && !(PASSING as readonly string[]).includes(s.tactics.passing)) ||
       (s.tactics.counter !== undefined && typeof s.tactics.counter !== 'boolean') ||
+      (s.tactics.oopMode !== undefined && !(OOP_MODES as readonly string[]).includes(s.tactics.oopMode)) ||
+      (s.tactics.oopShape !== undefined && !(FORMATIONS as readonly string[]).includes(s.tactics.oopShape)) ||
       (s.tactics.roles !== undefined && (typeof s.tactics.roles !== 'object' || Object.values(s.tactics.roles).some((r) => typeof r !== 'string'))) ||
       (s.tactics.instr !== undefined && (typeof s.tactics.instr !== 'object' || Object.values(s.tactics.instr).some((r) => !(INSTRUCTIONS as readonly string[]).includes(r)))) ||
       [s.tactics.pens, s.tactics.corners, s.tactics.freekicks].some((x) => x !== undefined && typeof x !== 'string') ||

@@ -4008,3 +4008,7 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .match-stats .ms-row b:last-of-type{text-align:right}
 .match-stats .ms-bar{height:6px;border-radius:3px;background:rgba(255,120,120,.5);overflow:hidden}
 .match-stats .ms-bar i{display:block;height:100%;background:#c8f169}
+.congestion { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; font-size: 0.85rem; margin: 0 0 8px; }
+.congestion.congested b { color: #f59e0b; }
+.rotate-toggle { display: inline-flex; gap: 6px; align-items: center; }
+.fixture-list li.midweek { opacity: 0.85; font-style: italic; }

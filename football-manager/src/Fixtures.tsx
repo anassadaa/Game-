@@ -1,14 +1,34 @@
 import type { GameState } from './game.ts';
 import { dismissReview, fixtureList } from './fixtures.ts';
 import { leagueName } from './world.ts';
+import { calendar, congestion, setCupRotation } from './calendar.ts';
 
-export function FixturesCard({ state }: { state: GameState }) {
+export function FixturesCard({ state, onUpdate }: { state: GameState; onUpdate?: (s: GameState, m?: string) => void }) {
   const list = fixtureList(state);
+  const mid = calendar(state).filter((e) => e.kind === 'cup');
+  const load = congestion(state);
   return (
     <section className="card fixtures-card">
       <div className="section-heading"><div><span className="eyebrow">THE ROAD AHEAD</span><h2>Fixtures & results</h2></div></div>
+      <p className={`congestion ${load.label.toLowerCase()}`}>
+        Next stretch: <b>{load.games} games · {load.label}</b>
+        {onUpdate && (
+          <label className="rotate-toggle">
+            <input type="checkbox" checked={!!state.cupRotate} onChange={(e) => onUpdate(setCupRotation(state, e.target.checked), e.target.checked ? 'Fringe players will start midweek cup ties.' : 'Your first XI will play midweek cup ties.')} />
+            Rotate for midweek ties
+          </label>
+        )}
+      </p>
       <ol className="fixture-list">
-        {list.map((f) => (
+        {list.flatMap((f) => [
+          ...mid.filter((e) => e.week === f.week).map((e) => (
+            <li key={`m${f.week}${e.label}`} className="midweek">
+              <span className="fx-week">MW</span>
+              <span className="fx-ha">🏆</span>
+              <span className="fx-opp">{e.label}</span>
+              <small className="fx-res">Midweek</small>
+            </li>
+          )),
           <li key={f.week} className={f.current ? 'current' : ''}>
             <span className="fx-week">W{f.week + 1}</span>
             <span className="fx-ha">{f.home ? 'H' : 'A'}</span>
@@ -18,8 +38,8 @@ export function FixturesCard({ state }: { state: GameState }) {
             ) : (
               <small className="fx-res">{f.current ? 'Next' : '—'}</small>
             )}
-          </li>
-        ))}
+          </li>,
+        ])}
       </ol>
     </section>
   );

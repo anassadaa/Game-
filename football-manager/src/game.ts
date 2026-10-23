@@ -26,6 +26,7 @@ import { shoutEffect, type ShoutId } from './shouts.ts';
 import { captainWeek, formSwing, hidden, leaderEdge, ppmEffect, revealWeek } from './traits.ts';
 import { dropSuspended, matchCards, resetCards, settleCards, type Card } from './cards.ts';
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
+import { midweekLoad } from './calendar.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
@@ -233,6 +234,7 @@ export type GameState = {
   instalments?: Instalment[];
   rivals?: Player[];
   squadRef?: Record<string, number>;
+  cupRotate?: boolean;
   bids?: Bid[];
   news?: string[];
   board?: Board;
@@ -1932,7 +1934,8 @@ function runCup(b: GameState, c: Cup | undefined, weeks: number[], prizes: numbe
     const h = b.clubs.find((x) => x.id === c.alive[i])!,
       a = b.clubs.find((x) => x.id === c.alive[i + 1])!;
     const ours = h.id === b.clubId || a.id === b.clubId;
-    const boost = (x: Club) => (x.id === b.clubId ? { ...x, rating: Math.round(strength(b, true)) } : squadClub(b, x));
+    const load = ours ? midweekLoad(b) : 0;
+    const boost = (x: Club) => (x.id === b.clubId ? { ...x, rating: Math.round(strength(b, true)) + load } : squadClub(b, x));
     let [gh, ga] = simulateScore(b, boost(h), boost(a));
     let pens = '';
     if (gh === ga) {

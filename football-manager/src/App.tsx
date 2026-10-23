@@ -1585,7 +1585,7 @@ export default function App() {
                       England: top three of the Championship go up, bottom three of the Premier Division go down. Top finishers in the big leagues qualify for the Champions Cup. Points: 3 for a win, 1 for a draw.
                     </p>
                   </section>
-                  <FixturesCard state={state} />
+                  <FixturesCard state={state} onUpdate={update} />
                   {state.history.length > 0 && (
                     <section className="card history">
                       <SectionTitle

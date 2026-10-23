@@ -35,6 +35,7 @@ export function BoardRoom({ state, onUpdate }: { state: GameState; onUpdate: (s:
     <section className="card panel board-room">
       <span className="eyebrow">BOARD ROOM</span>
       <h3>🎯 {b.objective}</h3>
+      {state.boardAsk && <p className="small">🧾 Recruitment ask: {state.boardAsk.text} — {state.boardAsk.done ? '✅ done' : state.boardAsk.failed ? '❌ missed' : 'open until week 17'}</p>}
       <p>
         Target: <b>{ord(b.target)}</b> or better · Currently <b className={ok ? 'good' : 'bad'}>{ord(pos)}</b>
         {state.week === 0 ? ' (season not started)' : ''}

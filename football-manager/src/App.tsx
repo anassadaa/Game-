@@ -1,3 +1,4 @@
+import { abilityRange, rangeText } from './scoutrange.ts';
 import { EXT_LABEL, FOOT_LABEL, ext, footOf, slotOf } from './positions.ts';
 import { MatchStatsPanel } from './MatchStats.tsx';
 import { CaptaincyCard, TraitLine } from './Traits.tsx';
@@ -1412,7 +1413,7 @@ export default function App() {
                             <Stars p={p} />
                           </div>
                           <div className="rating">
-                            <b>{p.rating}</b>
+                            <b>{rangeText(abilityRange(state, p))}</b>
                             <small>OVR</small>
                           </div>
                         </div>

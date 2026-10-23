@@ -1,9 +1,9 @@
+import { abilityRange, potentialRange, rangeText, scouted } from './scoutrange.ts';
 import { useState } from 'react';
 import {
   ATTRS,
   askingPrice,
   deadlineDay,
-  potentialStars,
   searchMarket,
   toggleListed,
   windowLabel,
@@ -125,10 +125,10 @@ export function TransferMarket({
                 <b>{p.name}</b>
                 <small>
                   {p.age}y · {clubName(p.clubId)}
-                  {p.listed ? ' · 📋 listed' : ''} · {'★'.repeat(Math.floor(potentialStars(p)))}
+                  {p.listed ? ' · 📋 listed' : ''} · POT {rangeText(potentialRange(state, p))}{scouted(state, p) ? ' · 🔍' : ''}
                 </small>
               </div>
-              <b className="tm-ovr">{p.rating}</b>
+              <b className="tm-ovr">{rangeText(abilityRange(state, p))}</b>
               <button
                 className="secondary"
                 disabled={locked || (p.clubId !== 'market' && !open)}

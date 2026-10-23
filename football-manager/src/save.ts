@@ -25,6 +25,7 @@ import { validSquadRef } from './aisquads.ts';
 import { validRotate } from './calendar.ts';
 import { validMentors } from './room.ts';
 import { validFamiliar } from './familiarity.ts';
+import { validAsk } from './scoutrange.ts';
 import { LEAGUES } from './world.ts';
 import { ATTRS, PERSONALITIES, migrate, storyIds } from './game.ts';
 
@@ -141,6 +142,7 @@ export function decodeSave(raw: string): GameState | null {
       !validRotate(s.cupRotate) ||
       !validMentors(s) ||
       !validFamiliar(s.familiar) ||
+      !validAsk(s.boardAsk) ||
       !s.euro ||
       !Array.isArray(s.euro.alive) ||
       !s.euro.alive.every((id) => s.clubs.some((c) => c.id === id)) ||

@@ -29,6 +29,7 @@ import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { midweekLoad } from './calendar.ts';
 import { roomWeek } from './room.ts';
 import { familiarityWeek, rememberShape } from './familiarity.ts';
+import { askWeek } from './scoutrange.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
@@ -239,6 +240,7 @@ export type GameState = {
   squadRef?: Record<string, number>;
   cupRotate?: boolean;
   familiar?: Record<string, number>;
+  boardAsk?: import('./scoutrange.ts').BoardAsk;
   bids?: Bid[];
   news?: string[];
   board?: Board;
@@ -1534,6 +1536,7 @@ export function advanceWeek(s: GameState): GameState {
   captainWeek(b);
   roomWeek(b);
   familiarityWeek(b);
+  askWeek(b);
   staffWeek(b);
   agentsWeek(b);
   loansWeek(b);

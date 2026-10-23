@@ -1516,6 +1516,19 @@ function rivalsFor(s: GameState, c: Club) {
 function makeRivals(s: GameState) {
   s.rivals = [];
   for (const c of s.clubs) if (c.id !== s.clubId) rivalsFor(s, c);
+  keepKeepers(s);
+}
+/** Every AI club carries at least two goalkeepers; a youth keeper is promoted when short. */
+export function keepKeepers(s: GameState) {
+  const count = new Map<string, number>(), size = new Map<string, number>();
+  for (const p of s.rivals ?? []) {
+    size.set(p.clubId, (size.get(p.clubId) ?? 0) + 1);
+    if (p.position === 'GK') count.set(p.clubId, (count.get(p.clubId) ?? 0) + 1);
+  }
+  for (const c of s.clubs) {
+    if (c.id === s.clubId) continue;
+    for (let n = count.get(c.id) ?? 0, i = 0; n < 2; n++, i++) s.rivals!.push(rivalPlayer(s, c, 400 + (size.get(c.id) ?? 0) + i, 'GK', true));
+  }
 }
 /** Transfer windows: pre-season (weeks 1–4) and mid-season (weeks 10–11). */
 export const windowOpen = (s: Pick<GameState, 'week'>) => s.week <= 3 || s.week === 9 || s.week === 10;
@@ -1691,6 +1704,7 @@ function rollRivals(b: GameState) {
     let n = b.rivals.filter((x) => x.clubId === c.id).length;
     while (n < 14) b.rivals.push(rivalPlayer(b, c, 200 + n++, pick(b, POSITIONS), true));
   }
+  keepKeepers(b);
   b.news = [`Season ${b.season}: the summer window is open!`, ...(b.news ?? [])].slice(0, 25);
 }
 
@@ -1787,6 +1801,12 @@ export function takeJob(s: GameState, clubId: string): GameState {
     b.players.push(makePlayer(b, clubId, 300 + b.players.length, b.players.some((p) => p.position === 'GK') ? pick(b, POSITIONS) : 'GK', target.rating - 8));
   b.players.sort((x, y) => y.rating - x.rating);
   b.rivals.push(...b.players.splice(25));
+  // Never leave the new squad short of keepers (the cut above can drop a low-rated GK).
+  while (b.players.filter((p) => p.position === 'GK').length < 2) {
+    const out = [...b.players].reverse().find((p) => p.position !== 'GK');
+    if (b.players.length >= 25 && out) { b.players = b.players.filter((p) => p !== out); b.rivals.push(out); }
+    b.players.push(makePlayer(b, clubId, 300 + b.players.length + b.rivals.length, 'GK', target.rating - 8));
+  }
   pickXI(b);
   b.players.forEach((p) => (p.clubId = clubId));
   b.instalments = [];

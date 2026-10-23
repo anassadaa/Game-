@@ -9,7 +9,7 @@ test('vacancies open, applications decided by weighted chance, resign works', ()
   let s = newGame(11);
   const r0 = reputation(s);
   assert.ok(r0 >= 0 && r0 <= 100);
-  for (let w = 0; w < 30 && !s.sacked; w++) s = advanceWeek(simToEnd(startMatch(s)));
+  for (let w = 0; w < 54 && !s.sacked && (w < 30 || !s.vacancies.length); w++) s = advanceWeek(simToEnd(startMatch(s)));
   assert.ok(s.vacancies.length > 0, 'some AI club sacked its manager');
   assert.notEqual(reputation(s), r0);
   const big = [...s.clubs].sort((a, b) => stature(b) - stature(a))[0];

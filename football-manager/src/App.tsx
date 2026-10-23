@@ -294,6 +294,7 @@ function PlayerCard({
         <p>
           {player.age} years · {player.position} · {money(player.wage)}/wk
           {player.injured ? ` · 🚑 ${injuryName(player.injury?.type)} ${player.injured}w` : ''}
+          {player.suspended ? ` · 🟥 Banned ${player.suspended}` : player.yellows ? ` · 🟨${player.yellows}` : ''}
         </p>
         <p>
           {player.personality} · <Stars p={player} /> ·{' '}
@@ -334,7 +335,7 @@ function PlayerCard({
         ) : onStart ? (
           <button
             className="mini"
-            disabled={locked || !!player.injured}
+            disabled={locked || !!player.injured || !!player.suspended}
             onClick={onStart}
           >
             Start

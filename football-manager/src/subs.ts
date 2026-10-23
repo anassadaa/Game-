@@ -32,7 +32,7 @@ export const windowsUsed = (s: GameState) => s.match?.windows?.length ?? 0;
 /** Players who can come on: the named bench, or (old saves / no bench) any fit non-starter who has not played. */
 export function subsBench(s: GameState): Player[] {
   const m = s.match, played = new Set(m?.played ?? []);
-  const o = own(s).filter((p) => !p.starting && !played.has(p.id) && !p.injured);
+  const o = own(s).filter((p) => !p.starting && !played.has(p.id) && !p.injured && !p.suspended);
   const named = (s.bench ?? []).map((id) => o.find((p) => p.id === id)).filter(Boolean) as Player[];
   return named.length ? named : o.sort((a, b) => b.rating - a.rating).slice(0, 7);
 }

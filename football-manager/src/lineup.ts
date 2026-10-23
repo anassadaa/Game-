@@ -26,7 +26,7 @@ export function slotsFor(formation: string): Slot[] {
     : row(m, 52, 'MF', mf);
   return [{ pos: 'GK', label: 'GK', x: 50, y: 6 }, ...row(d, 26, 'DF', DF_LABELS[d] ?? []), ...mid, ...row(f, 84, 'FW', FW_LABELS[f] ?? [])];
 }
-const own = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId);
+const own = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId && !p.suspended);
 export function fit(p: Player, pos: Position): Fit {
   if (p.position === pos || p.retrain?.to === pos && p.retrain.progress >= 100) return 'natural';
   if (p.position === 'GK' || pos === 'GK') return 'unsuitable';

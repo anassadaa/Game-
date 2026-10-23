@@ -17,6 +17,7 @@ import { scoutsWeek } from './scouts.ts';
 import { loansReturn, loansWeek } from './loans.ts';
 import { fillXI, topUpBench } from './lineup.ts';
 import { buildReview, recordResult, type Result, type SeasonReview } from './fixtures.ts';
+import { dropSuspended, matchCards, resetCards, settleCards, type Card } from './cards.ts';
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
@@ -60,6 +61,9 @@ export type Player = {
   injured?: number;
   injury?: { type: string; total: number; week?: number; fresh?: boolean };
   injuries?: number;
+  yellows?: number;
+  reds?: number;
+  suspended?: number;
   rushed?: number;
   attrs?: Attrs;
   personality?: Personality;
@@ -177,6 +181,9 @@ export type Match = {
   lineup0?: string[];
   bench0?: string[];
   down?: string[];
+  cards?: Card[];
+  redThem?: number;
+  yellowThem?: number;
 };
 export type CareerRecord = {
   season: number;
@@ -1002,7 +1009,7 @@ export function upgradeFacility(
 /** Match engine tuning: how much a strength point shifts chance share, and finishing quality. */
 export const EDGE_PER_POINT = 0.026, FINISH = 1.4;
 function strength(s: GameState, ourSide: boolean): number {
-  if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s) + level(s).ai + adaptive(s);
+  if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s) + level(s).ai + adaptive(s) - (s.match?.redThem ?? 0) * 4;
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
   const quality =
     starters.reduce((sum, p) => sum + p.rating * (p.injured ? 0.65 : 1) * (0.95 + 0.05 * sharpness(p) / 100), 0) /
@@ -1038,6 +1045,7 @@ export function startMatch(s: GameState): GameState {
   if (s.match || s.week >= 18) return s;
   const b = copy(s),
     opp = opponent(b);
+  dropSuspended(b);
   if (b.players.filter((p) => p.clubId === b.clubId && p.starting).length < 11) fillXI(b);
   topUpBench(b);
   b.match = {
@@ -1172,6 +1180,7 @@ export function advanceMatch(s: GameState): GameState {
   }
   aiSubs(b, () => next(b));
   if (!m.complete) matchInjuries(b);
+  matchCards(b);
   if (m.minute === 45)
     m.timeline.push({
       minute: 45,
@@ -1183,6 +1192,7 @@ export function advanceMatch(s: GameState): GameState {
     m.complete = true;
     rateMatch(b);
     recordRatings(b);
+    settleCards(b);
     m.timeline.push({
       minute: 90,
       text: `Full-time. ${club(b).short} ${m.us}–${m.them} ${opponent(b).short}.`,
@@ -1319,6 +1329,7 @@ function rollSeason(s: GameState) {
   s.history = s.history.slice(0, 20);
   s.review = buildReview(s, pos, outcome, before, s.board?.target);
   s.results = [];
+  resetCards(s);
   seasonAwards(s, outcome, before);
   repSeason(s, pos, outcome);
   s.applied = [];

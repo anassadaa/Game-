@@ -4,6 +4,7 @@ import { squadNote } from './aisquads.ts';
 import { CORNER, MARKING } from './setpieces.ts';
 import { applyScoutSuggestion, club, opponent, setPlayerTactic, setTactics } from './game.ts';
 import type { GameState } from './game.ts';
+import { autoAssign } from './autoroles.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, OOP_MODES, PASSING, ROLES, WIDTHS, roleFit, roleOf, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
 
 type Up = (s: GameState, m?: string) => void;
@@ -70,6 +71,10 @@ export function DeepTacticsPanel({ state, onUpdate }: { state: GameState; onUpda
       </section>
       <section className="card panel">
         <span className="eyebrow">ROLES & INSTRUCTIONS · {club(state).short} XI</span>
+        <button type="button" className="auto-assign" disabled={!!state.match?.complete} onClick={() => onUpdate(autoAssign(state))}>
+          ✨ Auto-assign best roles
+        </button>
+        <p className="muted small">Picks each starter's best-fit role and instruction for his slot from attributes, position and traits.</p>
         <div className="role-list">
           {xi.map((p) => {
             const role = roleOf(t, p);

@@ -4025,3 +4025,7 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .set-chip button { min-width: 0; overflow-wrap: anywhere; }
 .set-save { display: flex; gap: 6px; flex-wrap: wrap; }
 .set-save input { flex: 1 1 120px; min-width: 0; }
+
+.auto-assign{display:block;width:100%;min-height:48px;margin:8px 0 4px;padding:12px 16px;font-size:1rem;font-weight:700;border-radius:12px;border:0;background:var(--accent,#2f9e5b);color:#fff;cursor:pointer;touch-action:manipulation}
+.auto-assign:active{transform:scale(.98)}
+.auto-assign:disabled{opacity:.5}

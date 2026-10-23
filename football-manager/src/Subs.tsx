@@ -55,7 +55,7 @@ export function SubsPanel({ state, onUpdate }: { state: GameState; onUpdate: Up 
                 <>
                   <button className="ghost lu-add" onClick={() => setOff(null)}>‹ Choose a different player</button>
                   {bench.map((p) => (
-                    <button key={p.id} className="lu-pick" onClick={() => { const [b, msg] = makeSub(state, off, p.id); onUpdate(b, msg); setOff(null); }}>
+                    <button key={p.id} className="lu-pick" onClick={() => { const [b, msg] = makeSub(state, off, p.id); onUpdate(b, msg); setOff(null); if (b !== state) setOpen(false); }}>
                       <Row p={p} tag={offP ? fitLabel(p, offP) : ''} />
                     </button>
                   ))}

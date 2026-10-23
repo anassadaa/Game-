@@ -1,3 +1,4 @@
+import { slotProfile } from './positions.ts';
 // Deeper tactics: formations, roles, individual instructions, team instructions, set pieces and scouting.
 import type { Club, GameState, Player, Position, Tactics } from './game.ts';
 import { attributes } from './game.ts';
@@ -118,6 +119,7 @@ export function tacticProfile(s: GameState, oppStyle: Club['style']) {
   if (ps === 'short') att += avg('passing') > 62 ? 0.025 : -0.01;
   if (ps === 'direct') att += avg('pace') > 62 ? 0.02 : 0.005;
   if (t.counter) { att += oppStyle === 'attacking' ? 0.04 : -0.01; def += 0.01; if (oppStyle === 'attacking') notes.push('counter-attacks will hurt them'); }
+  const sp = slotProfile(s); att += sp.att; def += sp.def; notes.push(...sp.notes);
   // Out of possession: a second shape and a stance (press / mid block / low block).
   const fo = t.oopShape ? FORM_BIAS[t.oopShape] : undefined;
   if (fo) { def += (fo.def - f.def) * 0.012; notes.push(`${t.oopShape} without the ball`); }

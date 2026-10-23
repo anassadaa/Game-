@@ -1,3 +1,4 @@
+import { repairSlots } from './positions.ts';
 import { passage, reason, segmentStats, shotStat } from './narrate.ts';
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
 import { type Difficulty, isDifficulty, level, adaptive } from './difficulty.ts';
@@ -62,6 +63,8 @@ export type Player = {
   goals: number;
   assists: number;
   academyGraduate?: boolean;
+  slot?: import('./positions.ts').Slot;
+  foot?: import('./positions.ts').Foot;
   injured?: number;
   injury?: { type: string; total: number; week?: number; fresh?: boolean };
   injuries?: number;
@@ -508,7 +511,7 @@ export function migrate(s: GameState): GameState {
   const v = s as unknown as { version: number };
   if (v.version === 1) v.version = 2;
   s.instalments ??= [];
-  [...s.players, ...s.market].forEach(ensureProfile);
+  [...s.players, ...s.market].forEach((p) => { ensureProfile(p); repairSlots(p); });
   s.bids ??= [];
   s.news ??= [];
   if (!s.rivals) makeRivals(s);

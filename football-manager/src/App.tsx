@@ -1,3 +1,4 @@
+import { EXT_LABEL, FOOT_LABEL, ext, footOf, slotOf } from './positions.ts';
 import { MatchStatsPanel } from './MatchStats.tsx';
 import { CaptaincyCard, TraitLine } from './Traits.tsx';
 import { Shouts } from './Shouts.tsx';
@@ -258,6 +259,11 @@ export function AttrGrid({ p }: { p: Player }) {
             {ATTR_LABEL[k]} <b>{v}</b>
           </span>
         ))}
+      {Object.entries(ext(p)).map(([k, v]) => (
+        <span key={k}>
+          {EXT_LABEL[k as keyof typeof EXT_LABEL]} <b>{v}</b>
+        </span>
+      ))}
     </div>
   );
 }
@@ -287,7 +293,7 @@ function PlayerCard({
             .map((n) => n[0])
             .join('')}
         </span>
-        <small>{player.position}</small>
+        <small>{slotOf(player)}</small>
       </div>
       <div className="player-info">
         <h3>
@@ -295,7 +301,7 @@ function PlayerCard({
           {player.academyGraduate && <Sprout size={14} />}
         </h3>
         <p>
-          {player.age} years · {player.position} · {money(player.wage)}/wk
+          {player.age} years · {slotOf(player)} · {FOOT_LABEL[footOf(player)]} · {money(player.wage)}/wk
           {player.injured ? ` · 🚑 ${injuryName(player.injury?.type)} ${player.injured}w` : ''}
           {player.suspended ? ` · 🟥 Banned ${player.suspended}` : player.yellows ? ` · 🟨${player.yellows}` : ''}
         </p>

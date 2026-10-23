@@ -1,3 +1,4 @@
+import { passage, reason, segmentStats, shotStat } from './narrate.ts';
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
 import { type Difficulty, isDifficulty, level, adaptive } from './difficulty.ts';
 import { sharpness, weeklyTraining } from './training.ts';
@@ -189,6 +190,7 @@ export type Match = {
   shout?: { id: ShoutId; at: number };
   redThem?: number;
   yellowThem?: number;
+  stats?: import('./narrate.ts').MatchStats;
 };
 export type CareerRecord = {
   season: number;
@@ -1097,6 +1099,7 @@ export function advanceMatch(s: GameState): GameState {
           p.fitness - energyCost * (attributes(p).stamina >= 70 ? 0.7 : 1),
         )),
     );
+  const rates: number[] = [];
   for (const side of ['us', 'them'] as const) {
     const us = side === 'us';
     const gap = strength(b, us) - strength(b, !us);
@@ -1140,6 +1143,7 @@ export function advanceMatch(s: GameState): GameState {
       0.2,
       Math.min(0.88, 0.52 + edge + (m.home && us ? 0.04 : 0)),
     );
+    rates.push(chance);
     if (next(b) < chance) {
       const minute = prev + int(b, 2, 14),
         xg = Math.round((0.13 + next(b) * 0.33) * (us ? pe.xg : 1) * 100) / 100;
@@ -1163,36 +1167,25 @@ export function advanceMatch(s: GameState): GameState {
           if (next(b) < conv) {
             m.us++;
             taker.goals++;
-            m.timeline.push({ minute, text: `${taker.name} scores from a ${label}!`, side, kind: 'goal', playerId: taker.id });
-          } else m.timeline.push({ minute, text: `${taker.name}'s ${label} is saved.`, side, kind: 'chance' });
+            shotStat(m, true, true);
+            m.timeline.push({ minute, text: `${taker.name} scores from a ${label} at the ${kind === 'corners' ? 'near post' : 'edge of the box'}!`, side, kind: 'goal', playerId: taker.id });
+          } else { shotStat(m, true, true); m.timeline.push({ minute, text: `${taker.name}'s ${label} from the ${kind === 'pens' ? 'six-yard' : 'edge of the box'} area is saved.`, side, kind: 'chance' }); }
           continue;
         }
       }
-      if (next(b) < xg * FINISH * Math.max(0.6, Math.min(1.5, 1 + gap * 0.025))) {
+      const goal = next(b) < xg * FINISH * Math.max(0.6, Math.min(1.5, 1 + gap * 0.025));
+      if (goal) {
         if (us) {
           m.us++;
           if (scorer) scorer.goals++;
         } else m.them++;
-        m.timeline.push({
-          minute,
-          text: us
-            ? `${scorer?.name ?? 'A forward'} scores! A sharp move cuts through the defence.`
-            : `${opponent(b).short} score after a dangerous spell.`,
-          side,
-          kind: 'goal',
-          ...(scorer ? { playerId: scorer.id } : {}),
-        });
-      } else
-        m.timeline.push({
-          minute,
-          text: us
-            ? `${scorer?.name ?? 'The attack'} goes close — a good opening slips away.`
-            : `${opponent(b).short} threaten, but the chance is missed.`,
-          side,
-          kind: 'chance',
-        });
+      }
+      const ps = passage(b, us, scorer, opponent(b).short, goal, reason(b, us, prof.notes));
+      shotStat(m, us, ps.on);
+      m.timeline.push({ minute, text: ps.text, side, kind: goal ? 'goal' : 'chance', ...(goal && scorer ? { playerId: scorer.id } : {}) });
     }
   }
+  segmentStats(b, rates[0] ?? 0.5, rates[1] ?? 0.5);
   aiSubs(b, () => next(b));
   if (!m.complete) matchInjuries(b);
   matchCards(b);

@@ -16,6 +16,7 @@ import { isDifficulty } from './difficulty.ts';
 import { validResults } from './fixtures.ts';
 import { validCards } from './cards.ts';
 import { validShout } from './shouts.ts';
+import { validStats } from './narrate.ts';
 import { validLedger } from './finance.ts';
 import { validTraits } from './traits.ts';
 import { LEAGUES } from './world.ts';
@@ -125,6 +126,7 @@ export function decodeSave(raw: string): GameState | null {
       !validResults(s) ||
       !validCards(s) ||
       !validShout(s) ||
+      !validStats(s.match?.stats) ||
       !validLedger(s) ||
       !validTraits(s) ||
       !s.euro ||

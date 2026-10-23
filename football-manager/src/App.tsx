@@ -1,3 +1,4 @@
+import { MatchStatsPanel } from './MatchStats.tsx';
 import { CaptaincyCard, TraitLine } from './Traits.tsx';
 import { Shouts } from './Shouts.tsx';
 import { FixturesCard, ReviewModal } from './Fixtures.tsx';
@@ -817,6 +818,7 @@ export default function App() {
                   </div>
                 ) : null}
                 <TeamTalk state={state} onUpdate={update} />
+                <MatchStatsPanel state={state} />
                 <Shouts state={state} onUpdate={update} />
                 <PressRoom state={state} onUpdate={update} />
                 <SubsPanel state={state} onUpdate={update} />

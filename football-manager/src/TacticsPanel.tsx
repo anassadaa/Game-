@@ -1,3 +1,4 @@
+import { familiarity, pressReadiness } from './familiarity.ts';
 import { squadNote } from './aisquads.ts';
 import { CORNER, MARKING } from './setpieces.ts';
 import { applyScoutSuggestion, club, opponent, setPlayerTactic, setTactics } from './game.ts';
@@ -35,6 +36,9 @@ export function DeepTacticsPanel({ state, onUpdate }: { state: GameState; onUpda
           {rep.danger} · likely {rep.formation}, {rep.style}
         </h3>
         <p className="muted small">Their squad: {squadNote(state, opp)}</p>
+        <p className="muted small familiar">
+          Familiarity: {FORMATIONS.map((f) => `${f} ${familiarity(state, f)}%`).join(' · ')} · press readiness {Math.round(pressReadiness(state) * 100)}%. Shape and video drills speed learning; counters work at once.
+        </p>
         <ul className="scout-tips">
           {rep.tips.map((x) => (
             <li key={x}>{x}</li>

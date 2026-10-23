@@ -1,3 +1,4 @@
+import { familiarityProfile } from './familiarity.ts';
 import { setPieceProfile } from './setpieces.ts';
 import { slotProfile } from './positions.ts';
 // Deeper tactics: formations, roles, individual instructions, team instructions, set pieces and scouting.
@@ -135,6 +136,7 @@ export function tacticProfile(s: GameState, oppStyle: Club['style']) {
     att -= 0.015; def += 0.03 + (oppStyle === 'attacking' ? 0.01 : 0);
     notes.push('a low block shuts the space');
   }
+  const fp = familiarityProfile(s); att += fp.att; def += fp.def; notes.push(...fp.notes);
   return { att, def, notes };
 }
 

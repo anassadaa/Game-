@@ -1,0 +1,34 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { newGame, setTactics } from '../src/game.ts';
+import { tacticProfile } from '../src/tactics.ts';
+import { familiarity, familiarityWeek, pressReadiness } from '../src/familiarity.ts';
+import { decodeSave } from '../src/save.ts';
+test('a new shape starts rusty and drills raise familiarity', () => {
+  const s = newGame(71); const cur = s.tactics.formation;
+  assert.equal(familiarity(s, cur), 100);
+  const other = ['4-4-2', '4-3-3', '3-5-2'].find((f) => f !== cur);
+  const before = tacticProfile(setTactics(s, { formation: other }), 'balanced');
+  const t = setTactics(s, { formation: other });
+  assert.ok(familiarity(t, other) < 50);
+  assert.equal(familiarity(t, cur), 100);
+  const rusty = tacticProfile(t, 'balanced'); assert.ok(rusty.notes.some((n) => /rusty|unfamiliar/.test(n)));
+  const slow = JSON.parse(JSON.stringify(t)), fast = JSON.parse(JSON.stringify(t)); fast.drills = ['shape', 'video'];
+  familiarityWeek(slow); familiarityWeek(fast);
+  assert.ok(familiarity(fast, other) > familiarity(slow, other) && familiarity(slow, other) > familiarity(t, other));
+  for (let i = 0; i < 12; i++) familiarityWeek(fast);
+  const drilled = tacticProfile(fast, 'balanced');
+  assert.ok(drilled.att + drilled.def > rusty.att + rusty.def);
+  assert.ok(decodeSave(JSON.stringify(fast)));
+  assert.equal(decodeSave(JSON.stringify({ ...fast, familiar: { x: 'a' } })), null);
+});
+test('a counter works at once; a high press needs fitness and coaching', () => {
+  const s = newGame(72);
+  const c = setTactics(s, { counter: true }); assert.equal(familiarity(c, c.tactics.formation), 100);
+  const p = setTactics(s, { press: 'high' });
+  const r0 = pressReadiness(p);
+  p.players.filter((x) => x.clubId === p.clubId).forEach((x) => (x.fitness = 50));
+  assert.ok(pressReadiness(p) < r0);
+  const q = JSON.parse(JSON.stringify(p)); q.players.filter((x) => x.clubId === q.clubId).forEach((x) => (x.fitness = 95));
+  for (let i = 0; i < 10; i++) familiarityWeek(q);
+  assert.ok(pressReadiness(q) > r0);
+});

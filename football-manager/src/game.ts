@@ -28,6 +28,7 @@ import { dropSuspended, matchCards, resetCards, settleCards, type Card } from '.
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { midweekLoad } from './calendar.ts';
 import { roomWeek } from './room.ts';
+import { familiarityWeek, rememberShape } from './familiarity.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
@@ -237,6 +238,7 @@ export type GameState = {
   rivals?: Player[];
   squadRef?: Record<string, number>;
   cupRotate?: boolean;
+  familiar?: Record<string, number>;
   bids?: Bid[];
   news?: string[];
   board?: Board;
@@ -727,6 +729,7 @@ export function setTactics(s: GameState, patch: Partial<Tactics>): GameState {
   )
     return s;
   const b = copy(s);
+  if (patch.formation && patch.formation !== b.tactics.formation) rememberShape(b);
   b.tactics = { ...b.tactics, ...patch };
   return b;
 }
@@ -1530,6 +1533,7 @@ export function advanceWeek(s: GameState): GameState {
   revealWeek(b);
   captainWeek(b);
   roomWeek(b);
+  familiarityWeek(b);
   staffWeek(b);
   agentsWeek(b);
   loansWeek(b);

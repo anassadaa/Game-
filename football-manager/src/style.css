@@ -4051,3 +4051,21 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .pp-tags{display:flex;flex-wrap:wrap;gap:6px}
 .pp-tags span{background:rgba(255,255,255,.1);border-radius:99px;padding:3px 10px;font-size:.8rem}
 [data-pid]{cursor:pointer}
+
+/* Budget strip, offer reasons, wage budget */
+.budget-line { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; background: #eef3e4; border: 1px solid #d3dcc3; border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 12px; }
+.budget-line span { display: flex; flex-direction: column; min-width: 0; }
+.budget-line b { font-size: 14px; }
+.budget-line b.neg, .wage-budget .neg { color: #c0392b; }
+.wage-budget .pos { color: #2f855a; }
+.budget-line .text-button { min-height: 44px; margin-left: auto; }
+.offer-why { color: #b42318; font-weight: 600; margin: 8px 0 4px; font-size: 13px; }
+.offer-submit { position: sticky; bottom: -34px; background: #fcfdf8; padding: 8px 0 12px; margin-bottom: -12px; }
+.offer-submit button:disabled, .free-offer button:disabled { opacity: 1; background: #e4e7df; color: #6b2a24; white-space: normal; }
+.tm-row button.why { display: flex; flex-direction: column; line-height: 1.1; min-height: 44px; }
+.tm-row button.why small { font-size: 10px; font-weight: 600; }
+.salary-list summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.salary-list .row-list > div { display: flex; justify-content: space-between; gap: 8px; }
+/* Toasts must never eat taps (they sat on top of "Submit offer" after a counter-offer). */
+.toast { pointer-events: none; }
+body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; top: max(12px, env(safe-area-inset-top)); }

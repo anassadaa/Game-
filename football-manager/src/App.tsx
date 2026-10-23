@@ -84,6 +84,8 @@ import { ScoutsPanel } from './Scouts.tsx';
 import { FreeAgents, Inbox } from './Inbox.tsx';
 import { StaffRoom } from './Staff.tsx';
 import { dofDiscount } from './staff.ts';
+import { offerBlock } from './budget.ts';
+import { BudgetLine } from './BudgetLine.tsx';
 import { StatsPanel } from './Stats.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
 import { FacilityRows } from './Facilities.tsx';
@@ -1349,6 +1351,7 @@ export default function App() {
               )}
               {tab === 'transfers' && (
                 <>
+<BudgetLine state={state} onMoney={sub !== 'money' ? () => setSub('money') : undefined} />
 <SubTabs tab={tab} value={sub} onChange={setSub} />
 {sub === 'offers' && (<>
                   <MedicalNews state={state} />
@@ -1810,14 +1813,17 @@ export default function App() {
                   ))}
                 </select>
               </label>}
-              <button className="primary wide" onClick={() => {
+              <BudgetLine state={state} extraWage={deal.wage} />
+              {(() => { const why = offerBlock(state, t, deal.fee, deal.instalments); return (<div className="offer-submit">
+              {why && <p className="offer-why" role="alert">⛔ {why}</p>}
+              <button className="primary wide" disabled={!!why} onClick={() => {
                 const [next, msg] = negotiate(state, deal.id, { ...deal, swapId: deal.swapId || undefined });
                 if (next !== state) setState(next);
                 setToast(msg);
                 const still = next.market.find((p) => p.id === deal.id) ?? next.rivals?.find((p) => p.id === deal.id);
                 if (!still) setDeal(null);
                 else { const c = still.counter; if (c) setDeal({ ...deal, fee: c }); }
-              }}>Submit offer <ArrowRight size={17} /></button>
+              }}>{why ? `Can't submit: ${why}` : <>Submit offer <ArrowRight size={17} /></>}</button></div>); })()}
             </section>
           </div>
         );
@@ -1860,3 +1866,4 @@ export default function App() {
     </div>
   );
 }
+

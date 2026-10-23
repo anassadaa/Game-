@@ -2,13 +2,15 @@ import { useEffect, useRef } from 'react';
 import type { GameState } from './game.ts';
 import { pidFromTexts, playerProfile } from './profile.ts';
 
+/** Long-press never opens a profile from inside these (dialogs own their buttons). */
+export const NO_LONG = '.pp-modal, [role="dialog"], .modal-backdrop, [data-noprofile]';
 const SKIP = 'button, a, input, select, textarea, label, [role="tab"], [data-noprofile], .pp-modal';
 
 /** Ids found by walking up from a tapped node: data-pid wins, then player names in the text. */
 export function pidAt(state: GameState, el: Element | null, allowInteractive = false): string | null {
   if (!el) return null;
   if (!allowInteractive && el.closest(SKIP)) return null;
-  if (el.closest('.pp-modal')) return null;
+  if (el.closest('.pp-modal, .modal-backdrop')) return null;
   const tagged = el.closest<HTMLElement>('[data-pid]');
   if (tagged?.dataset.pid) return tagged.dataset.pid;
   const texts: string[] = [];
@@ -23,9 +25,10 @@ export function pidAt(state: GameState, el: Element | null, allowInteractive = f
 export function usePlayerTaps(state: GameState | null, open: (id: string) => void) {
   const st = useRef(state); st.current = state;
   useEffect(() => {
-    let timer = 0, longFired = false;
+    let timer = 0, longFired = false, firedAt = 0;
     const onClick = (e: MouseEvent) => {
-      if (longFired) { longFired = false; e.preventDefault(); e.stopPropagation(); return; }
+      // Only swallow the click that ends the long-press itself (Android often sends none at all).
+      if (longFired) { longFired = false; if (Date.now() - firedAt < 1200) { e.preventDefault(); e.stopPropagation(); return; } }
       const s = st.current; if (!s) return;
       if (window.getSelection()?.toString()) return;
       const id = pidAt(s, e.target as Element);
@@ -33,8 +36,11 @@ export function usePlayerTaps(state: GameState | null, open: (id: string) => voi
     };
     const onDown = (e: PointerEvent) => {
       const s = st.current; if (!s) return;
-      const t = e.target as Element; if (!t.closest('button, [role="button"]') || t.closest('.pp-modal')) return;
-      timer = window.setTimeout(() => { const id = pidAt(s, t.closest('button, [role="button"]'), true); if (id) { longFired = true; open(id); } }, 550);
+      longFired = false;
+      const t = e.target as Element;
+      // Never hijack buttons inside dialogs (Submit offer, Accept, Close…): they must always just work.
+      if (!t.closest('button, [role="button"]') || t.closest(NO_LONG)) return;
+      timer = window.setTimeout(() => { const id = pidAt(s, t.closest('button, [role="button"]'), true); if (id) { longFired = true; firedAt = Date.now(); open(id); } }, 550);
     };
     const cancel = () => clearTimeout(timer);
     document.addEventListener('click', onClick, true);

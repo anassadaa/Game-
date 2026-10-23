@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { GameState, Player } from './game.ts';
 import { acceptBid, rejectBid } from './game.ts';
+import { BudgetLine } from './BudgetLine.tsx';
+import { offerBlock } from './budget.ts';
 import { agentMsgs, agentText, ceiling, counterBid, declineMsg, findPlayer, freeAsk, signFreeAgent } from './agents.ts';
 
 type Up = (s: GameState, m?: string) => void;
@@ -47,7 +49,7 @@ export function Inbox({ state, onUpdate, onTalks }: { state: GameState; onUpdate
           </div>
         );
       })}
-      {msg && <p className="small job-result">{msg}</p>}
+      {msg && !open && <p className="small job-result">{msg}</p>}
     </section>
   );
 }
@@ -67,18 +69,23 @@ export function FreeAgents({ state, onUpdate }: { state: GameState; onUpdate: Up
       {list.map((p) => (
         <div key={p.id} className="job-row" style={{ flexWrap: 'wrap' }}>
           <span><b>{p.name}</b>{p.released && <small className="muted"> · released</small>}<br /><small>{p.position} {p.rating} · age {p.age} · wants ~£{freeAsk(state, p)}k/wk</small></span>
-          <button className="secondary" disabled={locked} onClick={() => { setOpen(open === p.id ? '' : p.id); setMsg(''); setO({ wage: String(freeAsk(state, p)), years: '2', bonus: '0' }); }}>{open === p.id ? 'Close' : 'Offer'}</button>
+          <button className="secondary" disabled={locked} title={locked ? 'Not during a match' : undefined} onClick={() => { setOpen(open === p.id ? '' : p.id); setMsg(''); setO({ wage: String(freeAsk(state, p)), years: '2', bonus: '0' }); }}>{open === p.id ? 'Close' : 'Offer'}</button>
           {open === p.id && (
             <div className="free-offer">
               <label>Wage £k/wk<input inputMode="numeric" value={o.wage} onChange={(e) => setO({ ...o, wage: e.target.value.replace(/\D/g, '') })} /></label>
               <label>Years<select value={o.years} onChange={(e) => setO({ ...o, years: e.target.value })}>{[1, 2, 3, 4, 5].map((y) => <option key={y}>{y}</option>)}</select></label>
               <label>Bonus £k<input inputMode="numeric" value={o.bonus} onChange={(e) => setO({ ...o, bonus: e.target.value.replace(/\D/g, '') })} /></label>
-              <button className="secondary" onClick={() => { const r = signFreeAgent(state, p.id, { wage: +o.wage, years: +o.years, bonus: +o.bonus }); setMsg(r[1]); if (r[0] !== state) { setOpen(''); onUpdate(r[0], r[1]); } }}>Submit</button>
+              {(() => { const why = offerBlock(state, p, 0) ?? (+o.bonus > state.budget ? `Over budget by £${+o.bonus - state.budget}k` : !(+o.wage > 0) ? 'Enter a wage' : null); return (<>
+              <BudgetLine state={state} extraWage={+o.wage || 0} />
+              {why && <p className="offer-why" role="alert">⛔ {why}</p>}
+              <button className="secondary" disabled={!!why} onClick={() => { const r = signFreeAgent(state, p.id, { wage: +o.wage, years: +o.years, bonus: +o.bonus }); setMsg(r[1]); if (r[0] !== state) { setOpen(''); onUpdate(r[0], r[1]); } }}>{why ? `Can't submit: ${why}` : 'Submit offer'}</button>
+              {msg && <p className="small job-result" role="status">{msg}</p>}
+              </>); })()}
             </div>
           )}
         </div>
       ))}
-      {msg && <p className="small job-result">{msg}</p>}
+      {msg && !open && <p className="small job-result">{msg}</p>}
     </section>
   );
 }

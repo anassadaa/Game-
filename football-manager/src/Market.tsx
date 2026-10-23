@@ -135,13 +135,15 @@ export function TransferMarket({
                 </small>
               </div>
               <b className="tm-ovr">{rangeText(abilityRange(state, p))}</b>
+              {(() => { const why = locked ? 'Not during a match' : p.clubId !== 'market' && !open ? 'Window closed' : ''; return (
               <button
-                className="secondary"
-                disabled={locked || (p.clubId !== 'market' && !open)}
+                className={`secondary${why ? ' why' : ''}`}
+                disabled={!!why}
+                aria-label={why ? `${money(p.counter ?? askingPrice(p, state))}: ${why}` : undefined}
                 onClick={() => onNegotiate(p)}
               >
-                {money(p.counter ?? askingPrice(p, state))}
-              </button>
+                {money(p.counter ?? askingPrice(p, state))}{why && <small>{why}</small>}
+              </button>); })()}
             </div>
           ))}
         </div>
@@ -163,7 +165,7 @@ export function TransferMarket({
                 <span>
                   {p.position} <b>{p.name}</b> {p.rating} · {money(p.price)}
                 </span>
-                <button className={p.listed ? 'secondary' : 'text-button'} disabled={locked} onClick={() => onUpdate(toggleListed(state, p.id))}>
+                <button className={p.listed ? 'secondary' : 'text-button'} disabled={locked} title={locked ? 'Not during a match' : undefined} onClick={() => onUpdate(toggleListed(state, p.id))}>
                   {p.listed ? '📋 Listed · unlist' : 'List for sale'}
                 </button>
                 <button className={p.loanListed ? 'secondary' : 'text-button'} disabled={locked || p.starting} onClick={() => onUpdate(toggleLoanListed(state, p.id))}>

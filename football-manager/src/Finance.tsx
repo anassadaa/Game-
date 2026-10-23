@@ -1,5 +1,6 @@
 import type { GameState } from './game.ts';
 import { renewContract } from './game.ts';
+import { salaryList, wageBill, wageLimit, wageRoom } from './budget.ts';
 import { ffpLimit, ffpNet, ledger, totalIn, totalOut } from './finance.ts';
 
 type Up = (s: GameState, m?: string) => void;
@@ -10,8 +11,23 @@ export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: 
   const clauses = own.filter((p) => p.clause);
   const owed = own.filter((p) => p.sellOn);
   const expiring = own.filter((p) => !p.clause && (p.contract ?? 2) <= 1).sort((a, b) => b.rating - a.rating).slice(0, 4);
+  const bill = wageBill(state), wl = wageLimit(state), room = wageRoom(state);
+  const wpct = Math.min(100, Math.round((bill / wl) * 100));
   return (
-    <section className="card">
+    <section className="card" id="finances">
+      <p className="eyebrow">BUDGETS</p>
+      <h3>Transfer budget £{state.budget}k</h3>
+      <div className="wage-budget">
+        <p><b>Wage bill £{bill}k / £{wl}k a week</b> · <span className={room < 0 ? 'neg' : 'pos'}>{room >= 0 ? `£${room}k left` : `£${-room}k over budget`}</span></p>
+        <div className="ffp-bar"><i style={{ width: `${wpct}%`, background: room < 0 ? '#e5484d' : wpct >= 85 ? '#f5a524' : '#30a46c' }} /></div>
+        <p className="muted small">The wage budget is the board's guide for weekly salaries. Going over doesn't block a deal, but wages are paid from your funds every week.</p>
+        <details className="salary-list" open>
+          <summary>Salaries ({salaryList(state).length} players)</summary>
+          <div className="row-list">{salaryList(state).map((x) => (
+            <div key={x.id} data-pid={x.id}><span>{x.position} <b>{x.name}</b> · {x.years}y left</span><b>£{x.wage}k/wk</b></div>
+          ))}</div>
+        </details>
+      </div>
       <p className="eyebrow">FINANCIAL FAIR PLAY</p>
       <h3>Net spend £{net}k / £{limit}k</h3>
       <div className="ffp-bar"><i style={{ width: `${pct}%`, background: pct >= 100 ? '#e5484d' : pct >= 75 ? '#f5a524' : '#30a46c' }} /></div>

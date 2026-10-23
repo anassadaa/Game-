@@ -1,3 +1,4 @@
+import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquads.ts';
 import { cornerConv } from './setpieces.ts';
 import { repairSlots } from './positions.ts';
 import { passage, reason, segmentStats, shotStat } from './narrate.ts';
@@ -231,6 +232,7 @@ export type GameState = {
   lastStory: string;
   instalments?: Instalment[];
   rivals?: Player[];
+  squadRef?: Record<string, number>;
   bids?: Bid[];
   news?: string[];
   board?: Board;
@@ -1025,7 +1027,7 @@ export function upgradeFacility(
 /** Match engine tuning: how much a strength point shifts chance share, and finishing quality. */
 export const EDGE_PER_POINT = 0.026, FINISH = 1.4;
 function strength(s: GameState, ourSide: boolean): number {
-  if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s) + level(s).ai + adaptive(s) - (s.match?.redThem ?? 0) * 4;
+  if (!ourSide) return opponent(s).rating + squadDelta(s, opponent(s)) + 2 - oppFatigue(s) + level(s).ai + adaptive(s) - (s.match?.redThem ?? 0) * 4;
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
   const big = !!s.match && standings(s).filter((c) => c.division === club(s).division).findIndex((c) => c.id === s.match!.opponentId) < 3;
   const quality =
@@ -1316,6 +1318,7 @@ function train(s: GameState) {
 /** Reserve sides can never go up. */
 const RESERVE_SIDES = new Set(['sociedadb', 'benficab', 'portob', 'sportingb']);
 function rollSeason(s: GameState) {
+  resetSquadRefs(s);
   const table = standings(s),
     pyr = pyramidOf(club(s).division),
     k = pyr?.k ?? 0,
@@ -1488,7 +1491,7 @@ export function advanceWeek(s: GameState): GameState {
       if (aid === us.id || bid === us.id) continue;
       const a = b.clubs.find((c) => c.id === aid)!,
         c = b.clubs.find((c) => c.id === bid)!;
-      const [ga, gb] = simulateScore(b, a, c);
+      const [ga, gb] = simulateScore(b, squadClub(b, a), squadClub(b, c));
       result(a, c, ga, gb);
     }
   }
@@ -1519,6 +1522,7 @@ export function advanceWeek(s: GameState): GameState {
   facilitiesWeek(b);
   dressingWeek(b, played);
   scoutsWeek(b);
+  aiInjuriesWeek(b);
   revealWeek(b);
   captainWeek(b);
   staffWeek(b);
@@ -1928,7 +1932,7 @@ function runCup(b: GameState, c: Cup | undefined, weeks: number[], prizes: numbe
     const h = b.clubs.find((x) => x.id === c.alive[i])!,
       a = b.clubs.find((x) => x.id === c.alive[i + 1])!;
     const ours = h.id === b.clubId || a.id === b.clubId;
-    const boost = (x: Club) => (x.id === b.clubId ? { ...x, rating: Math.round(strength(b, true)) } : x);
+    const boost = (x: Club) => (x.id === b.clubId ? { ...x, rating: Math.round(strength(b, true)) } : squadClub(b, x));
     let [gh, ga] = simulateScore(b, boost(h), boost(a));
     let pens = '';
     if (gh === ga) {

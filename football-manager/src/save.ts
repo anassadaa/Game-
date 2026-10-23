@@ -21,6 +21,7 @@ import { validLedger } from './finance.ts';
 import { validTraits } from './traits.ts';
 import { validSlots } from './positions.ts';
 import { validPlan } from './setpieces.ts';
+import { validSquadRef } from './aisquads.ts';
 import { LEAGUES } from './world.ts';
 import { ATTRS, PERSONALITIES, migrate, storyIds } from './game.ts';
 
@@ -133,6 +134,7 @@ export function decodeSave(raw: string): GameState | null {
       !validTraits(s) ||
       !validSlots(s) ||
       !validPlan(s.tactics?.sp) ||
+      !validSquadRef(s.squadRef) ||
       !s.euro ||
       !Array.isArray(s.euro.alive) ||
       !s.euro.alive.every((id) => s.clubs.some((c) => c.id === id)) ||

@@ -90,3 +90,11 @@ test('a season of weeks keeps saves valid with injuries happening', () => {
   for (let w = 0; w < 10 && !s.sacked; w++) { s = advanceWeek(simToEnd(startMatch(s))); seen += own(s).filter((p) => p.injury).length; }
   assert.ok(decodeSave(encodeSave(s)));
 });
+test('a knock picked up in a match rules the player out of the next match', () => {
+  let s = advanceMatch(startMatch(game(25)));
+  const v = own(s).find((p) => p.id === layout(s)[5].id);
+  matchInjury(s, v);
+  v.injured = 1; v.injury.total = 1;
+  s = advanceWeek(simToEnd(s));
+  assert.ok(own(s).find((p) => p.id === v.id).injured >= 1);
+});

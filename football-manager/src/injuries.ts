@@ -13,7 +13,7 @@ export const INJURIES: InjuryType[] = [
   { id: 'broken', name: 'Broken bone', min: 6, max: 12, weight: 7 },
   { id: 'acl', name: 'ACL rupture', min: 26, max: 40, weight: 3 },
 ];
-export type Injury = { type: string; total: number; week?: number };
+export type Injury = { type: string; total: number; week?: number; fresh?: boolean };
 export type MedNews = { week: number; text: string };
 export const PRONE_AT = 3, RUSH_WEEKS = 6;
 export const injuryName = (id?: string) => INJURIES.find((i) => i.id === id)?.name ?? 'Injury';
@@ -51,7 +51,7 @@ export function injure(s: GameState, p: Player, type?: string) {
   const t = INJURIES.find((i) => i.id === type) ?? rollType(s);
   const weeks = Math.max(1, recoveryWeeks(s, int(s, t.min, t.max)));
   p.injured = Math.max(p.injured ?? 0, weeks);
-  p.injury = { type: t.id, total: p.injured, week: s.week };
+  p.injury = { type: t.id, total: p.injured, week: s.week, ...(s.match ? { fresh: true } : {}) };
   p.injuries = (p.injuries ?? 0) + 1;
   p.rushed = undefined;
   if (p.clubId === s.clubId) news(s, `🚑 ${p.name}: ${t.name.toLowerCase()} — out for ${p.injured} week${p.injured > 1 ? 's' : ''}${injuryProne(p) ? ' (injury prone)' : ''}.`);
@@ -88,7 +88,8 @@ const heavy = (s: GameState) => [4, 8, 12, 16, 6, 10, 14, 17].includes(s.week);
 export function injuryWeek(s: GameState) {
   for (const p of s.players.filter((x) => x.clubId === s.clubId)) {
     if (p.rushed) p.rushed = p.rushed > 1 ? p.rushed - 1 : undefined;
-    if (p.injured) {
+    if (p.injured && p.injury?.week === s.week && p.injury.fresh) delete p.injury.fresh; // picked up this week: misses the next match
+    else if (p.injured) {
       p.injured = p.injured > 1 ? p.injured - 1 : undefined;
       if (!p.injured) returns(s, p, `✅ ${p.name} is back in training after his ${injuryName(p.injury?.type).toLowerCase()}. Sharpness is low.`);
     } else if (p.starting && p.fitness < 45 && next(s) < injuryRisk(s, p, { heavy: heavy(s) }) * 6) injure(s, p, next(s) < 0.7 ? 'knock' : 'hamstring');
@@ -119,7 +120,7 @@ export function migrateInjuries(s: GameState) {
   }
 }
 export function validInjuries(s: GameState) {
-  const ok = s.players.every((p) => (p.injury === undefined || (typeof p.injury.type === 'string' && Number.isInteger(p.injury.total))) &&
+  const ok = s.players.every((p) => (p.injury === undefined || (typeof p.injury.type === 'string' && Number.isInteger(p.injury.total) && (p.injury.fresh === undefined || typeof p.injury.fresh === 'boolean'))) &&
     (p.injuries === undefined || Number.isInteger(p.injuries)) && (p.rushed === undefined || Number.isInteger(p.rushed)));
   const n = s.medNews;
   return ok && (n === undefined || (Array.isArray(n) && n.length <= 20 && n.every((x) => x && typeof x.text === 'string' && Number.isInteger(x.week))));

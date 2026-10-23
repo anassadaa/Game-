@@ -56,7 +56,7 @@ export type Player = {
   assists: number;
   academyGraduate?: boolean;
   injured?: number;
-  injury?: { type: string; total: number; week?: number };
+  injury?: { type: string; total: number; week?: number; fresh?: boolean };
   injuries?: number;
   rushed?: number;
   attrs?: Attrs;

@@ -8,7 +8,8 @@ import { FixturesCard, ReviewModal } from './Fixtures.tsx';
 import { SubTabs } from './SubTabs.tsx';
 import { pickSub } from './subtabs.ts';
 import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { PlayerModal, usePlayerTaps } from './PlayerModal.tsx';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -287,7 +288,7 @@ function PlayerCard({
   locked: boolean;
 }) {
   return (
-    <div className={`player-card ${player.starting ? 'selected' : ''}`}>
+    <div className={`player-card ${player.starting ? 'selected' : ''}`} data-pid={player.id}>
       <div className="player-avatar" data-pos={player.position}>
         <span>
           {player.name
@@ -387,8 +388,28 @@ export default function App() {
   const [saveOk, setSaveOk] = useState(true);
   const [filter, setFilter] = useState('All');
   const [assign, setAssign] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const openProfile = useCallback((id: string) => {
+    setProfileId(id);
+    try { if (history.state?.pp !== true) history.pushState({ pp: true }, ''); } catch { /* ignore */ }
+  }, []);
+  const openRef = useRef(false);
+  openRef.current = profileId !== null;
+  const closeProfile = useCallback(() => {
+    if (!openRef.current) return;
+    openRef.current = false;
+    setProfileId(null);
+    try { if (history.state?.pp === true) history.back(); } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    const pop = () => setProfileId(null);
+    window.addEventListener('popstate', pop);
+    return () => window.removeEventListener('popstate', pop);
+  }, []);
+  usePlayerTaps(state, openProfile);
   useEffect(() => {
     setBackHandler(() => {
+      if (profileId) { closeProfile(); return true; }
       if (assign) { setAssign(null); return true; }
       if (tab !== 'home') { setTab('home'); return true; }
       return false;
@@ -1679,6 +1700,7 @@ export default function App() {
           ))}
         </nav>
       </div>
+      {profileId && <PlayerModal state={state} id={profileId} onClose={closeProfile} />}
       {toast && (
         <div className="toast" role="status">
           <Check size={17} />

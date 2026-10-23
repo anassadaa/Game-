@@ -37,7 +37,7 @@ export async function initNative() {
     const { App } = await import('@capacitor/app');
     App.addListener('backButton', () => {
       // close any open sheet/dialog first
-      const sheet = document.querySelector('.lu-sheet, [role="dialog"]');
+      const sheet = document.querySelector('.pp-modal') ?? document.querySelector('.lu-sheet, [role="dialog"]');
       if (sheet) {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         const close = sheet.querySelector<HTMLElement>('[aria-label="Close"], .close, .lu-close');

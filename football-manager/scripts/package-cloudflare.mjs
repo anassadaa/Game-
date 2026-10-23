@@ -61,11 +61,16 @@ export async function packageCloudflare(inputDirectory, outputDirectory) {
   }
   if (/(?:src|href)="\/assets\//.test(html))
     throw new Error('The build still has external asset references');
+  const statics = {};
+  for (const [name, mime] of [['manifest.webmanifest','application/manifest+json'],['sw.js','text/javascript; charset=utf-8'],['icon-192.png','image/png'],['icon-512.png','image/png'],['icon-maskable-512.png','image/png']]) {
+    try { statics['/' + name] = [mime, (await readFile(resolve(root, name))).toString('base64')]; } catch { /* optional */ }
+  }
   const release = createHash('sha256').update(html).digest('hex').slice(0, 20);
-  const worker = `const HTML=${JSON.stringify(html)};\nconst RELEASE=${JSON.stringify(release)};\nexport default {async fetch(request){
+  const worker = `const HTML=${JSON.stringify(html)};\nconst RELEASE=${JSON.stringify(release)};\nconst STATIC=${JSON.stringify(statics)};\nexport default {async fetch(request){
     const pathname=new URL(request.url).pathname;
     if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
     if(pathname==='/health')return Response.json({app:'touchline',release:RELEASE});
+    if(STATIC[pathname]){const [t,b]=STATIC[pathname];const bin=Uint8Array.from(atob(b),c=>c.charCodeAt(0));return new Response(request.method==='HEAD'?null:bin,{headers:{'Content-Type':t,'Cache-Control':pathname==='/sw.js'?'no-cache':'public, max-age=86400','X-Content-Type-Options':'nosniff'}});}
     if(!['/','/index.html'].includes(pathname))return new Response('Not found',{status:404});
     const headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache','ETag':'"'+RELEASE+'"','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin'};
     if(request.headers.get('if-none-match')===headers.ETag)return new Response(null,{status:304,headers});

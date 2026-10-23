@@ -255,6 +255,7 @@ export type GameState = {
   review?: SeasonReview;
   cup?: Cup;
   euro?: Cup;
+  lcup?: Cup;
   youth?: Player[];
   drills?: string[];
   trainingReport?: TrainingReport;
@@ -549,6 +550,7 @@ export function migrate(s: GameState): GameState {
     rivalsFor(s, c);
   });
   s.cup ??= newCup(s, []);
+  if (!validCup(s.lcup)) s.lcup = newLeagueCup(s, []);
   s.euro ??= newEuro(s, true);
   s.youth ??= [];
   s.drills ??= [];
@@ -666,6 +668,7 @@ export function newGame(
   s.agentMsgs = [];
   refreshStaffMarket(s);
   s.cup = newCup(s, []);
+  s.lcup = newLeagueCup(s, []);
   s.euro = newEuro(s, true);
   s.youth = [];
   s.drills = [];
@@ -1558,6 +1561,7 @@ export function advanceWeek(s: GameState): GameState {
   b.match = null;
   runCup(b, b.cup, CUP_WEEKS, CUP_PRIZE, 'Cup');
   runCup(b, b.euro, EURO_WEEKS, EURO_PRIZE, 'Champions Cup');
+  runCup(b, b.lcup, LCUP_WEEKS, LCUP_PRIZE, 'League Cup');
   boardWeek(b);
   if (b.week === INTAKE_WEEK + 1) youthIntake(b);
   if (b.week === 18) {
@@ -1565,6 +1569,7 @@ export function advanceWeek(s: GameState): GameState {
     rollRivals(b);
     b.board = boardTarget(b);
     b.cup = newCup(b, b.cup?.winners ?? [], b.cup?.wins ?? 0);
+    b.lcup = newLeagueCup(b, b.lcup?.winners ?? [], b.lcup?.wins ?? 0);
   }
   else {
     if (b.week % 3 === 0) refreshMarket(b);
@@ -1937,6 +1942,25 @@ export function cupOpponent(s: GameState, c = s.cup) {
   const i = c.alive.indexOf(s.clubId);
   if (i < 0) return null;
   return s.clubs.find((x) => x.id === c.alive[i ^ 1]) ?? null;
+}
+/** League Cup: second domestic knockout on its own midweeks, smaller prizes. */
+export const LCUP_WEEKS = [2, 5, 9, 13];
+export const LCUP_PRIZE = [60, 100, 180, 300];
+/** League Cup draw: same domestic field as the Cup, drawn with its own seed so it doesn't disturb the main random stream. */
+function newLeagueCup(s: GameState, winners: Cup['winners'], wins = 0): Cup {
+  const pool = [...cupClubs(s)].sort((a, b) => b.rating - a.rating);
+  const alive = [s.clubId, ...pool.filter((c) => c.id !== s.clubId).map((c) => c.id)].slice(0, 16);
+  let h = s.season * 7919 + 17;
+  for (const ch of s.clubId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => ((h = (Math.imul(h, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+  for (let i = alive.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [alive[i], alive[j]] = [alive[j]!, alive[i]!]; }
+  return { season: s.season, round: 0, alive, log: [], winners: winners.slice(0, 30), wins };
+}
+export function validCup(c: unknown): c is Cup {
+  const x = c as Cup;
+  return !!x && typeof x === 'object' && Number.isInteger(x.season) && Number.isInteger(x.round) && x.round >= 0 && x.round <= 4 &&
+    Array.isArray(x.alive) && x.alive.every((id) => typeof id === 'string') && Array.isArray(x.log) && x.log.every((l) => typeof l === 'string') &&
+    Array.isArray(x.winners) && x.winners.every((w) => w && typeof w.clubId === 'string' && Number.isInteger(w.season)) && Number.isInteger(x.wins);
 }
 export const EURO_WEEKS = [6, 10, 14, 17];
 export const EURO_PRIZE = [300, 500, 800, 1500];

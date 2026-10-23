@@ -1515,6 +1515,7 @@ export default function App() {
                   <YouthPanel state={state} onUpdate={update} />
                   <StatsPanel state={state} />
                   <CupPanel state={state} />
+                  <CupPanel state={state} kind="lcup" />
                   <CupPanel state={state} euro />
                   <WorldPanel state={state} onUpdate={update} />
                   <div className="content-columns">

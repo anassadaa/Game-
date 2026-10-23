@@ -8,7 +8,7 @@ test('season calendar: league matchdays plus midweek cup ties', () => {
   const opps = cal.filter((e) => e.kind === 'league').map((e) => e.opp);
   for (const o of new Set(opps)) assert.ok(opps.filter((x) => x === o).length <= 2);
   assert.ok(cal.filter((e) => e.kind === 'cup').length >= 1);
-  assert.equal(cal.find((e) => e.kind === 'cup').week, CUP_WEEKS[0]);
+  assert.equal(cal.find((e) => e.kind === 'cup' && e.label.startsWith('Cup ')).week, CUP_WEEKS[0]);
 });
 test('congestion: midweek ties drain starters unless you rotate', () => {
   const s = newGame(52); s.week = CUP_WEEKS[0] - 1;

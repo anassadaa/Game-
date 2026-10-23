@@ -1,10 +1,10 @@
 import type { Cup, GameState } from './game.ts';
-import { CUP_WEEKS, EURO_WEEKS, copy } from './game.ts';
+import { CUP_WEEKS, EURO_WEEKS, LCUP_WEEKS, copy } from './game.ts';
 import { fixtureList, SEASON_WEEKS } from './fixtures.ts';
 
 /** Season calendar: the double round-robin league plus midweek cup ties, and the load they put on the squad. */
 export type CalEntry = { week: number; kind: 'league' | 'cup'; opp?: string; label: string; home?: boolean };
-const cups = (): ['cup' | 'euro', number[], string][] => [['cup', CUP_WEEKS, 'Cup'], ['euro', EURO_WEEKS, 'Champions Cup']];
+const cups = (): ['cup' | 'euro' | 'lcup', number[], string][] => [['cup', CUP_WEEKS, 'Cup'], ['euro', EURO_WEEKS, 'Champions Cup'], ['lcup', LCUP_WEEKS, 'League Cup']];
 const ROUND = ['R16', 'QF', 'SF', 'Final'];
 const inCup = (s: GameState, c: Cup | undefined) => !!c && c.alive.includes(s.clubId);
 

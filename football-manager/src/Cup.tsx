@@ -1,25 +1,34 @@
-import { CUP_PRIZE, CUP_ROUNDS, CUP_WEEKS, EURO_PRIZE, EURO_WEEKS, cupOpponent } from './game.ts';
-import type { GameState } from './game.ts';
+import { CUP_PRIZE, CUP_ROUNDS, CUP_WEEKS, EURO_PRIZE, EURO_WEEKS, LCUP_PRIZE, LCUP_WEEKS, cupOpponent } from './game.ts';
+import type { Cup, GameState } from './game.ts';
 
-export function CupPanel({ state, euro = false }: { state: GameState; euro?: boolean }) {
-  const c = euro ? state.euro : state.cup;
-  const WEEKS = euro ? EURO_WEEKS : CUP_WEEKS,
-    PRIZE = euro ? EURO_PRIZE : CUP_PRIZE;
+export type CupKind = 'cup' | 'euro' | 'lcup';
+export const COMPS: Record<CupKind, { title: string; weeks: number[]; prize: number[]; continental: boolean; entry: string }> = {
+  cup: { title: 'NATIONAL CUP', weeks: CUP_WEEKS, prize: CUP_PRIZE, continental: false, entry: '' },
+  lcup: { title: '🥈 LEAGUE CUP', weeks: LCUP_WEEKS, prize: LCUP_PRIZE, continental: false, entry: '' },
+  euro: { title: '⭐ CHAMPIONS CUP', weeks: EURO_WEEKS, prize: EURO_PRIZE, continental: true, entry: 'finish near the top of a big league to enter' },
+};
+
+export function CupPanel({ state, euro = false, kind }: { state: GameState; euro?: boolean; kind?: CupKind }) {
+  const k: CupKind = kind ?? (euro ? 'euro' : 'cup');
+  const meta = COMPS[k];
+  const c = state[k] as Cup | undefined;
+  const WEEKS = meta.weeks,
+    PRIZE = meta.prize;
   if (!c) return null;
   const opp = cupOpponent(state, c);
   const inIt = c.alive.includes(state.clubId);
   const name = (id: string) => state.clubs.find((x) => x.id === id)?.short ?? id;
   return (
-    <section className="card panel cup-panel">
-      <span className="eyebrow">{euro ? '⭐ CHAMPIONS CUP' : 'NATIONAL CUP'} · SEASON {c.season}</span>
+    <section className={`card panel cup-panel cup-${k}`}>
+      <span className="eyebrow">{meta.title} · SEASON {c.season}</span>
       {c.round > 3 ? (
         <h3>🏆 Winners: {name(c.winners[0]?.clubId ?? '')}</h3>
       ) : inIt && opp ? (
         <h3>
           {CUP_ROUNDS[c.round]} vs {opp.name} · week {WEEKS[c.round]! + 1} · win £{PRIZE[c.round]}k
         </h3>
-      ) : euro && !inIt && c.round === 0 ? (
-        <h3>Not qualified · finish near the top of a big league to enter</h3>
+      ) : meta.continental && !inIt && c.round === 0 ? (
+        <h3>Not qualified · {meta.entry}</h3>
       ) : (
         <h3>Knocked out · {CUP_ROUNDS[c.round]} next in week {WEEKS[c.round]! + 1}</h3>
       )}

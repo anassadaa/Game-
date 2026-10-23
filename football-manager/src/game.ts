@@ -986,6 +986,8 @@ export function upgradeFacility(
   ].slice(0, 6);
   return b;
 }
+/** Match engine tuning: how much a strength point shifts chance share, and finishing quality. */
+export const EDGE_PER_POINT = 0.026, FINISH = 1.1;
 function strength(s: GameState, ourSide: boolean): number {
   if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s);
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
@@ -1008,8 +1010,8 @@ function strength(s: GameState, ourSide: boolean): number {
           : 0;
   return (
     quality +
-    (fitness - 70) * 0.11 +
-    (morale - 65) * 0.08 +
+    (fitness - 85) * 0.11 +
+    (morale - 70) * 0.08 +
     shape +
     (s.tactics.mentality === 'attacking'
       ? 2
@@ -1064,7 +1066,8 @@ export function advanceMatch(s: GameState): GameState {
     );
   for (const side of ['us', 'them'] as const) {
     const us = side === 'us';
-    let edge = (strength(b, us) - strength(b, !us)) * 0.012;
+    const gap = strength(b, us) - strength(b, !us);
+    let edge = gap * EDGE_PER_POINT;
     if (us) {
       edge +=
         b.tactics.mentality === 'attacking'
@@ -1128,7 +1131,7 @@ export function advanceMatch(s: GameState): GameState {
           continue;
         }
       }
-      if (next(b) < xg * 1.1) {
+      if (next(b) < xg * FINISH * Math.max(0.6, Math.min(1.5, 1 + gap * 0.025))) {
         if (us) {
           m.us++;
           if (scorer) scorer.goals++;

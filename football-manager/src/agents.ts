@@ -32,7 +32,7 @@ export function agentsWeek(b: GameState) {
   const taken = new Set(b.agentMsgs.map((m) => m.playerId));
   if (b.agentMsgs.length < 5 && next(b) < 0.4) {
     const pool = (b.rivals ?? []).filter(
-      (p) => p.clubId !== b.clubId && p.rating >= floor && p.rating <= cap && askingPrice(p) <= Math.max(300, b.budget * 1.2) && !taken.has(p.id),
+      (p) => p.clubId !== b.clubId && p.rating >= floor && p.rating <= cap && askingPrice(p, b) <= Math.max(300, b.budget * 1.2) && !taken.has(p.id),
     );
     if (pool.length) {
       const p = pick(b, pool);

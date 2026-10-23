@@ -1,3 +1,4 @@
+import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -355,6 +356,7 @@ export default function App() {
   const setTab = (t: Tab) => { setTabRaw(t); try { localStorage.setItem('touchline-tab', t); } catch { /* ignore */ } };
   const [seenOffers, setSeenOffers] = useState<string[]>([]);
   const [chosen, setChosen] = useState('wrexham');
+  const [pickDiff, setPickDiff] = useState<Difficulty>('medium');
   const [pickLeague, setPickLeague] = useState(2);
   const [bg, setBg] = useState('sandbox');
   const bgRep = BACKGROUNDS.find((b) => b.id === bg)?.rep ?? null;
@@ -493,6 +495,12 @@ export default function App() {
               ))}
             </select>
             <p className="bg-blurb">{BACKGROUNDS.find((b) => b.id === bg)?.blurb}</p>
+            <select className="league-select" value={pickDiff} onChange={(e) => setPickDiff(e.target.value as Difficulty)} aria-label="Difficulty">
+              {DIFFICULTIES.map((d) => (
+                <option key={d.id} value={d.id}>Difficulty · {d.label}</option>
+              ))}
+            </select>
+            <p className="bg-blurb">{DIFFICULTIES.find((d) => d.id === pickDiff)?.blurb}</p>
             <select className="league-select" value={pickLeague} onChange={(e) => setPickLeague(+e.target.value)}>
               {LEAGUES.map((l) => (
                 <option key={l.division} value={l.division}>{l.flag} {l.name} · {l.country}</option>
@@ -514,7 +522,7 @@ export default function App() {
             <button
               className="primary wide"
               disabled={clubLocked(WORLD.find((w) => w.id === chosen) ?? WORLD[0]!, bgRep)}
-              onClick={() => setState(newGame(Date.now() >>> 0, chosen, bgRep))}
+              onClick={() => setState(newGame(Date.now() >>> 0, chosen, bgRep, pickDiff))}
             >
               Take the manager’s seat <ArrowRight size={18} />
             </button>
@@ -1284,7 +1292,7 @@ export default function App() {
                     state={state}
                     onUpdate={update}
                     onTalks={(p, wage) =>
-                      setDeal({ id: p.id, fee: p.counter ?? Math.round(askingPrice(p) * 0.85), wage, years: 3, instalments: false, swapId: '' })
+                      setDeal({ id: p.id, fee: p.counter ?? Math.round(askingPrice(p, state) * 0.85), wage, years: 3, instalments: false, swapId: '' })
                     }
                   />
                   <FinancePanel state={state} onUpdate={update} />
@@ -1316,7 +1324,7 @@ export default function App() {
                     onNegotiate={(p) =>
                       setDeal({
                         id: p.id,
-                        fee: p.counter ?? Math.round(askingPrice(p) * 0.85),
+                        fee: p.counter ?? Math.round(askingPrice(p, state) * 0.85),
                         wage: p.wage,
                         years: 3,
                         instalments: false,
@@ -1557,6 +1565,19 @@ export default function App() {
                         another game URL.
                       </p>
                     </div>
+                    <label className="diff-setting">
+                      Difficulty{' '}
+                      <select
+                        className="league-select"
+                        aria-label="Change difficulty"
+                        value={state.difficulty ?? 'medium'}
+                        onChange={(e) => update(setDifficulty(structuredClone(state), e.target.value as Difficulty), 'Difficulty updated.')}
+                      >
+                        {DIFFICULTIES.map((d) => (
+                          <option key={d.id} value={d.id}>{d.label}</option>
+                        ))}
+                      </select>
+                    </label>
                     <div className="save-buttons">
                       <button className="secondary" onClick={exportGame}>
                         <Download size={16} /> Export save
@@ -1673,7 +1694,7 @@ export default function App() {
       {deal && (() => {
         const t = state.market.find((p) => p.id === deal.id) ?? state.rivals?.find((p) => p.id === deal.id);
         if (!t) return null;
-        const ask = askingPrice(t);
+        const ask = askingPrice(t, state);
         return (
           <div className="modal-backdrop" onClick={() => setDeal(null)}>
             <section className="help-modal" role="dialog" aria-label="Negotiate" onClick={(e) => e.stopPropagation()}>

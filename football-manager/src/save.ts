@@ -12,6 +12,7 @@ import { validTrophies } from './stats.ts';
 import { validFacilities } from './facilities.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, PASSING, WIDTHS } from './tactics.ts';
 import type { GameState } from './game.ts';
+import { isDifficulty } from './difficulty.ts';
 import { LEAGUES } from './world.ts';
 import { ATTRS, PERSONALITIES, migrate, storyIds } from './game.ts';
 
@@ -115,6 +116,7 @@ export function decodeSave(raw: string): GameState | null {
       !Array.isArray(s.offers) ||
       !s.offers.every((id) => s.clubs.some((c) => c.id === id)) ||
       typeof s.sacked !== 'boolean' ||
+      !isDifficulty(s.difficulty) ||
       !s.euro ||
       !Array.isArray(s.euro.alive) ||
       !s.euro.alive.every((id) => s.clubs.some((c) => c.id === id)) ||

@@ -1,4 +1,5 @@
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
+import { type Difficulty, isDifficulty, level, adaptive } from './difficulty.ts';
 import { sharpness, weeklyTraining } from './training.ts';
 import type { TrainingReport } from './training.ts';
 import { facilities, facilitiesWeek, stadiumBonus } from './facilities.ts';
@@ -213,6 +214,7 @@ export type GameState = {
   board?: Board;
   offers?: string[];
   sacked?: boolean;
+  difficulty?: Difficulty;
   cup?: Cup;
   euro?: Cup;
   youth?: Player[];
@@ -493,6 +495,7 @@ export function migrate(s: GameState): GameState {
   s.board ??= boardTarget(s);
   s.offers ??= [];
   s.sacked ??= false;
+  if (!isDifficulty(s.difficulty)) s.difficulty = 'medium';
   s.reputation ??= reputation(s);
   s.vacancies ??= [];
   migrateInjuries(s);
@@ -569,6 +572,7 @@ export function newGame(
   seed = Date.now() >>> 0,
   clubId = DEFAULT_CLUB,
   startRep?: number | null,
+  difficulty: Difficulty = 'medium',
 ): GameState {
   const clubs = WORLD.map((w, i) => worldClub(w, i));
   if (!clubs.some((c) => c.id === clubId)) clubId = DEFAULT_CLUB;
@@ -603,9 +607,10 @@ export function newGame(
     instalments: [],
     bids: [],
     news: [],
+    difficulty: isDifficulty(difficulty) ? difficulty : 'medium',
   };
   const me = clubs.find((c) => c.id === clubId)!;
-  s.budget = Math.round(2800 * Math.max(0.8, 1 + (me.rating - 60) / 12));
+  s.budget = Math.round(2800 * Math.max(0.8, 1 + (me.rating - 60) / 12) * level(s).money);
   POSITIONS.forEach((pos, i) => s.players.push(makePlayer(s, clubId, i, pos, me.rating - 6)));
   applyStars(s, me, s.players);
   refreshMarket(s);
@@ -822,7 +827,7 @@ export function signPlayer(s: GameState, id: string): GameState {
   const p = s.market.find((p) => p.id === id);
   if (
     !p ||
-    s.budget < p.price ||
+    s.budget < askingPrice(p, s) ||
     s.players.filter((p) => p.clubId === s.clubId).length >= 25
   )
     return s;
@@ -833,10 +838,11 @@ export function signPlayer(s: GameState, id: string): GameState {
   recruit.morale = 75;
   b.players.push(recruit);
   b.market = b.market.filter((p) => p.id !== id);
-  b.budget -= p.price;
+  const paid = askingPrice(p, s);
+  b.budget -= paid;
   autoPlace(b, recruit.id);
   b.headlines = [
-    `${p.name} joins ${club(b).name} for £${p.price}k.`,
+    `${p.name} joins ${club(b).name} for £${paid}k.`,
     ...b.headlines,
   ].slice(0, 6);
   return b;
@@ -884,7 +890,7 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
   const b = copy(s),
     t = (fromRival ? b.rivals! : b.market).find((x) => x.id === id)!;
   const seller = b.clubs.find((c) => c.id === t.clubId);
-  const base = askingPrice(t);
+  const base = askingPrice(t, s);
   const ask = t.counter ?? base,
     value = o.fee + (swap ? Math.round(swap.price * 0.8) : 0) - (o.instalments ? Math.round(o.fee * 0.05) : 0) + Math.round(o.fee * sellOnPct / 100 * 0.6);
   const clause = fromRival ? releaseClause(t) : undefined;
@@ -989,7 +995,7 @@ export function upgradeFacility(
 /** Match engine tuning: how much a strength point shifts chance share, and finishing quality. */
 export const EDGE_PER_POINT = 0.026, FINISH = 1.1;
 function strength(s: GameState, ourSide: boolean): number {
-  if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s);
+  if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s) + level(s).ai + adaptive(s);
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
   const quality =
     starters.reduce((sum, p) => sum + p.rating * (p.injured ? 0.65 : 1) * (0.95 + 0.05 * sharpness(p) / 100), 0) /
@@ -1450,7 +1456,7 @@ export function advanceWeek(s: GameState): GameState {
     (league(club(b).division).tier === 1 ? 130 : 90) +
     (m.home ? 90 + Math.round(b.fans * 0.5) : 35) +
     Math.round(b.fans * 0.2);
-  b.budget += income - wages + stadiumBonus(b, m.home);
+  b.budget += Math.round(income * level(b).money) - wages + stadiumBonus(b, m.home);
   for (const i of b.instalments ?? []) {
     b.budget -= i.amount;
     i.weeks--;
@@ -1542,9 +1548,10 @@ export function windowLabel(s: Pick<GameState, 'week'>) {
   return `Window closed · reopens in ${(s.week < 9 ? 9 : 18) - s.week} weeks`;
 }
 /** What the owning club wants. Free agents cost their price; rivals want a premium unless listed. */
-export function askingPrice(p: Player) {
-  if (p.clubId === 'market') return p.price;
-  return Math.round(p.price * (p.listed ? 0.9 : 1.3));
+export function askingPrice(p: Player, s?: GameState) {
+  const k = s ? level(s).fee : 1;
+  if (p.clubId === 'market') return Math.round(p.price * k);
+  return Math.round(p.price * (p.listed ? 0.9 : 1.3) * k);
 }
 export type MarketFilter = {
   q?: string;
@@ -1574,14 +1581,14 @@ export function searchMarket(s: GameState, f: MarketFilter): Player[] {
       (!f.minRating || p.rating >= f.minRating) &&
       (f.division === undefined || divOf(p.clubId) === f.division) &&
       (!f.country || (p.clubId !== 'market' && league(divOf(p.clubId)).country === f.country)) &&
-      (!f.maxPrice || askingPrice(p) <= f.maxPrice) &&
+      (!f.maxPrice || askingPrice(p, s) <= f.maxPrice) &&
       (!f.minStars || potentialStars(p) >= f.minStars) &&
       (!f.attr || attributes(p)[f.attr] >= (f.minAttr ?? 0)) &&
       (!f.listedOnly || p.listed || p.clubId === 'market'),
   );
   const key = f.sort ?? 'rating';
   out.sort((a, b) =>
-    key === 'price' ? askingPrice(a) - askingPrice(b) : key === 'age' ? a.age - b.age : b[key] - a[key],
+    key === 'price' ? askingPrice(a, s) - askingPrice(b, s) : key === 'age' ? a.age - b.age : b[key] - a[key],
   );
   return out;
 }
@@ -1744,12 +1751,12 @@ function boardWeek(s: GameState) {
   if (s.sacked) return;
   const b = (s.board ??= boardTarget(s));
   const pos = leaguePos(s);
-  if (s.week >= 6 && pos > b.target + 3 && s.trust < 45 && b.warnings < 2 && s.week % 3 === 0) {
+  if (s.week >= 6 && pos > b.target + 3 && s.trust < 45 / level(s).patience && b.warnings < 2 && s.week % 3 === 0) {
     b.warnings++;
     s.trust = clamp(s.trust - 4);
     s.headlines = [`📉 Board warning ${b.warnings}/2: results must improve (${b.objective.toLowerCase()}).`, ...s.headlines].slice(0, 6);
   }
-  if (s.trust <= 12 && s.week >= 4) sack(s, 'The board has lost faith after a run of poor results.');
+  if (s.trust <= 12 / level(s).patience && s.week >= 4) sack(s, 'The board has lost faith after a run of poor results.');
 }
 function sack(s: GameState, why: string) {
   s.sacked = true;

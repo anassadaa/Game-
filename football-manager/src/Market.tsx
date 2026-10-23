@@ -134,7 +134,7 @@ export function TransferMarket({
                 disabled={locked || (p.clubId !== 'market' && !open)}
                 onClick={() => onNegotiate(p)}
               >
-                {money(p.counter ?? askingPrice(p))}
+                {money(p.counter ?? askingPrice(p, state))}
               </button>
             </div>
           ))}

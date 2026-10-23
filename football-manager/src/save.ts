@@ -1,3 +1,4 @@
+import { validSubs } from './subs.ts';
 import { validLineup } from './lineup.ts';
 import { validLoans } from './loans.ts';
 import { validAgents } from './agents.ts';
@@ -207,7 +208,7 @@ export function decodeSave(raw: string): GameState | null {
       if (p.retrain !== undefined && (!['GK', 'DF', 'MF', 'FW'].includes(p.retrain?.to) || !Number.isFinite(p.retrain.progress))) delete p.retrain;
       if (p.sharp !== undefined && !Number.isFinite(p.sharp)) delete p.sharp;
     }
-    if (!validFacilities(s.facilities) || !validTrophies(s) || !validScouts(s) || !validStaff(s) || !validAgents(s) || !validLoans(s) || !validLineup(s) || !validFinance(s) || !validRegens(s) || !validJobs(s)) return null;
+    if (!validFacilities(s.facilities) || !validTrophies(s) || !validScouts(s) || !validStaff(s) || !validAgents(s) || !validLoans(s) || !validLineup(s) || !validSubs(s) || !validFinance(s) || !validRegens(s) || !validJobs(s)) return null;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {
       if (p.unhappy !== undefined && typeof p.unhappy !== 'string') delete p.unhappy;
@@ -217,11 +218,10 @@ export function decodeSave(raw: string): GameState | null {
       ids = new Set(s.players.map((p) => p.id));
     if (
       own.length < 14 ||
-      own.filter((p) => p.starting).length !== 11 ||
+      own.filter((p) => p.starting).length > 11 ||
       ids.size !== s.players.length ||
       new Set([...s.players, ...s.market, ...s.rivals!].map((p) => p.id)).size !==
         s.players.length + s.market.length + s.rivals!.length ||
-      own.filter((p) => p.starting && p.position === 'GK').length !== 1 ||
       !s.players.every(
         (p) =>
           typeof p.id === 'string' &&

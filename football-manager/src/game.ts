@@ -15,6 +15,7 @@ import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
 import { loansReturn, loansWeek } from './loans.ts';
 import { fillXI } from './lineup.ts';
+import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, injuryFactor, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
 import type { Staff } from './staff.ts';
@@ -162,6 +163,13 @@ export type Match = {
   motm?: string;
   talks?: number[];
   pressDone?: boolean;
+  subs?: { off: string; on: string; minute: number }[];
+  windows?: number[];
+  oppSubs?: number;
+  played?: string[];
+  xi0?: string[];
+  lineup0?: string[];
+  bench0?: string[];
 };
 export type CareerRecord = {
   season: number;
@@ -222,6 +230,7 @@ export type GameState = {
   loansOut?: Player[];
   lineup?: string[];
   bench?: string[];
+  autoSubs?: boolean;
   vacancies?: Vacancy[];
   applied?: string[];
   resigned?: boolean;
@@ -971,7 +980,7 @@ export function upgradeFacility(
   return b;
 }
 function strength(s: GameState, ourSide: boolean): number {
-  if (!ourSide) return opponent(s).rating + 2;
+  if (!ourSide) return opponent(s).rating + 2 - oppFatigue(s);
   const starters = s.players.filter((p) => p.clubId === s.clubId && p.starting);
   const quality =
     starters.reduce((sum, p) => sum + p.rating * (p.injured ? 0.65 : 1) * (0.95 + 0.05 * sharpness(p) / 100), 0) /
@@ -1026,6 +1035,7 @@ export function startMatch(s: GameState): GameState {
       },
     ],
   };
+  kickOff(b);
   return b;
 }
 export function advanceMatch(s: GameState): GameState {
@@ -1136,6 +1146,7 @@ export function advanceMatch(s: GameState): GameState {
         });
     }
   }
+  aiSubs(b, () => next(b));
   if (m.minute === 45)
     m.timeline.push({
       minute: 45,
@@ -1161,11 +1172,14 @@ function rateMatch(b: GameState) {
   const m = b.match!,
     diff = m.us - m.them,
     ratings: Record<string, number> = {};
-  for (const p of b.players.filter((p) => p.clubId === b.clubId && p.starting)) {
+  const played = new Set(m.played ?? []);
+  const subOn = new Map((m.subs ?? []).map((x) => [x.on, x.minute]));
+  for (const p of b.players.filter((p) => p.clubId === b.clubId && (p.starting || played.has(p.id)))) {
     let r = 6.2 + diff * 0.3 + (p.rating - 55) * 0.03 + (next(b) - 0.5) * 1.2;
     const goals = m.timeline.filter((e) => e.kind === 'goal' && e.playerId === p.id).length;
     r += goals * 1.0;
     if ((p.position === 'DF' || p.position === 'GK') && m.them === 0) r += 0.7;
+    if (subOn.has(p.id)) r = 6.3 + (r - 6.2) * Math.max(0.3, (90 - subOn.get(p.id)!) / 90);
     ratings[p.id] = Math.max(4, Math.min(10, Math.round(r * 10) / 10));
   }
   m.ratings = ratings;
@@ -1455,6 +1469,7 @@ export function advanceWeek(s: GameState): GameState {
     ...b.headlines,
   ].slice(0, 6);
   b.week++;
+  restoreXI(b);
   b.match = null;
   runCup(b, b.cup, CUP_WEEKS, CUP_PRIZE, 'Cup');
   runCup(b, b.euro, EURO_WEEKS, EURO_PRIZE, 'Champions Cup');

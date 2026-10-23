@@ -18,7 +18,7 @@ export const findPlayer = (s: GameState, id: string): Player | undefined =>
 
 export function agentText(s: GameState, m: AgentMsg) {
   const p = findPlayer(s, m.playerId);
-  if (!p) return '';
+  if (!p) return 'This player is no longer available.';
   const from = s.clubs.find((c) => c.id === p.clubId)?.short;
   return m.kind === 'agent'
     ? `Agent of ${p.name} (${from ?? 'free'}) says he'd join you for £${m.wage}k wages.`

@@ -3945,3 +3945,7 @@ nav button { position: relative; }
 .as-slot.here { outline: 2px solid #132225; }
 .assign-btn { min-height: 44px; min-width: 76px; }
 .place-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #e8efdf; }
+.subs-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0; }
+.subs-btn { min-height: 48px; flex: 1 1 160px; font-weight: 700; }
+.subs-auto { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; }
+.subs-auto input { width: 22px; height: 22px; }

@@ -65,6 +65,7 @@ import { agentFee, ffpLimit, ffpNet, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
 import { AssignSheet, LineupPicker } from './Lineup.tsx';
+import { SubsPanel } from './Subs.tsx';
 import { placeOf } from './lineup.ts';
 import { JobCentre } from './Jobs.tsx';
 import { ScoutsPanel } from './Scouts.tsx';
@@ -760,8 +761,8 @@ export default function App() {
                         .join(' · ') || 'No goals'}
                     </p>
                     <div className="ft-ratings">
-                      {starters
-                        .slice()
+                      {roster
+                        .filter((p) => state.match!.ratings?.[p.id] !== undefined)
                         .sort(
                           (a, b) =>
                             (state.match!.ratings?.[b.id] ?? 0) -
@@ -773,6 +774,8 @@ export default function App() {
                             className={p.id === state.match!.motm ? 'motm' : ''}
                           >
                             <small>{p.position}</small> {p.name}
+                            {state.match!.subs?.some((x) => x.on === p.id) && ' 🔼'}
+                            {state.match!.subs?.some((x) => x.off === p.id) && ' 🔽'}
                             <b>
                               {state.match!.motm === p.id && '★ '}
                               {state.match!.ratings?.[p.id]?.toFixed(1) ?? '-'}
@@ -784,6 +787,7 @@ export default function App() {
                 ) : null}
                 <TeamTalk state={state} onUpdate={update} />
                 <PressRoom state={state} onUpdate={update} />
+                <SubsPanel state={state} onUpdate={update} />
                 <Highlights state={state} onSkip={() => update(simToEnd(state))} />
                 <div className="match-cta">
                   <button className="primary wide" onClick={matchAction}>

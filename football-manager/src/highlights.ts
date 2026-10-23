@@ -1,10 +1,14 @@
 import type { GameState, MatchEvent } from './game.ts';
 import { advanceMatch } from './game.ts';
+import { autoSubs } from './subs.ts';
 
 /** Play the rest of the match instantly (skips half-time too). */
 export function simToEnd(s: GameState): GameState {
   let b = s;
-  for (let i = 0; i < 8 && b.match && !b.match.complete; i++) b = advanceMatch(b);
+  for (let i = 0; i < 8 && b.match && !b.match.complete; i++) {
+    if (b.autoSubs) b = autoSubs(b);
+    b = advanceMatch(b);
+  }
   return b;
 }
 

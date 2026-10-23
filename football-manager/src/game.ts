@@ -1546,9 +1546,10 @@ export function keepKeepers(s: GameState) {
 export const windowOpen = (s: Pick<GameState, 'week'>) => s.week <= 3 || s.week === 9 || s.week === 10;
 export const deadlineDay = (s: Pick<GameState, 'week'>) => s.week === 3 || s.week === 10;
 export function windowLabel(s: Pick<GameState, 'week'>) {
-  if (deadlineDay(s)) return 'Deadline day! Window closes after this match';
-  if (windowOpen(s)) return `Window open · closes in ${(s.week <= 3 ? 3 : 10) - s.week + 1} weeks`;
-  return `Window closed · reopens in ${(s.week < 9 ? 9 : 18) - s.week} weeks`;
+  const name = s.week <= 3 ? 'Summer window' : 'January window';
+  if (deadlineDay(s)) return `${name} deadline day! Closes after this match`;
+  if (windowOpen(s)) return `${name} open · closes in ${(s.week <= 3 ? 3 : 10) - s.week + 1} weeks`;
+  return s.week < 9 ? `Window closed · January window opens in ${9 - s.week} weeks` : `Window closed · summer window opens in ${18 - s.week} weeks`;
 }
 /** What the owning club wants. Free agents cost their price; rivals want a premium unless listed. */
 export function askingPrice(p: Player, s?: GameState) {
@@ -1654,7 +1655,7 @@ function transferWeek(b: GameState) {
   const own = b.players.filter((p) => p.clubId === b.clubId && !p.loan);
   for (const p of own) {
     if (b.bids.length >= 4) break;
-    const chance = (p.listed ? 0.45 : p.rating >= ours.rating + 4 ? 0.1 : 0.02) * dd;
+    const chance = p.listed ? 0.45 : p.rating >= ours.rating + 4 ? 0.1 : 0.02; // even through the window, no deadline pile-up
     if (next(b) >= chance) continue;
     const buyers = b.clubs.filter((c) => c.id !== b.clubId && c.rating >= p.rating - 12);
     if (!buyers.length) continue;
@@ -1665,7 +1666,7 @@ function transferWeek(b: GameState) {
   // Release clauses on our players can be triggered by richer clubs
   for (const p of b.players.filter((x) => x.clubId === b.clubId && x.clause && !x.loan)) {
     if (b.players.filter((x) => x.clubId === b.clubId).length <= 14) break;
-    if (p.clause! > p.price * 1.6 || next(b) >= 0.06 * dd) continue;
+    if (p.clause! > p.price * 1.6 || next(b) >= 0.06) continue;
     const buyer = pick(b, b.clubs.filter((c) => c.id !== b.clubId));
     b.bids.push({ id: `clause-${b.season}-${b.week}-${p.id}`, playerId: p.id, clubId: buyer.id, fee: p.clause! });
     const [after] = acceptBid(b, `clause-${b.season}-${b.week}-${p.id}`);

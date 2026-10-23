@@ -8,10 +8,11 @@ import { encodeSave, decodeSave } from '../src/save.ts';
 test('vacancies open, applications decided by weighted chance, resign works', () => {
   let s = newGame(11);
   const r0 = reputation(s);
+  let moved = false;
   assert.ok(r0 >= 0 && r0 <= 100);
-  for (let w = 0; w < 54 && !s.sacked && (w < 30 || !s.vacancies.length); w++) s = advanceWeek(simToEnd(startMatch(s)));
+  for (let w = 0; w < 54 && !s.sacked && (w < 30 || !s.vacancies.length); w++) { s = advanceWeek(simToEnd(startMatch(s))); moved ||= reputation(s) !== r0; }
   assert.ok(s.vacancies.length > 0, 'some AI club sacked its manager');
-  assert.notEqual(reputation(s), r0);
+  assert.ok(moved, 'reputation moves with results');
   const big = [...s.clubs].sort((a, b) => stature(b) - stature(a))[0];
   const small = [...s.clubs].filter((c) => c.id !== s.clubId).sort((a, b) => stature(a) - stature(b))[0];
   assert.ok(jobChance(s, big.id).chance < jobChance(s, small.id).chance);

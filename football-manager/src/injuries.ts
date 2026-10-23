@@ -26,7 +26,7 @@ export type RiskCtx = { heavy?: boolean; tackle?: 'low' | 'normal' | 'high' };
 /** Chance of an injury in one risky spell (a 15-minute match segment or a hard training week). */
 export function injuryRisk(s: GameState, p: Player, ctx: RiskCtx = {}): number {
   const stamina = attributes(p).stamina;
-  let r = 0.004;
+  let r = 0.0028;
   r *= 1 + Math.max(0, 85 - p.fitness) / 25;              // tired legs
   r *= p.age >= 32 ? 1.6 : p.age >= 29 ? 1.25 : p.age <= 20 ? 0.85 : 1;
   r *= 1 + (70 - stamina) / 90;                            // natural fitness

@@ -3969,3 +3969,15 @@ main, .main, .content { animation: tl-tab-in .18s ease-out; }
 .subtabs::-webkit-scrollbar{display:none}
 .subtabs button{flex:0 0 auto;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:inherit;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600}
 .subtabs button.active{background:#c8f169;color:#0b1410;border-color:#c8f169}
+.td-form .form i{width:16px;height:16px;font-size:9px}
+.td-form,.th-form{white-space:nowrap}
+.fixture-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.fixture-list li{display:grid;grid-template-columns:34px 20px 1fr auto;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.03);font-size:13px}
+.fixture-list li.current{outline:1px solid #c8f169}
+.fx-week,.fx-ha{opacity:.6;font-size:12px}
+.fx-opp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-res.W{color:#7fe08a}.fx-res.L{color:#ff7b7b}.fx-res.D{color:#f2d26b}
+.review-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.review-grid span{display:flex;flex-direction:column;font-size:12px;opacity:.85}
+.review-grid b{font-size:15px;opacity:1}
+.review-verdict{font-weight:600}

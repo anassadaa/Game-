@@ -1,3 +1,4 @@
+import { FixturesCard, ReviewModal } from './Fixtures.tsx';
 import { SubTabs } from './SubTabs.tsx';
 import { pickSub } from './subtabs.ts';
 import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
@@ -180,17 +181,18 @@ function Table({ state, full = false, division }: { state: GameState; full?: boo
                 <th>D</th>
                 <th>L</th>
                 <th>GD</th>
+                <th className="th-form">FORM</th>
               </>
             )}
             <th>PTS</th>
           </tr>
         </thead>
         <tbody>
-          {teams.slice(0, full ? 10 : 5).map((c, i) => (
+          {teams.slice(0, full ? teams.length : 5).map((c, i) => (
             <tr className={c.id === state.clubId ? 'your-club' : ''} key={c.id}>
               <td>
                 <span
-                  className={i < 2 ? 'promotion' : i > 7 ? 'relegation' : ''}
+                  className={i < 2 ? 'promotion' : full && i >= teams.length - 3 ? 'relegation' : ''}
                 >
                   {i + 1}
                 </span>
@@ -210,6 +212,7 @@ function Table({ state, full = false, division }: { state: GameState; full?: boo
                     {c.gf - c.ga > 0 ? '+' : ''}
                     {c.gf - c.ga}
                   </td>
+                  <td className="td-form"><Form values={c.form} /></td>
                 </>
               )}
               <td>
@@ -1567,6 +1570,7 @@ export default function App() {
                       England: top three of the Championship go up, bottom three of the Premier Division go down. Top finishers in the big leagues qualify for the Champions Cup. Points: 3 for a win, 1 for a draw.
                     </p>
                   </section>
+                  <FixturesCard state={state} />
                   {state.history.length > 0 && (
                     <section className="card history">
                       <SectionTitle
@@ -1721,6 +1725,7 @@ export default function App() {
         </div>
       )}
       <SackedModal state={state} onUpdate={update} onNewCareer={() => setConfirmReset(true)} />
+      <ReviewModal state={state} onUpdate={update} />
       {deal && (() => {
         const t = state.market.find((p) => p.id === deal.id) ?? state.rivals?.find((p) => p.id === deal.id);
         if (!t) return null;

@@ -16,6 +16,7 @@ import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
 import { loansReturn, loansWeek } from './loans.ts';
 import { fillXI, topUpBench } from './lineup.ts';
+import { buildReview, recordResult, type Result, type SeasonReview } from './fixtures.ts';
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
@@ -215,6 +216,8 @@ export type GameState = {
   offers?: string[];
   sacked?: boolean;
   difficulty?: Difficulty;
+  results?: Result[];
+  review?: SeasonReview;
   cup?: Cup;
   euro?: Cup;
   youth?: Player[];
@@ -496,6 +499,7 @@ export function migrate(s: GameState): GameState {
   s.offers ??= [];
   s.sacked ??= false;
   if (!isDifficulty(s.difficulty)) s.difficulty = 'medium';
+  s.results ??= [];
   s.reputation ??= reputation(s);
   s.vacancies ??= [];
   migrateInjuries(s);
@@ -609,6 +613,7 @@ export function newGame(
     bids: [],
     news: [],
     difficulty: isDifficulty(difficulty) ? difficulty : 'medium',
+    results: [],
   };
   const me = clubs.find((c) => c.id === clubId)!;
   s.budget = Math.round(2800 * Math.max(0.8, 1 + (me.rating - 60) / 12) * level(s).money);
@@ -1312,6 +1317,8 @@ function rollSeason(s: GameState) {
     outcome,
   });
   s.history = s.history.slice(0, 20);
+  s.review = buildReview(s, pos, outcome, before, s.board?.target);
+  s.results = [];
   seasonAwards(s, outcome, before);
   repSeason(s, pos, outcome);
   s.applied = [];
@@ -1437,6 +1444,7 @@ export function advanceWeek(s: GameState): GameState {
   const home = m.home ? us : opp,
     away = m.home ? opp : us;
   result(home, away, m.home ? m.us : m.them, m.home ? m.them : m.us);
+  recordResult(b, { week: b.week, opp: opp.id, home: m.home, us: m.us, them: m.them });
   b.careerGames++;
   if (m.us > m.them) b.careerWins++;
   for (const division of [...new Set(b.clubs.map((c) => c.division))]) {

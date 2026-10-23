@@ -75,6 +75,12 @@ export function TransferMarket({
               <option key={a} value={a}>OVR ≥ {a}</option>
             ))}
           </select>
+          <select aria-label="Minimum potential" value={f.minPotential ?? 0} onChange={(e) => set({ minPotential: +e.target.value || undefined })}>
+            <option value={0}>Any potential</option>
+            {[60, 65, 70, 75, 80, 85, 90].map((a) => (
+              <option key={a} value={a}>POT ≥ {a}</option>
+            ))}
+          </select>
           <select aria-label="League" value={f.division ?? -1} onChange={(e) => set({ division: +e.target.value < 0 ? undefined : +e.target.value })}>
             <option value={-1}>Any league</option>
             {LEAGUES.map((l) => (

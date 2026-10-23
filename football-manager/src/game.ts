@@ -29,7 +29,7 @@ import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { midweekLoad } from './calendar.ts';
 import { roomWeek } from './room.ts';
 import { familiarityWeek, rememberShape } from './familiarity.ts';
-import { askWeek } from './scoutrange.ts';
+import { abilityRange, askWeek, potentialRange } from './scoutrange.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
@@ -1629,6 +1629,8 @@ export type MarketFilter = {
   attr?: AttrKey | '';
   minAttr?: number;
   minRating?: number;
+  /** Matches when the upper bound of the scouted potential range reaches this. */
+  minPotential?: number;
   division?: number;
   country?: string;
   listedOnly?: boolean;
@@ -1640,22 +1642,27 @@ export function searchMarket(s: GameState, f: MarketFilter): Player[] {
   const pool = [...(f.source === 'clubs' ? [] : s.market), ...(f.source === 'free' ? [] : (s.rivals ?? []))];
   const clubName = (id: string) => s.clubs.find((c) => c.id === id)?.name.toLowerCase() ?? '';
   const divOf = (id: string) => s.clubs.find((c) => c.id === id)?.division ?? -1;
+  const ab = new Map<string, [number, number]>(), po = new Map<string, [number, number]>();
+  const abR = (p: Player) => ab.get(p.id) ?? (ab.set(p.id, abilityRange(s, p)), ab.get(p.id)!);
+  const poR = (p: Player) => po.get(p.id) ?? (po.set(p.id, potentialRange(s, p)), po.get(p.id)!);
   const out = pool.filter(
     (p) =>
       (!q || p.name.toLowerCase().includes(q) || clubName(p.clubId).includes(q)) &&
       (!f.position || f.position === 'ALL' || p.position === f.position) &&
       (!f.maxAge || p.age <= f.maxAge) &&
-      (!f.minRating || p.rating >= f.minRating) &&
+      (!f.minRating || abR(p)[1] >= f.minRating) &&
+      (!f.minPotential || poR(p)[1] >= f.minPotential) &&
       (f.division === undefined || divOf(p.clubId) === f.division) &&
       (!f.country || (p.clubId !== 'market' && league(divOf(p.clubId)).country === f.country)) &&
       (!f.maxPrice || askingPrice(p, s) <= f.maxPrice) &&
-      (!f.minStars || potentialStars(p) >= f.minStars) &&
+      (!f.minStars || potentialStars({ potential: poR(p)[1] }) >= f.minStars) &&
       (!f.attr || attributes(p)[f.attr] >= (f.minAttr ?? 0)) &&
       (!f.listedOnly || p.listed || p.clubId === 'market'),
   );
   const key = f.sort ?? 'rating';
   out.sort((a, b) =>
-    key === 'price' ? askingPrice(a, s) - askingPrice(b, s) : key === 'age' ? a.age - b.age : b[key] - a[key],
+    key === 'price' ? askingPrice(a, s) - askingPrice(b, s) : key === 'age' ? a.age - b.age
+      : key === 'potential' ? poR(b)[0] + poR(b)[1] - poR(a)[0] - poR(a)[1] : abR(b)[0] + abR(b)[1] - abR(a)[0] - abR(a)[1],
   );
   return out;
 }

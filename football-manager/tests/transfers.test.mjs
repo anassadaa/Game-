@@ -1,3 +1,4 @@
+import { abilityRange } from '../src/scoutrange.ts';
 import test from 'node:test'; import assert from 'node:assert/strict';
 import { newGame, negotiate, searchMarket, startMatch, advanceWeek } from '../src/game.ts';
 import { simToEnd } from '../src/highlights.ts';
@@ -13,7 +14,7 @@ test('free agents via negotiate cost no fee', () => {
 });
 test('search filters: rating, league, country', () => {
   const s = newGame(3, 'arsenal', 60);
-  assert.ok(searchMarket(s, { minRating: 75 }).every((p) => p.rating >= 75));
+  assert.ok(searchMarket(s, { minRating: 75 }).every((p) => abilityRange(s, p)[1] >= 75));
   const d = searchMarket(s, { division: 9, source: 'clubs' });
   assert.ok(d.length && d.every((p) => s.clubs.find((c) => c.id === p.clubId).division === 9));
   const es = searchMarket(s, { country: 'Spain', source: 'clubs' });

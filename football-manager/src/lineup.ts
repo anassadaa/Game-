@@ -114,6 +114,19 @@ export function fillXI(b: GameState, fresh = false) {
     b.bench = [...(gk ? [gk] : []), ...left.filter((p) => p !== gk)].slice(0, BENCH).map((p) => p.id);
   }
 }
+/** Keep a full 7-man bench of fit players (a keeper first) without touching the manager's picks. */
+export function topUpBench(b: GameState) {
+  const pool = own(b);
+  const fit = (id: string) => pool.some((p) => p.id === id && !p.starting && !p.injured);
+  const cur = (b.bench ?? []).filter(fit);
+  const left = pool.filter((p) => !p.starting && !p.injured && !cur.includes(p.id)).sort((x, y) => y.rating - x.rating);
+  if (!cur.some((id) => pool.find((p) => p.id === id)?.position === 'GK')) {
+    const gk = left.find((p) => p.position === 'GK');
+    if (gk) { cur.unshift(gk.id); left.splice(left.indexOf(gk), 1); }
+  }
+  while (cur.length < BENCH && left.length) cur.push(left.shift()!.id);
+  b.bench = cur.slice(0, BENCH);
+}
 export function autoPick(s: GameState): GameState {
   if (s.match) return s;
   const b = copy(s);

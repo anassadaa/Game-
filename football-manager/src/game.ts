@@ -15,7 +15,7 @@ import { jobsWeek, repSacked, repSeason, reputation, reputationOffers, stature }
 import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
 import { loansReturn, loansWeek } from './loans.ts';
-import { fillXI } from './lineup.ts';
+import { fillXI, topUpBench } from './lineup.ts';
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
@@ -513,6 +513,7 @@ export function migrate(s: GameState): GameState {
   s.youth ??= [];
   s.drills ??= [];
   facilities(s);
+  if (!s.bench) topUpBench(s);
   return s;
 }
 function story(s: GameState): Story {
@@ -628,6 +629,7 @@ export function newGame(
   s.youth = [];
   s.drills = [];
   facilities(s);
+  topUpBench(s);
   return s;
 }
 export function club(s: GameState) {
@@ -1032,6 +1034,7 @@ export function startMatch(s: GameState): GameState {
   const b = copy(s),
     opp = opponent(b);
   if (b.players.filter((p) => p.clubId === b.clubId && p.starting).length < 11) fillXI(b);
+  topUpBench(b);
   b.match = {
     minute: 0,
     opponentId: opp.id,

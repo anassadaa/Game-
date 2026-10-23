@@ -14,6 +14,7 @@ import { jobsWeek, repSacked, repSeason, reputation, reputationOffers, stature }
 import type { Vacancy } from './jobs.ts';
 import { scoutsWeek } from './scouts.ts';
 import { loansReturn, loansWeek } from './loans.ts';
+import { fillXI } from './lineup.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, injuryFactor, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
 import type { Staff } from './staff.ts';
@@ -219,6 +220,8 @@ export type GameState = {
   reputation?: number;
   agentMsgs?: AgentMsg[];
   loansOut?: Player[];
+  lineup?: string[];
+  bench?: string[];
   vacancies?: Vacancy[];
   applied?: string[];
   resigned?: boolean;
@@ -1004,6 +1007,7 @@ export function startMatch(s: GameState): GameState {
   if (s.match || s.week >= 18) return s;
   const b = copy(s),
     opp = opponent(b);
+  if (b.players.filter((p) => p.clubId === b.clubId && p.starting).length < 11) fillXI(b);
   b.match = {
     minute: 0,
     opponentId: opp.id,

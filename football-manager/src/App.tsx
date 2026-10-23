@@ -43,7 +43,6 @@ import {
   sellPlayer,
   standings,
   startMatch,
-  toggleStarter,
   upgradeFacility,
 } from './game.ts';
 import type {
@@ -65,6 +64,7 @@ import { FinancePanel } from './Finance.tsx';
 import { agentFee, ffpLimit, ffpNet, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
+import { LineupPicker } from './Lineup.tsx';
 import { JobCentre } from './Jobs.tsx';
 import { ScoutsPanel } from './Scouts.tsx';
 import { FreeAgents, Inbox } from './Inbox.tsx';
@@ -151,49 +151,6 @@ function SectionTitle({
         <h2>{title}</h2>
       </div>
       {action}
-    </div>
-  );
-}
-
-function Pitch({
-  players,
-  compact = false,
-}: {
-  players: Player[];
-  compact?: boolean;
-}) {
-  return (
-    <div className={`pitch ${compact ? 'compact' : ''}`}>
-      <div className="pitch-outline">
-        <span className="centre-line" />
-        <span className="centre-circle" />
-        <span className="box top" />
-        <span className="box bottom" />
-      </div>
-      <div className="pitch-players">
-        {(['FW', 'MF', 'DF', 'GK'] as const).map((pos) => (
-          <div className={`pitch-row ${pos}`} key={pos}>
-            {players
-              .filter((p) => p.starting && p.position === pos)
-              .map((p, i) => (
-                <div className="pitch-player" key={p.id}>
-                  <span>
-                    {pos === 'GK'
-                      ? 1
-                      : pos === 'DF'
-                        ? 2 + i
-                        : pos === 'MF'
-                          ? 6 + i
-                          : 9 + i}
-                  </span>
-                  <b>{p.name.split(' ').slice(-1)}</b>
-                  <small>{p.rating}</small>
-                </div>
-              ))}
-          </div>
-        ))}
-      </div>
-      <span className="pitch-caption">YOUR STARTING XI</span>
     </div>
   );
 }
@@ -298,7 +255,7 @@ function PlayerCard({
   locked,
 }: {
   player: Player;
-  onStart: () => void;
+  onStart?: () => void;
   onSell?: () => void;
   onRenew?: () => void;
   locked: boolean;
@@ -352,7 +309,7 @@ function PlayerCard({
           <span className="xi-badge">
             <Check size={12} /> XI
           </span>
-        ) : (
+        ) : onStart ? (
           <button
             className="mini"
             disabled={locked || !!player.injured}
@@ -360,7 +317,7 @@ function PlayerCard({
           >
             Start
           </button>
-        )}
+        ) : null}
         {onRenew && !player.loan && (player.contract ?? 9) <= 1 && (
           <button className="text-button" disabled={locked} onClick={onRenew}>
             Renew 3y
@@ -1101,7 +1058,7 @@ export default function App() {
                       className="secondary"
                       onClick={() => setTab('tactics')}
                     >
-                      Set your tactics <ArrowRight size={15} />
+                      Pick lineup <ArrowRight size={15} />
                     </button>
                   </div>
                   <div className="filter-row">
@@ -1128,12 +1085,6 @@ export default function App() {
                           key={p.id}
                           player={p}
                           locked={locked}
-                          onStart={() =>
-                            update(
-                              toggleStarter(state, p.id),
-                              `${p.name} joins the starting eleven.`,
-                            )
-                          }
                           onRenew={() =>
                             update(
                               renewContract(state, p.id, 3),
@@ -1147,18 +1098,7 @@ export default function App() {
               )}
               {tab === 'tactics' && (
                 <div className="tactics-grid">
-                  <section className="card tactics-pitch">
-                    <SectionTitle
-                      eyebrow="THE BLUEPRINT"
-                      title={state.tactics.formation}
-                      action={<span className="tag">STARTING XI</span>}
-                    />
-                    <Pitch players={roster} />
-                    <p className="fine">
-                      Shirt positions show the selected squad’s natural roles.
-                      Change personnel in Squad.
-                    </p>
-                  </section>
+                  <LineupPicker state={state} onUpdate={update} />
                   <section className="card tactic-settings">
                     <SectionTitle
                       eyebrow="YOUR FOOTBALL, YOUR WAY"
@@ -1439,7 +1379,6 @@ export default function App() {
                             key={p.id}
                             player={p}
                             locked={locked || roster.length <= 14}
-                            onStart={() => update(toggleStarter(state, p.id))}
                             onSell={() =>
                               update(
                                 sellPlayer(state, p.id),

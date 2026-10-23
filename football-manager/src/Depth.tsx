@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import type { GameState } from './game.ts';
-import { toggleStarter } from './game.ts';
 import { COLS, ROWS, depthChart, heatmap } from './depth.ts';
 
 type Up = (s: GameState, m?: string) => void;
-export function DepthPanel({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+export function DepthPanel({ state }: { state: GameState; onUpdate?: Up }) {
   const chart = depthChart(state);
   const first = chart.flatMap((l) => l.players).find((p) => p.starting);
   const [sel, setSel] = useState<string | undefined>(first?.id);
   const p = state.players.find((x) => x.id === sel && x.clubId === state.clubId) ?? first;
   const heat = p ? heatmap(state, p) : [];
-  const locked = !!state.match;
   return (
     <section className="card">
       <p className="eyebrow">DEPTH CHART</p>
@@ -39,9 +37,6 @@ export function DepthPanel({ state, onUpdate }: { state: GameState; onUpdate: Up
             )))}
           </div>
           <p className="muted small">Attacking → . Shaped by position, lane, mentality, pressing, individual instructions and this match's chances.</p>
-          {!p.starting && !p.injured && (
-            <button className="secondary wide" disabled={locked} onClick={() => onUpdate(toggleStarter(state, p.id), `${p.name} moves into the XI.`)}>Promote to starting XI</button>
-          )}
         </>
       )}
     </section>

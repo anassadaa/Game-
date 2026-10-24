@@ -44,6 +44,40 @@ export function repSeason(s: GameState, pos: number, outcome: string) {
 export const repTrophy = (s: GameState) => bump(s, 5);
 export const repSacked = (s: GameState) => bump(s, -8);
 
+/** How safe the club's current manager is, 0-100: league position vs pre-season expectation plus recent form. */
+export function managerSecurity(s: GameState, clubId: string) {
+  const c = s.clubs.find((x) => x.id === clubId)!;
+  const played = c.wins + c.draws + c.losses;
+  const div = standings(s).filter((x) => x.division === c.division);
+  const pos = div.findIndex((x) => x.id === c.id) + 1;
+  const over = played ? rank(s, c) - pos : 0;
+  const form = c.form.slice(-5);
+  const ppg = form.length ? form.reduce((a, r) => a + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0) / form.length : 1.3;
+  return clamp(Math.round(60 + over * 5 + (ppg - 1.3) * 15));
+}
+export type Approach = { clubId: string; season: number; week: number };
+export const APPROACH_LIMIT = 2;
+export const APPROACH_WINDOW = 4;
+const recentApproaches = (s: GameState) => (s.approaches ?? []).filter((a) => a.season === s.season && s.week - a.week < APPROACH_WINDOW);
+/** Why he can't apply to this club right now, or null if he can. */
+export function canApply(s: GameState, clubId: string): string | null {
+  if (s.match) return 'Finish the match first';
+  if (clubId === s.clubId) return 'This is your club';
+  if (!s.clubs.some((c) => c.id === clubId)) return 'Unknown club';
+  if (s.applied?.includes(clubId)) return 'Already applied this season';
+  const open = (s.vacancies ?? []).some((v) => v.clubId === clubId);
+  if (!open) {
+    const r = recentApproaches(s);
+    if (r.length >= APPROACH_LIMIT) {
+      const wait = APPROACH_WINDOW - (s.week - Math.min(...r.map((a) => a.week)));
+      return `${APPROACH_LIMIT} approaches per ${APPROACH_WINDOW} weeks · next in ${wait} wk${wait === 1 ? '' : 's'}`;
+    }
+  }
+  return null;
+}
+export const validApproaches = (v: unknown) =>
+  v === undefined || (Array.isArray(v) && v.length <= 60 && v.every((a) => a && typeof a.clubId === 'string' && Number.isInteger(a.season) && Number.isInteger(a.week)));
+
 export type Factor = { label: string; value: number };
 export function jobChance(s: GameState, clubId: string): { chance: number; factors: Factor[] } {
   const c = s.clubs.find((x) => x.id === clubId)!;
@@ -59,25 +93,39 @@ export function jobChance(s: GameState, clubId: string): { chance: number; facto
   const seasonsCountry = s.history.filter((h) => league(h.division).country === lg.country).length + (!s.sacked && league(club(s).division).country === lg.country ? 1 : 0);
   f.push({ label: seasonsLeague ? 'Knows this league' : seasonsCountry ? 'Knows this country' : 'No experience in this country', value: seasonsLeague ? Math.min(15, 6 + seasonsLeague * 3) : seasonsCountry ? 5 : -10 });
   f.push({ label: s.sacked ? 'Out of work' : 'Currently employed', value: s.sacked ? (s.resigned ? -2 : -6) : 4 });
-  const chance = clamp(Math.round(45 + f.reduce((a, x) => a + x.value, 0)), 2, 95);
+  const open = (s.vacancies ?? []).some((v) => v.clubId === clubId);
+  if (!open) {
+    const sec = managerSecurity(s, clubId);
+    f.push({ label: sec >= 80 ? 'Manager overperforming' : sec <= 35 ? 'Manager under pressure' : 'Manager fairly secure', value: sec >= 80 ? -45 : Math.min(14, Math.round((50 - sec) * 0.6)) });
+    f.push({ label: 'Approaching an occupied job', value: -15 });
+  }
+  const chance = clamp(Math.round(45 + f.reduce((a, x) => a + x.value, 0)), 2, open ? 95 : 85);
   return { chance, factors: f };
 }
 const ADJ: Record<string, string> = { England: 'English', Spain: 'Spanish', Italy: 'Italian', Germany: 'German', France: 'French', Portugal: 'Portuguese', 'Saudi Arabia': 'Saudi' };
 const INTERVIEW = ['The chairman asks how you would handle a dressing room in crisis.', 'The board grills you on your transfer philosophy and youth policy.', 'They want to know how quickly you can turn results around.', 'The sporting director quizzes you on your preferred formation.', 'The owner asks whether you see this as a stepping stone.'];
-/** Apply for a vacancy. One application per club per season. */
+/** Apply for any club: vacancies or an approach for a job that is taken. One application per club per season; approaches are rate-limited. */
 export function applyJob(s: GameState, clubId: string): [GameState, JobResult] {
-  const v = s.vacancies?.find((x) => x.clubId === clubId);
-  if (s.match || !v || clubId === s.clubId || s.applied?.includes(clubId)) return [s, { ok: false, chance: 0, interview: '', reason: 'You cannot apply for this job.' }];
+  const block = canApply(s, clubId);
+  if (block) return [s, { ok: false, chance: 0, interview: '', reason: block }];
+  const open = (s.vacancies ?? []).some((x) => x.clubId === clubId);
   let b = copy(s);
   const { chance, factors } = jobChance(b, clubId);
   const interview = pick(b, INTERVIEW);
   b.applied = [...(b.applied ?? []), clubId];
+  if (!open) b.approaches = [...(b.approaches ?? []).filter((a) => a.season === b.season), { clubId, season: b.season, week: b.week }];
   const c = b.clubs.find((x) => x.id === clubId)!;
   if (next(b) * 100 < chance) {
     b.offers = [...(b.offers ?? []).filter((x) => x !== clubId), clubId];
-    b.vacancies = b.vacancies!.filter((x) => x.clubId !== clubId);
+    b.vacancies = (b.vacancies ?? []).filter((x) => x.clubId !== clubId);
     b = takeJob(b, clubId);
-    return [b, { ok: true, chance, interview, reason: `${c.name} appoint you as their new manager!` }];
+    if (!open) b.news = [`W${b.week + 1}: ❌ ${c.short} sack their manager to make room for you.`, ...(b.news ?? [])].slice(0, 25);
+    return [b, { ok: true, chance, interview, reason: open ? `${c.name} appoint you as their new manager!` : `${c.name} sack their manager and appoint you!` }];
+  }
+  if (!open && !b.sacked && next(b) < 0.35) {
+    bump(b, -1);
+    b.trust = clamp(b.trust - 3);
+    b.headlines = [`📰 Word leaks that you approached ${c.short}. Your board is not impressed.`, ...b.headlines].slice(0, 6);
   }
   const worst = [...factors].sort((a, z) => a.value - z.value)[0]!;
   const why: Record<string, string> = {
@@ -85,6 +133,9 @@ export function applyJob(s: GameState, clubId: string): [GameState, JobResult] {
     'Recent form': 'Your recent results worried the board.',
     'No experience in this country': `They wanted someone who knows ${ADJ[league(c.division).country] ?? league(c.division).country} football.`,
     'Out of work': 'They preferred a candidate currently in a job.',
+    'Manager overperforming': `${c.short} are happy with their manager and see no reason to change.`,
+    'Approaching an occupied job': `${c.short} are standing by their manager for now.`,
+    'Manager fairly secure': `${c.short} are standing by their manager for now.`,
   };
   return [b, { ok: false, chance, interview, reason: worst.value < 0 ? why[worst.label] ?? 'The board went with another candidate.' : 'The board went with another candidate after a close vote.' }];
 }

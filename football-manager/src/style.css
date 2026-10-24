@@ -4073,3 +4073,11 @@ body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; 
 .wage-why dt { color: #4b5a45; min-width: 0; }
 .wage-why dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .wage-why .neg { color: #c0392b; } .wage-why .pos { color: #2f855a; }
+.job-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.job-filters .job-search { flex: 1 1 140px; min-width: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(127,127,127,0.35); background: transparent; color: inherit; font: inherit; }
+.job-filters .league-select { flex: 1 1 140px; min-width: 0; }
+.job-sec { margin: 12px 0 4px; font-size: 0.9rem; }
+.job-row.vacancy { border-left: 3px solid #3e63dd; padding-left: 6px; }
+.vac-tag { font-style: normal; font-size: 0.75rem; color: #3e63dd; font-weight: 700; }
+.job-act { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: 0 0 auto; max-width: 42%; }
+.job-why { font-size: 0.7rem; opacity: 0.75; text-align: right; }

@@ -281,6 +281,7 @@ export type GameState = {
   medNews?: { week: number; text: string }[];
   vacancies?: Vacancy[];
   applied?: string[];
+  approaches?: { clubId: string; season: number; week: number }[];
   resigned?: boolean;
   scoutReports?: ScoutReport[];
 };

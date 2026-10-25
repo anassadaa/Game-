@@ -25,7 +25,7 @@ import { judgeScenario } from './scenario.ts';
 import { managerWeek, voteRisk } from './managers.ts';
 import { delegateSelect, delegateWeek } from './delegate.ts';
 import { investorWeek } from './investors.ts';
-import { walletWeek, dividendSeason, salaryReview, moveWallet } from './wallet.ts';
+import { walletWeek, dividendSeason, salaryReview, moveWallet, myStake, sharePrice, wallet } from './wallet.ts';
 import { investmentWeek, leaveInvestmentJob, joinInvestmentJob, investmentStrength, investmentTransferBlock, investmentTransferPayment, makeTransfer } from './investments.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
@@ -1934,7 +1934,12 @@ export function ownerVoteWeek(s: GameState) {
     if (s.investments) {
       s.trust = Math.max(15, s.trust - 5);
       s.headlines = ['🗳️ Fans demand changes. Your shares remain yours; review the manager and club strategy.', ...s.headlines].slice(0, 6);
-    } else sack(s, 'Shareholders and fans forced a vote and you were made to sell the club.', true);
+    } else {
+      // 3.1: a forced sale buys your shares out at the market bid (90% of share price), it doesn't confiscate them.
+      const stake = myStake(s), paid = Math.round(sharePrice(s) * stake * 0.9);
+      wallet(s).cash += paid; s.investor = { stakes: 100, raised: s.investor?.raised ?? 0 };
+      sack(s, `Shareholders and fans forced a vote and you were made to sell your ${stake}% for £${paid}k.`, true);
+    }
   } else {
     s.trust = clamp(s.trust - 3);
     s.headlines = [`🗳️ You survive a shareholder vote (${risk}% risk). Win the fans back fast.`, ...s.headlines].slice(0, 6);

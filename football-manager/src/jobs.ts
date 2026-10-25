@@ -1,6 +1,40 @@
 import type { Club, GameState } from './game.ts';
 import { clamp, club, copy, next, pick, standings, takeJob } from './game.ts';
 import { league } from './world.ts';
+import { joinInvestmentJob } from './investments.ts';
+import { wallet } from './wallet.ts';
+
+/** Your shareholding in another club (0 for your current employer). */
+export const stakeIn = (s: GameState, clubId: string) => (clubId === s.clubId ? 0 : s.wallet?.holdings?.[clubId]?.stake ?? 0);
+/** Shareholders get a hearing: 30-50% is a big boost (50% best short of control); under 30% a small one. */
+export function stakeBoost(stake: number): number {
+  if (stake >= 51 || stake <= 0) return 0;
+  return stake >= 30 ? Math.round(20 + (stake - 30) * 1.25) : Math.round(stake * 0.5);
+}
+export type SelfRole = 'director' | 'chairman' | 'owner';
+/** 51%+ means you control the board: appoint yourself, no application needed. */
+export function canAppointSelf(s: GameState, clubId: string): string | null {
+  if (s.match) return 'Finish the match first';
+  if (clubId === s.clubId) return 'This is your club';
+  if (!s.clubs.some((c) => c.id === clubId)) return 'Unknown club';
+  return stakeIn(s, clubId) >= 51 ? null : 'You need 51% of the club to control its board';
+}
+export function appointSelf(s: GameState, clubId: string, role: SelfRole): GameState {
+  if (canAppointSelf(s, clubId) || !['director', 'chairman', 'owner'].includes(role)) return s;
+  const stake = stakeIn(s, clubId), raised = s.wallet?.holdings?.[clubId]?.investorRaised ?? 0;
+  let b = copy(s);
+  b.offers = [clubId];
+  b = takeJob(b, clubId);
+  if (b.clubId !== clubId) return s;
+  b.mode = role;
+  if (role === 'director') wallet(b).stake = stake;
+  else b.investor = { stakes: 100 - stake, raised };
+  joinInvestmentJob(b);
+  const c = b.clubs.find((x) => x.id === clubId)!;
+  const title = role === 'chairman' ? 'Chairman' : role === 'owner' ? 'Owner-Director' : 'Director of Football';
+  b.headlines = [`🏛️ With ${stake}% of ${c.name}, the board appoints you ${title}.`, ...b.headlines].slice(0, 6);
+  return b;
+}
 
 export type Vacancy = { clubId: string; season: number; week: number };
 export type JobResult = { ok: boolean; chance: number; interview: string; reason?: string };
@@ -102,7 +136,9 @@ export function jobChance(s: GameState, clubId: string): { chance: number; facto
     f.push({ label: sec >= 80 ? 'Manager overperforming' : sec <= 35 ? 'Manager under pressure' : 'Manager fairly secure', value: sec >= 80 ? -45 : Math.min(14, Math.round((50 - sec) * 0.6)) });
     f.push({ label: 'Approaching an occupied job', value: -15 });
   }
-  const chance = clamp(Math.round(45 + f.reduce((a, x) => a + x.value, 0)), 2, open ? 95 : 85);
+  const boost = stakeBoost(stakeIn(s, clubId));
+  if (boost) f.push({ label: `Your ${stakeIn(s, clubId)}% shareholding`, value: boost });
+  const chance = clamp(Math.round(45 + f.reduce((a, x) => a + x.value, 0)), 2, (open ? 95 : 85) + (boost >= 20 ? 4 : 0));
   return { chance, factors: f };
 }
 const ADJ: Record<string, string> = { England: 'English', Spain: 'Spanish', Italy: 'Italian', Germany: 'German', France: 'French', Portugal: 'Portuguese', 'Saudi Arabia': 'Saudi' };

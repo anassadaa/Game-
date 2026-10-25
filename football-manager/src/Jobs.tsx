@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { GameState } from './game.ts';
 import { LEAGUES, leagueName } from './world.ts';
-import { APPROACH_LIMIT, APPROACH_WINDOW, applyJob, canApply, fmtFactor, jobChance, reputation, resign, stature, topFactors } from './jobs.ts';
+import { APPROACH_LIMIT, APPROACH_WINDOW, appointSelf, stakeIn, stakeBoost, applyJob, canApply, fmtFactor, jobChance, reputation, resign, stature, topFactors } from './jobs.ts';
 import type { Club } from './game.ts';
 import type { JobResult } from './jobs.ts';
 
@@ -19,9 +19,9 @@ export function JobCentre({ state, onUpdate }: { state: GameState; onUpdate: Up 
   const pool = state.clubs
     .filter((c) => c.id !== state.clubId && (!lg || c.division === lg) && (!needle || c.name.toLowerCase().includes(needle) || c.short.toLowerCase().includes(needle)))
     .map((c) => ({ c, ...jobChance(state, c.id), vac: isVac(c.id), why: canApply(state, c.id) }));
-  const order = (a: (typeof pool)[0], b: (typeof pool)[0]) => Number(b.vac) - Number(a.vac) || b.chance - a.chance || stature(b.c) - stature(a.c);
-  const inRange = pool.filter((x) => stature(x.c) <= rep + 8).sort(order);
-  const above = pool.filter((x) => stature(x.c) > rep + 8).sort(order);
+  const order = (a: (typeof pool)[0], b: (typeof pool)[0]) => stakeIn(state, b.c.id) - stakeIn(state, a.c.id) || Number(b.vac) - Number(a.vac) || b.chance - a.chance || stature(b.c) - stature(a.c);
+  const inRange = pool.filter((x) => stature(x.c) <= rep + 8 || stakeIn(state, x.c.id) > 0).sort(order);
+  const above = pool.filter((x) => stature(x.c) > rep + 8 && !stakeIn(state, x.c.id)).sort(order);
   const cap = more ? 200 : 12;
   const row = (x: (typeof pool)[0]) => {
     const c: Club = x.c;
@@ -31,8 +31,10 @@ export function JobCentre({ state, onUpdate }: { state: GameState; onUpdate: Up 
           <span><b>{c.name}</b>{x.vac ? <em className="vac-tag"> 🪑 Vacancy</em> : null}<br />
             <small>{leagueName(c.division)} · stature {stature(c)} · <b>{x.chance}%</b></small><br />
             <small className="job-top">{topFactors(x.factors).map(fmtFactor).join(' · ')}</small></span>
-          <button className="secondary job-btn" disabled={!!x.why} onClick={() => { const [n, r] = applyJob(state, c.id); setRes({ ...r, club: c.name }); onUpdate(n, r.ok ? r.reason : undefined); }}>{x.vac ? 'Apply' : 'Approach'}</button>
+          {stakeIn(state, c.id) < 51 && <button className="secondary job-btn" disabled={!!x.why} onClick={() => { const [n, r] = applyJob(state, c.id); setRes({ ...r, club: c.name }); onUpdate(n, r.ok ? r.reason : undefined); }}>{x.vac ? 'Apply' : 'Approach'}</button>}
         </div>
+        {stakeIn(state, c.id) > 0 && stakeIn(state, c.id) < 51 && <small className="job-stake">📈 You own {stakeIn(state, c.id)}% · application boost +{stakeBoost(stakeIn(state, c.id))}{stakeIn(state, c.id) >= 30 ? ' (major shareholder)' : ''}</small>}
+        {stakeIn(state, c.id) >= 51 && <SelfAppoint state={state} clubId={c.id} onUpdate={onUpdate} />}
         {x.why && <small className="job-why">⏳ {x.why}</small>}
         <button className="text-button job-more" aria-expanded={open === c.id} onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? 'Hide factors' : `All ${x.factors.length} factors`}</button>
         {open === c.id && <ul className="job-factors">{x.factors.map((f) => <li key={f.label}><span>{f.label}</span><b className={f.value >= 0 ? 'pos' : 'neg'}>{f.value >= 0 ? '+' : ''}{f.value}</b></li>)}</ul>}
@@ -70,4 +72,11 @@ export function JobCentre({ state, onUpdate }: { state: GameState; onUpdate: Up 
         : <button className="text-button" disabled={!!state.match} onClick={() => setSure(true)}>Resign from {state.clubs.find((c) => c.id === state.clubId)?.short}</button>)}
     </section>
   );
+}
+
+/** Majority owners skip the application: pick a board role and it is yours. */
+export function SelfAppoint({ state, clubId, onUpdate }: { state: GameState; clubId: string; onUpdate: (s: GameState, msg?: string) => void }) {
+  const stake = stakeIn(state, clubId), roles = [['director', 'Director of Football'], ['chairman', 'Chairman'], ['owner', 'Owner-Director']] as const;
+  return <div className="self-appoint"><small>🏛️ You own {stake}% and control the board. Appoint yourself, no application needed:</small>
+    <div className="self-appoint-btns">{roles.map(([r, label]) => <button key={r} className="secondary" disabled={!!state.match} onClick={() => { const n = appointSelf(state, clubId, r); if (n !== state) onUpdate(n, `You are now ${label}.`); }}>{label}</button>)}</div></div>;
 }

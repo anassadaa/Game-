@@ -167,6 +167,12 @@ export function executeTrade(s: GameState, quote: TradeQuote): GameState {
   else { const basis = before ? Math.round(rec.cost * quote.pct / before) : 0; rec.cost -= basis; rec.realized += quote.total - basis; w.cash += quote.total; rec.liquidity -= quote.total + quote.fee; }
   setHolding(b, quote.clubId, quote.after, claim(b, quote.clubId), Math.max(0, investors(b, quote.clubId) - (quote.side === 'buy' ? quote.pct : -quote.pct)));
   if (quote.clubId === b.clubId && wasOwner && quote.after < 51) b.mode = 'director';
+  if (quote.clubId === b.clubId && !wasOwner && before < 51 && quote.after >= 51) {
+    // Gaining control of your own employer: a director becomes Owner-Director; a manager keeps the dugout but gains owner rights.
+    if (b.mode === 'director') b.mode = 'owner';
+    b.investor ??= { stakes: 0, raised: 0 }; b.investor.stakes = 100 - quote.after;
+    b.headlines = [`🏛️ You now control ${getClub(b, b.clubId)?.name ?? 'the club'} with ${quote.after}%.${b.mode === 'owner' ? ' You are now Owner-Director.' : ' You stay in the dugout with full owner rights.'}`, ...(b.headlines ?? [])].slice(0, 6);
+  }
   rec.revision++;
   log(b, quote.clubId, quote.side, quote.side === 'buy' ? -quote.total : quote.total, `${quote.side === 'buy' ? 'Bought' : 'Sold'} ${quote.pct}% for £${quote.total}k${quote.premium ? ` including £${quote.premium}k control premium` : ''}.${quote.losesControl ? ' Majority control lost.' : ''}`);
   return b;
@@ -204,7 +210,7 @@ export function hireClubManager(s: GameState, id: string, candidateId: string): 
   const b = edit(s), rec = b.investments!.clubs[id]!, cost = (rec.manager?.wage ?? 0) * 6;
   if (rec.manager?.id === candidateId || rec.cash < cost + candidate.wage * 4) return s;
   post(rec, 'wages', cost); rec.manager = candidate; rec.revision++;
-  if (id === b.clubId) { const stake = owned(b, id); wallet(b).stake = stake; b.hiredManager = candidate; b.tactics = { ...b.tactics, formation: candidate.formation, mentality: candidate.style }; b.mode = 'owner'; b.investor ??= { stakes: 100 - stake, raised: 0 }; b.investor.stakes = 100 - stake; }
+  if (id === b.clubId) { const stake = owned(b, id); wallet(b).stake = stake; b.hiredManager = candidate; b.tactics = { ...b.tactics, formation: candidate.formation, mentality: candidate.style }; if (b.mode !== 'chairman') b.mode = 'owner'; b.investor ??= { stakes: 100 - stake, raised: 0 }; b.investor.stakes = 100 - stake; }
   commitActive(b, id); log(b, id, 'manager', -cost, `${candidate.name} appointed. Compensation £${cost}k; wage £${candidate.wage}k/week.`); return b;
 }
 

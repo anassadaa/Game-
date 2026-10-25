@@ -107,7 +107,7 @@ export function MeetingCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
-import { fireManager, hireManager, managerCandidates } from './managers.ts';
+import { canHire, fireManager, hireManager, managerCandidates } from './managers.ts';
 export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
   if ((state.mode ?? 'manager') === 'manager') return null;
   const m = state.hiredManager;
@@ -125,9 +125,10 @@ export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: U
       )}
       <details className="mgr-pool" open={!m}>
         <summary>{m ? 'Replace with…' : 'Candidates'}</summary>
+        {!canHire(state) && <p className="small">🔒 The board must back you (trust 40+, now {Math.round(state.trust)}) before you can appoint a manager.</p>}
         <div className="pp-list">
           {managerCandidates(state).map((c) => (
-            <button key={c.id} className="secondary pp-btn" disabled={!!state.match} onClick={() => onUpdate(hireManager(state, c.id), `${c.name} hired.`)}>
+            <button key={c.id} className="secondary pp-btn" disabled={!!state.match || !canHire(state)} onClick={() => onUpdate(hireManager(state, c.id), `${c.name} hired.`)}>
               <span>{c.name} · {'★'.repeat(c.rating)}</span><small>{c.style} {c.formation} · £{c.wage}k/wk</small>
             </button>
           ))}

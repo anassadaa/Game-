@@ -21,7 +21,7 @@ export function managerCandidates(s: GameState): HiredManager[] {
 }
 export function hireManager(s: GameState, id: string): GameState {
   const m = managerCandidates(s).find((x) => x.id === id);
-  if (!m || s.match) return s;
+  if (!m || s.match || !canHire(s)) return s;
   const b = copy(s);
   if (b.hiredManager) { b.budget -= b.hiredManager.wage * 6; book(b, 'wages', b.hiredManager.wage * 6); }
   b.hiredManager = { ...m, since: b.season };
@@ -51,6 +51,7 @@ export const validHired = (s: Pick<GameState, 'hiredManager'>) =>
 export type Mode = 'manager' | 'director' | 'chairman';
 export const MODES: { id: Mode; label: string; blurb: string }[] = [
   { id: 'manager', label: 'Manager', blurb: 'Pick the team, set tactics, play every match. The board can sack you.' },
+  { id: 'director', label: 'Director', blurb: 'Director of Football: you run transfers and choose the manager, but hiring needs the board’s backing (trust 40+) and they can still sack you.' },
   { id: 'chairman', label: 'Chairman', blurb: 'You own the club: money, tickets, sponsors and who manages. You can’t be sacked, but the fans can turn.' },
 ];
 export const isManagerMode = (s: Pick<GameState, 'mode'>) => (s.mode ?? 'manager') === 'manager';
@@ -61,3 +62,5 @@ export function setMode(s: GameState, mode: Mode): GameState {
   b.headlines = [`🏛️ You start as ${mode === 'chairman' ? 'Chairman' : 'Director of Football'}. Hire a manager in Club → Board.`, ...b.headlines].slice(0, 6);
   return b;
 }
+/** Directors of Football need the board's backing (trust 40+) to appoint a manager. */
+export const canHire = (s: GameState) => s.mode !== 'director' || s.trust >= 40;

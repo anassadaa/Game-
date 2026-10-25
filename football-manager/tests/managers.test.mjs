@@ -25,3 +25,10 @@ test('chairman mode: survives board collapse', async () => {
   for (let i = 0; i < 3; i++) { s = startMatch(s); while (!s.match.complete) s = (await import('../src/game.ts')).advanceMatch(s); s = advanceWeek(s); s.trust = 1; }
   assert.equal(s.sacked, false);
 });
+import { canHire } from '../src/managers.ts';
+test('director mode: hiring needs board trust 40+', () => {
+  const s = setMode(newGame(9), 'director'); assert.equal(s.mode, 'director');
+  const id = managerCandidates(s)[0].id;
+  s.trust = 30; assert.equal(canHire(s), false); assert.equal(hireManager(s, id), s);
+  s.trust = 50; assert.equal(canHire(s), true); assert.equal(hireManager(s, id).hiredManager.id, id);
+});

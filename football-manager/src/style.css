@@ -4113,3 +4113,4 @@ body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; 
 .review-hl{list-style:none;padding:0;margin:10px 0;display:flex;flex-direction:column;gap:4px;font-size:.85rem;max-height:30vh;overflow:auto}
 .hof-card p{font-size:.8rem;opacity:.8;margin:4px 0}
 .fan-card p{font-size:.8rem;opacity:.8;margin:4px 0}
+.derby-tag{color:#b91c1c;font-weight:800}.derby-line{display:block;margin-bottom:4px}

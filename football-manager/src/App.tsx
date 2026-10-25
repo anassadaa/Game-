@@ -89,6 +89,7 @@ import { offerBlock } from './budget.ts';
 import { BudgetLine } from './BudgetLine.tsx';
 import { StatsPanel } from './Stats.tsx';
 import { HallCard, RecordsCard } from './Records.tsx';
+import { isDerby, managerName } from './derby.ts';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
 import { FacilityRows } from './Facilities.tsx';
 import { TrainingPanel } from './Training.tsx';
@@ -949,7 +950,8 @@ export default function App() {
                         <div>
                           <Crest team={opp} />
                           <b>{opp.name}</b>
-                          <small>{home ? 'AWAY' : 'HOME'}</small>
+                          <small>{home ? 'AWAY' : 'HOME'} · {managerName(state, opp.id)}</small>
+                          {isDerby(state, opp.id) && <small className="derby-tag">🔥 DERBY</small>}
                         </div>
                       </div>
                       <div className="hero-footer">

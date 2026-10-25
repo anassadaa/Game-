@@ -1,3 +1,4 @@
+import { derbyRival, isDerby, managerName } from './derby.ts';
 import { SeasonHighlights } from './Records.tsx';
 import type { GameState } from './game.ts';
 import { dismissReview, fixtureList } from './fixtures.ts';
@@ -12,6 +13,7 @@ export function FixturesCard({ state, onUpdate }: { state: GameState; onUpdate?:
     <section className="card fixtures-card">
       <div className="section-heading"><div><span className="eyebrow">THE ROAD AHEAD</span><h2>Fixtures & results</h2></div></div>
       <p className={`congestion ${load.label.toLowerCase()}`}>
+        {(() => { const r = derbyRival(state); if (!r) return null; const d = state.derby; return <span className="derby-line">🔥 Derby rival: <b>{r.name}</b> · boss {managerName(state, r.id)}{d ? ` · ${d.w}W ${d.d}D ${d.l}L` : ''}<br /></span>; })()}
         Next stretch: <b>{load.games} games · {load.label}</b>
         {onUpdate && (
           <label className="rotate-toggle">
@@ -33,7 +35,7 @@ export function FixturesCard({ state, onUpdate }: { state: GameState; onUpdate?:
           <li key={f.week} className={f.current ? 'current' : ''}>
             <span className="fx-week">W{f.week + 1}</span>
             <span className="fx-ha">{f.home ? 'H' : 'A'}</span>
-            <span className="fx-opp">{f.oppName}</span>
+            <span className="fx-opp">{isDerby(state, f.oppId) && '🔥 '}{f.oppName}</span>
             {f.result ? (
               <b className={`fx-res ${f.result.outcome}`}>{f.result.us}–{f.result.them} {f.result.outcome}</b>
             ) : (

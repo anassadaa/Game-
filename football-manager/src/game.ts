@@ -19,6 +19,7 @@ import { paySponsor, settleSponsor } from './sponsors.ts';
 import { checkAchievements, noteMatch, seasonRecords } from './records.ts';
 import { induct } from './hof.ts';
 import { fanWeek } from './fans.ts';
+import { noteDerby } from './derby.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
@@ -295,6 +296,7 @@ export type GameState = {
   achievements?: import('./records.ts').Unlocked[];
   hof?: import('./hof.ts').Legend[];
   fanLog?: import('./fans.ts').FanLog;
+  derby?: import('./derby.ts').DerbyLog;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1559,6 +1561,7 @@ export function advanceWeek(s: GameState): GameState {
   }
   b.trust = clamp(b.trust + (m.us > m.them ? 3 : m.us < m.them ? -3 : 0));
   b.fans = clamp(b.fans + (m.us > m.them ? 2 : m.us < m.them ? -2 : 0) + (m.home ? fanSwing(b) : 0));
+  noteDerby(b, opp.id, m.us, m.them);
   fanWeek(b);
   const played = new Set(Object.keys(m.ratings ?? {}));
   train(b);

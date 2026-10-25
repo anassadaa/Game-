@@ -234,7 +234,7 @@ export function clubDecision(s: GameState, id: string, action: ClubAction, value
   if (action === 'strategy' && ['balanced', 'growth', 'youth', 'stability'].includes(String(value))) { rec.strategy = value as Strategy; if (id === b.clubId && b.mode !== 'manager') b.tactics.mentality = value === 'growth' ? 'attacking' : value === 'stability' ? 'cautious' : rec.manager?.style ?? 'balanced'; }
   else if (action === 'dividend' && ['none', 'low', 'high'].includes(String(value))) rec.policy = value as Policy;
   else if (action === 'delegation' && ['auto', 'approval', 'hands-on'].includes(String(value))) rec.delegation = value as Delegation;
-  else if ((action === 'wages' || action === 'transfers') && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 100000) { if (action === 'wages') rec.wageLimit = value; else rec.transferBudget = value; }
+  else if ((action === 'wages' || action === 'transfers') && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 100000) { if (id === b.clubId && action === 'transfers') return s; if (action === 'wages') { rec.wageLimit = value; if (id === b.clubId) b.wageBudget = { limit: Math.max(1, value), season: b.season, week: b.week }; } else rec.transferBudget = value; }
   else if (action === 'ticket' && typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5) { rec.ticket = value; if (id === b.clubId) { b.tickets ??= { price: 3 }; b.tickets.price = value; } }
   else if (action === 'sponsor' && ['fixed', 'performance', 'youth'].includes(String(value))) rec.sponsor = value as Business['sponsor'];
   else if (action === 'outside-capital' && typeof value === 'number' && Number.isSafeInteger(value) && value > 0 && value <= rec.liquidity) {

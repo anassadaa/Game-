@@ -31,3 +31,11 @@ test('other owned clubs still use their own owner budget', () => {
   b.transferBudget = 100; b.cash = 100000; b.wageLimit = 100000;
   assert.match(investmentTransferBlock(s, id, 500, 1), /owner transfer budget/);
 });
+
+test('owner wage limit for the main club sets the board wage limit used by the check', async () => {
+  const { clubDecision } = await import('../src/investments.ts');
+  let s = setup(); s = clubDecision(s, s.clubId, 'wages', wageBill(s) + 50);
+  assert.equal(wageLimit(s), wageBill(s) + 50);
+  assert.equal(investmentTransferBlock(s, s.clubId, 0, 40), null);
+  assert.equal(clubDecision(s, s.clubId, 'transfers', 5), s); // main club has no separate owner transfer cap
+});

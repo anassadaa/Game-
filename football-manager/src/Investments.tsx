@@ -5,6 +5,7 @@ import { league } from './world.ts';
 import { prepareInvestments, marketClubs, quoteTrade, executeTrade, clubDecision, fundClub, repayClubLoan, clubCandidates, hireClubManager, portfolioSummary, ROLE_LABEL, dividendOutlook, maxSellable } from './investments.ts';
 import type { ClubAction, PricePoint } from './investments.ts';
 import './investments.css';
+import { wageLimit } from './budget.ts';
 import { SelfAppoint, RolesList } from './Jobs.tsx';
 
 const money = (n: number) => `${n < 0 ? '−' : ''}£${Math.abs(n) >= 1000 ? `${(Math.abs(n) / 1000).toFixed(2)}m` : `${Math.round(Math.abs(n)).toLocaleString()}k`}`;
@@ -119,7 +120,9 @@ export function Investments({ state, onUpdate }: { state: GameState; onUpdate: U
             <label>Commercial strategy<select value={c.sponsor} disabled={locked} onChange={e => decision(c.id, 'sponsor', e.target.value)}><option value="fixed">Stable sponsorship</option><option value="performance">Performance-linked sponsors</option><option value="youth">Academy partnerships</option></select></label>
             <label>Ticket price level<select value={c.ticket} disabled={locked} onChange={e => decision(c.id, 'ticket', Number(e.target.value))}>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{'£'.repeat(n)} {n === 3 ? 'Standard' : n < 3 ? 'Affordable' : 'Premium'}</option>)}</select></label>
           </div>
-          <div className="inv-selects"><BudgetInput key={`${c.id}-w`} label="Weekly wage limit" value={c.wageLimit} apply={n => decision(c.id, 'wages', n)}/><BudgetInput key={`${c.id}-t`} label="Transfer spending limit" value={c.transferBudget} apply={n => decision(c.id, 'transfers', n)}/></div>
+          {c.id === state.clubId
+            ? <div className="inv-selects"><BudgetInput key={`${c.id}-w`} label="Weekly wage limit" value={wageLimit(state)} apply={n => decision(c.id, 'wages', n)}/><p className="inv-notice">Transfer budget: <b>{money(state.budget)}</b>. Your main club spends from its own club budget — the same figure shown on the Transfers screen.</p></div>
+            : <div className="inv-selects"><BudgetInput key={`${c.id}-w`} label="Weekly wage limit" value={c.wageLimit} apply={n => decision(c.id, 'wages', n)}/><BudgetInput key={`${c.id}-t`} label="Transfer spending limit" value={c.transferBudget} apply={n => decision(c.id, 'transfers', n)}/></div>}
           <p className="muted small">Existing contracts must still be paid. Limits govern new approvals. Dividends require actual profit and cash reserves; they are paid at season end to all shareholders proportionately.</p>
           {c.id === state.clubId && <p className="inv-notice">This is your active football job. Squad, Tactics, Transfers and the Board remain available in their usual screens.</p>}{c.id === state.clubId && state.mode !== 'manager' && <button className="secondary" disabled={locked} onClick={() => propose('Take charge of matchdays', ['You will select the team and play the match yourself. Your ownership is unchanged.', `Manager compensation: ${money((c.manager?.wage ?? 0) * 6)} from the club bank.`], s => clubDecision(s, c.id, 'take-charge'))}>Personally manage this team</button>}
         </section>

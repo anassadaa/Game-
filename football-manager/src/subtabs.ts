@@ -22,7 +22,6 @@ export const SUBTABS: Record<string, { id: string; label: string }[]> = {
     { id: 'market', label: 'Market' },
     { id: 'offers', label: 'Offers' },
     { id: 'sell', label: 'Sell' },
-    { id: 'money', label: 'Money' },
   ],
 };
 export function pickSub(tab: string, want: string | null | undefined): string | null {

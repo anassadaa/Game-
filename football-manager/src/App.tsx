@@ -39,7 +39,9 @@ import {
   Wallet,
   X,
   Zap,
+  PiggyBank,
 } from 'lucide-react';
+import { FinanceTab } from './FinanceTab.tsx';
 import {
   advanceMatch,
   advanceWeek,
@@ -74,7 +76,6 @@ import { TransferMarket } from './Market.tsx';
 import { BACKGROUNDS, locked as clubLocked, repNeeded } from './start.ts';
 import { LEAGUES, WORLD, clubOutlook, league as leagueDef, leagueName } from './world.ts';
 import { WorldPanel } from './World.tsx';
-import { FinancePanel, LedgerCard } from './Finance.tsx';
 import { agentFee, ffpLimit, ffpNet, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
@@ -123,6 +124,7 @@ const nav = [
   { id: 'tactics', label: 'Tactics', icon: Settings2 },
   { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight },
   { id: 'recruitment', label: 'Recruitment', icon: Search },
+  { id: 'finance', label: 'Finance', icon: PiggyBank },
   { id: 'club', label: 'Club', icon: Landmark },
 ] as const;
 function Crest({
@@ -386,7 +388,7 @@ function PlayerCard({
 
 export default function App() {
   const [state, setState] = useState<GameState | null>(loadSave);
-  const [tab, setTabRaw] = useState<Tab>(() => { const t = localStorage.getItem('touchline-tab'); return (['home','squad','tactics','transfers','recruitment','club'] as string[]).includes(t ?? '') ? (t as Tab) : 'home'; });
+  const [tab, setTabRaw] = useState<Tab>(() => { const t = localStorage.getItem('touchline-tab'); return (['home','squad','tactics','transfers','recruitment','finance','club'] as string[]).includes(t ?? '') ? (t as Tab) : 'home'; });
   const setTab = (t: Tab) => { setTabRaw(t); try { localStorage.setItem('touchline-tab', t); } catch { /* ignore */ } };
   const [seenOffers, setSeenOffers] = useState<string[]>([]);
   const [chosen, setChosen] = useState('wrexham');
@@ -1373,7 +1375,7 @@ export default function App() {
               )}
               {tab === 'transfers' && (
                 <>
-<BudgetLine state={state} onMoney={sub !== 'money' ? () => setSub('money') : undefined} />
+<BudgetLine state={state} onMoney={() => setTab('finance')} />
 <SubTabs tab={tab} value={sub} onChange={setSub} />
 {sub === 'offers' && (<>
                   <MedicalNews state={state} />
@@ -1385,30 +1387,7 @@ export default function App() {
                     }
                   />
 </>)}
-{sub === 'money' && (<>
-                  <LedgerCard state={state} />
-                  <FinancePanel state={state} onUpdate={update} />
-                  <div className="recruitment-summary">
-                    <div>
-                      <Search size={25} />
-                      <span>
-                        FFP net spend<b>{money(ffpNet(state))} / {money(ffpLimit(state))}</b>
-                      </span>
-                    </div>
-                    <div>
-                      <Wallet size={25} />
-                      <span>
-                        Transfer funds<b>{state.budget < 0 ? cashLabel(state.budget) : money(state.budget)}</b>
-                      </span>
-                    </div>
-                    <div>
-                      <Users size={25} />
-                      <span>
-                        Squad spaces<b>{roster.length}/25</b>
-                      </span>
-                    </div>
-                  </div>
-</>)}
+
 {sub === 'market' && (<>
                   <SectionTitle eyebrow="BUY · SELL · LOAN" title="Transfer market" />
                   <TransferMarket
@@ -1530,6 +1509,29 @@ export default function App() {
 </>)}
                 </>
               )}
+              {tab === 'finance' && (<>
+                <FinanceTab state={state} onUpdate={update} />
+                  <div className="recruitment-summary">
+                    <div>
+                      <Search size={25} />
+                      <span>
+                        FFP net spend<b>{money(ffpNet(state))} / {money(ffpLimit(state))}</b>
+                      </span>
+                    </div>
+                    <div>
+                      <Wallet size={25} />
+                      <span>
+                        Transfer funds<b>{state.budget < 0 ? cashLabel(state.budget) : money(state.budget)}</b>
+                      </span>
+                    </div>
+                    <div>
+                      <Users size={25} />
+                      <span>
+                        Squad spaces<b>{roster.length}/25</b>
+                      </span>
+                    </div>
+                  </div>
+              </>)}
               {tab === 'club' && (
                 <>
                   <SubTabs tab={tab} value={sub} onChange={setSub} />

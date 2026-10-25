@@ -271,6 +271,7 @@ export function decodeSave(raw: string): GameState | null {
     if (s.hiredManager && !Number.isInteger(s.hiredManager.contractEnd)) s.hiredManager.contractEnd = s.season + 1;
     for (const r of Object.values(s.investments?.clubs ?? {})) if (r && r.manager && typeof r.manager === 'object' && !Number.isInteger(r.manager.contractEnd)) r.manager.contractEnd = s.season + 1;
     if (!validMgr(s)) delete s.mgr;
+    { const mb = s.mgrBook as Record<string, unknown> | undefined; if (mb !== undefined && !(mb && ['season', 'wages', 'comp', 'fees', 'feesAll'].every((k) => Number.isFinite(mb[k])))) delete s.mgrBook; }
     // 3.1: 3.0 labelled the new ledger with the old season (dividends could be skipped); relabel.
     if (s.ledger && Number.isInteger(s.ledger.season) && s.ledger.season < s.season) s.ledger.season = s.season;
     // 3.1: saves where 3.0 wrongly removed the manager: keep playing with a caretaker and say so once.

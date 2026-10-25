@@ -62,7 +62,7 @@ export type Tempo = 'patient' | 'normal' | 'quick';
 export type Formation = '4-3-3' | '4-2-3-1' | '4-4-2' | '3-5-2' | '5-3-2' | '4-1-4-1' | '3-4-3';
 export type Training =
   'balanced' | 'fitness' | 'attack' | 'defence' | 'bonding';
-export type Tab = 'home' | 'squad' | 'tactics' | 'transfers' | 'recruitment' | 'club';
+export type Tab = 'home' | 'squad' | 'tactics' | 'transfers' | 'recruitment' | 'finance' | 'club';
 export type Tactics = {
   formation: Formation;
   mentality: Mentality;
@@ -255,6 +255,7 @@ export type GameState = {
   careerGames: number;
   lastStory: string;
   instalments?: Instalment[];
+  mgrBook?: { season: number; wages: number; comp: number; fees: number; feesAll: number };
   rivals?: Player[];
   squadRef?: Record<string, number>;
   cupRotate?: boolean;

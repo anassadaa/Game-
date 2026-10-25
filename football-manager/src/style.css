@@ -4239,3 +4239,20 @@ button.primary, .primary { font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.08)
 .year-chips{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
 .mgr-warn{border-left:3px solid #f5b942;padding-left:8px}
 .mgr-cands .pp-btn{min-height:52px}
+/* 3.1 Finance tab */
+.finance-tab{display:grid;gap:12px;min-width:0}
+.finance-tab .card{min-width:0;overflow-wrap:anywhere}
+.fin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.fin-grid div{background:rgba(0,0,0,.04);border-radius:10px;padding:8px}
+.fin-grid span{display:block;font-size:11px;opacity:.7}.fin-grid b{font-size:15px}
+.fin-dl{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13px;margin:6px 0}
+.fin-dl dd{margin:0;text-align:right}
+.fin-totals{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;font-size:13px}
+.fin-totals b{margin-left:auto}
+/* 3.1: seven tabs (Manager mode + Finance) fit a 360px screen without scrolling */
+@media (max-width: 400px) {
+  .mobile-nav { padding-left: 4px; padding-right: 4px; }
+  .mobile-nav button { min-width: 0; }
+  .mobile-nav button span:not(.nav-badge) { font-size: 8.5px; letter-spacing: -0.1px; }
+}
+.finance-tab .pos{color:#2f8a3e}.finance-tab .neg{color:#d23a3f}

@@ -73,8 +73,8 @@ export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: 
   );
 }
 
-const IN_LABEL = { gate: 'Matchday gate', tv: 'TV rights', sponsor: 'Sponsorship', prize: 'Prize money', sales: 'Player sales', other: 'Other income', funding: 'Loans & equity funding' } as const;
-const OUT_LABEL = { wages: 'Wages & bonuses', running: 'Staff, scouts & upkeep', signings: 'Signings & upgrades', capital: 'Loan repayments & dividends' } as const;
+export const IN_LABEL = { gate: 'Matchday gate', tv: 'TV rights', sponsor: 'Sponsorship', prize: 'Prize money', sales: 'Player sales', other: 'Other income', funding: 'Loans & equity funding' } as const;
+export const OUT_LABEL = { wages: 'Wages & bonuses', running: 'Staff, scouts & upkeep', signings: 'Signings & upgrades', capital: 'Loan repayments & dividends' } as const;
 export function LedgerCard({ state }: { state: GameState }) {
   const l = ledger(state), inc = totalIn(l), out = totalOut(l), net = inc - out;
   const max = Math.max(1, inc, out);

@@ -19,6 +19,11 @@ export const contractEndFor = (s: Pick<GameState, 'season' | 'week'>, years: num
 export const endOf = (s: Pick<GameState, 'season'>, m: HiredManager) => m.contractEnd ?? s.season + 1;
 export const weeksLeft = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager) => Math.max(0, (endOf(s, m) - s.season) * SEASON_WEEKS + (SEASON_WEEKS - s.week));
 /** Sacking pays off the rest of the contract. */
+/** 3.1: this season's money to/from the hired manager, for the Finance tab. */
+export function mgrBook(s: GameState) {
+  if (!s.mgrBook || s.mgrBook.season !== s.season) s.mgrBook = { season: s.season, wages: 0, comp: 0, fees: 0, feesAll: s.mgrBook?.feesAll ?? 0 };
+  return s.mgrBook;
+}
 export const compensation = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager) => weeksLeft(s, m) * m.wage;
 /** 3.1 release fee when he leaves early: about a quarter of his remaining wages, scaled by rating and form,
  *  at least 8 weeks' wages, but never more than half a season of wages or what the club still owed him. */
@@ -87,7 +92,7 @@ export function hireManager(s: GameState, id: string, years?: number): GameState
   if (m && years === undefined) years = minYears(m);
   if (!m || years === undefined || s.match || !canHire(s) || !validYears(m, years)) return s;
   const b = copy(s);
-  if (b.hiredManager) { const pay = compensation(b, b.hiredManager); b.budget -= pay; book(b, 'wages', pay); }
+  if (b.hiredManager) { const pay = compensation(b, b.hiredManager); b.budget -= pay; book(b, 'wages', pay); mgrBook(b).comp += pay; }
   b.hiredManager = { ...m, wage: contractWage(m, years), since: b.season, contractEnd: contractEndFor(b, years) };
   b.hires = (b.hires ?? 0) + 1;
   b.tactics = { ...b.tactics, mentality: m.style, formation: m.formation };
@@ -97,7 +102,7 @@ export function hireManager(s: GameState, id: string, years?: number): GameState
 export function fireManager(s: GameState): GameState {
   if (!s.hiredManager || s.match) return s;
   const b = copy(s), m = b.hiredManager!, pay = compensation(b, m);
-  b.budget -= pay; book(b, 'wages', pay);
+  b.budget -= pay; book(b, 'wages', pay); mgrBook(b).comp += pay;
   delete b.hiredManager;
   b.headlines = [`🚪 ${m.name} sacked. Compensation £${pay}k. A caretaker takes charge.`, ...b.headlines].slice(0, 6);
   return b;
@@ -116,12 +121,12 @@ export function renewManager(s: GameState, years: number): GameState {
 export function managerWeek(s: GameState) {
   if ((s.mode ?? 'manager') === 'manager') return;
   const m = s.hiredManager, d = m ? m.rating - 3 : -2;
-  if (m) { s.budget -= m.wage; book(s, 'wages', m.wage); }
+  if (m) { s.budget -= m.wage; book(s, 'wages', m.wage); mgrBook(s).wages += m.wage; }
   if (m) {
     const ev = contractTick(s, m, 'main', s.trust, overperformance(s));
     if (ev.kind === 'expire') { delete s.hiredManager; headline(s, `📄 ${m.name}'s contract has expired. He leaves on a free; a caretaker takes charge.`); mgrNote(s, 'My contract ran out, so I am leaving. Good luck.'); }
     else if (ev.kind === 'leave') {
-      const pen = ev.penalty!; s.budget += pen; book(s, 'other', pen); delete s.hiredManager;
+      const pen = ev.penalty!; s.budget += pen; book(s, 'other', pen); mgrBook(s).fees += pen; mgrBook(s).feesAll += pen; delete s.hiredManager;
       const by = poacher(s, s.clubId, m.id);
       headline(s, ev.reason === 'poached' ? `✈️ ${by} poach ${m.name} and pay us a £${pen}k release fee. A caretaker takes charge.` : `✈️ ${m.name} quits after losing the board's backing and pays us a £${pen}k exit penalty. A caretaker takes charge.`);
       mgrNote(s, ev.reason === 'poached' ? `Leaving for ${by}; they paid the club a £${pen}k release fee.` : `Quitting before my contract ends; I paid the club a £${pen}k exit penalty.`);

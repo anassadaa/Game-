@@ -70,6 +70,8 @@ export type Tactics = {
   tempo: Tempo;
 } & DeepTactics;
 export type Player = {
+  /** 3.1: when and for how much we signed him (blocks instant free-agent flips). */
+  boughtAt?: { s: number; w: number; paid: number };
   id: string;
   name: string;
   age: number;
@@ -1007,6 +1009,7 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
   delete t.clause;
   if (sellOnPct && seller) t.sellOn = { clubId: seller.id, pct: sellOnPct };
   ffpSpend(b, o.fee + agent);
+  t.boughtAt = { s: b.season, w: b.week, paid: o.fee + agent };
   b.players.push(t);
   b.market = b.market.filter((x) => x.id !== id);
   b.rivals = (b.rivals ?? []).filter((x) => x.id !== id);
@@ -1051,13 +1054,18 @@ export function renewContract(s: GameState, id: string, years: number, clause?: 
   b.headlines = [`${t.name} commits his future for ${years} more years.`, ...b.headlines].slice(0, 6);
   return b;
 }
+/** Quick-sale fee. 3.1: within a season of signing it never returns more than we paid (no free-agent flipping). */
+export function saleFee(s: Pick<GameState, 'season' | 'week'>, p: Player) {
+  const base = Math.round(p.price * 0.68), b = p.boughtAt;
+  return b && (s.season * 18 + s.week) - (b.s * 18 + b.w) < 18 ? Math.min(base, b.paid) : base;
+}
 export function sellPlayer(s: GameState, id: string): GameState {
   if (s.match) return s;
   const team = s.players.filter((p) => p.clubId === s.clubId);
-  const p = team.find((p) => p.id === id && !p.starting);
+  const p = team.find((p) => p.id === id && !p.starting && !p.loan);
   if (!p || team.length <= 14) return s;
   const b = copy(s);
-  const fee = Math.round(p.price * 0.68);
+  const fee = saleFee(s, p);
   b.budget += saleIncome(b, b.players.find((x) => x.id === id)!, fee);
   b.players = b.players.filter((x) => x.id !== id);
   b.fans = clamp(b.fans - 1);

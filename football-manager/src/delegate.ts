@@ -1,7 +1,7 @@
 // 2.9: the hired manager runs the football (Director / Owner-Director / Chairman careers).
 // Everything is deterministic (hash-based), scaled by his rating and style.
 import type { GameState, Player } from './game.ts';
-import { askingPrice, club, copy, negotiate, renewContract, sellPlayer, standings, windowOpen } from './game.ts';
+import { askingPrice, club, copy, negotiate, renewContract, saleFee, sellPlayer, standings, windowOpen } from './game.ts';
 import { BENCH } from './lineup.ts';
 import { agentFee } from './finance.ts';
 import { wageLimit } from './budget.ts';
@@ -178,7 +178,7 @@ export function manageTransfers(s: GameState): GameState {
   if (mine.length > 20) {
     const out = mine.filter((p) => !p.starting && !(p as any).loan && (p.age >= 31 || p.rating < mean - 6 + m.rating * 0.4)).sort((x, y) => x.rating - y.rating)[0];
     if (out && roll(b, 'sell') < 0.4 + m.rating * 0.08) {
-      const fee = Math.round(out.price * 0.68), n = sellPlayer(b, out.id);
+      const fee = saleFee(b, out), n = sellPlayer(b, out.id);
       if (n !== b) { b = n; plan(b).sales++; note(b, `Sold ${out.name} (${slotPeek(out)}, ${out.age}) for ${money(fee)}.`); }
     }
   }

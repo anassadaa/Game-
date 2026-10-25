@@ -109,7 +109,7 @@ import { DeepTacticsPanel } from './TacticsPanel.tsx';
 import { FORMATIONS } from './tactics.ts';
 import { CupPanel } from './Cup.tsx';
 import { BoardRoom, SackedModal } from './Board.tsx';
-import { askingPrice } from './game.ts';
+import { askingPrice, saleFee } from './game.ts';
 import { decodeSave, encodeSave, loadSave, storeSave } from './save.ts';
 import { Investments } from './Investments.tsx';
 
@@ -289,6 +289,7 @@ function PlayerCard({
   onAssign,
   place,
   onSell,
+  sellFee,
   onRenew,
   locked,
 }: {
@@ -297,6 +298,7 @@ function PlayerCard({
   onAssign?: () => void;
   place?: string;
   onSell?: () => void;
+  sellFee?: number;
   onRenew?: () => void;
   locked: boolean;
 }) {
@@ -372,9 +374,9 @@ function PlayerCard({
             Renew 3y
           </button>
         )}
-        {onSell && !player.starting && (
+        {onSell && !player.starting && !player.loan && (
           <button className="text-button" disabled={locked} onClick={onSell}>
-            Sell {money(Math.round(player.price * 0.68))}
+            Sell {money(sellFee ?? Math.round(player.price * 0.68))}
           </button>
         )}
       </div>
@@ -1514,6 +1516,7 @@ export default function App() {
                             key={p.id}
                             player={p}
                             locked={locked || roster.length <= 14}
+                            sellFee={saleFee(state, p)}
                             onSell={() =>
                               update(
                                 sellPlayer(state, p.id),

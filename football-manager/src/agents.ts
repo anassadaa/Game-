@@ -76,6 +76,7 @@ export function signFreeAgent(s: GameState, id: string, o: FreeOffer): [GameStat
   b.market = b.market.filter((x) => x.id !== id);
   Object.assign(t, { clubId: b.clubId, starting: false, morale: clamp(70 + (o.wage > ask ? 10 : 0)), wage: o.wage, contract: o.years, price: t.price });
   delete t.released;
+  t.boughtAt = { s: b.season, w: b.week, paid: o.bonus };
   b.players.push(t);
   sync(b, 'deals'); b.budget -= o.bonus; book(b, 'signings', o.bonus); investmentTransferPayment(b, b.clubId, 'signings', o.bonus);
   b.agentMsgs = agentMsgs(b).filter((m) => m.playerId !== id);

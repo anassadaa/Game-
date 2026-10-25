@@ -1096,7 +1096,7 @@ export default function App() {
                         action={
                           <button
                             className="text-button"
-                            onClick={() => setTab('club')}
+                            onClick={() => { const n = { ...subs, club: 'fixtures' }; setSubs(n); localStorage.setItem('touchline-subtabs', JSON.stringify(n)); setTab('club'); }}
                           >
                             Full table <ArrowRight size={14} />
                           </button>
@@ -1509,16 +1509,21 @@ export default function App() {
               )}
               {tab === 'club' && (
                 <>
-                  <BoardRoom state={state} onUpdate={update} />
-                  <JobCentre state={state} onUpdate={update} />
-                  <StaffRoom state={state} onUpdate={update} />
-                  <YouthPanel state={state} onUpdate={update} />
-                  <StatsPanel state={state} />
+                  <SubTabs tab={tab} value={sub} onChange={setSub} />
+                  {sub === 'cups' && (<>
                   <CupPanel state={state} />
                   <CupPanel state={state} kind="lcup" />
                   <CupPanel state={state} euro />
                   <CupPanel state={state} kind="euro2" />
-                  <WorldPanel state={state} onUpdate={update} />
+                  </>)}
+                  {sub === 'career' && (<>
+                  <JobCentre state={state} onUpdate={update} />
+                  <StatsPanel state={state} />
+                  </>)}
+                  {sub === 'board' && (<>
+                  <BoardRoom state={state} onUpdate={update} />
+                  <StaffRoom state={state} onUpdate={update} />
+                  <YouthPanel state={state} onUpdate={update} />
                   <div className="content-columns">
                     <section className="card club-foundation">
                       <SectionTitle
@@ -1596,6 +1601,8 @@ export default function App() {
                       </p>
                     </section>
                   </div>
+                  </>)}
+                  {sub === 'fixtures' && (<>
                   <section className="card full-table">
                     <SectionTitle
                       eyebrow="EVERY POINT MATTERS"
@@ -1615,6 +1622,8 @@ export default function App() {
                     </p>
                   </section>
                   <FixturesCard state={state} onUpdate={update} />
+                  </>)}
+                  {sub === 'career' && (<>
                   {state.history.length > 0 && (
                     <section className="card history">
                       <SectionTitle
@@ -1674,6 +1683,8 @@ export default function App() {
                       </button>
                     </div>
                   </section>
+                  <WorldPanel state={state} onUpdate={update} />
+                  </>)}
                   {hiddenFile}
                 </>
               )}

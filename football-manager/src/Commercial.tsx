@@ -107,3 +107,32 @@ export function MeetingCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
+import { fireManager, hireManager, managerCandidates } from './managers.ts';
+export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  if ((state.mode ?? 'manager') === 'manager') return null;
+  const m = state.hiredManager;
+  return (
+    <section className="card manager-card">
+      <span className="eyebrow">🧑‍💼 FIRST-TEAM MANAGER</span>
+      {m ? (
+        <>
+          <h3>{m.name} · {'★'.repeat(m.rating)}{'☆'.repeat(5 - m.rating)}</h3>
+          <p className="small">{m.style} {m.formation} · £{m.wage}k/wk · since season {m.since}. Picks the team and plays the matches.</p>
+          <button className="secondary danger-btn" disabled={!!state.match} onClick={() => onUpdate(fireManager(state), 'Manager sacked.')}>Sack manager (£{m.wage * 6}k compensation)</button>
+        </>
+      ) : (
+        <p className="small">No manager: a caretaker is in charge and morale slips every week. Hire one below.</p>
+      )}
+      <details className="mgr-pool" open={!m}>
+        <summary>{m ? 'Replace with…' : 'Candidates'}</summary>
+        <div className="pp-list">
+          {managerCandidates(state).map((c) => (
+            <button key={c.id} className="secondary pp-btn" disabled={!!state.match} onClick={() => onUpdate(hireManager(state, c.id), `${c.name} hired.`)}>
+              <span>{c.name} · {'★'.repeat(c.rating)}</span><small>{c.style} {c.formation} · £{c.wage}k/wk</small>
+            </button>
+          ))}
+        </div>
+      </details>
+    </section>
+  );
+}

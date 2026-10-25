@@ -1,0 +1,49 @@
+// Manager hiring (for Director / Chairman careers): candidates, hire, fire, weekly effect.
+import type { Formation, GameState, Mentality } from './game.ts';
+import { clamp, copy } from './game.ts';
+import { book } from './finance.ts';
+import { level } from './difficulty.ts';
+
+export type HiredManager = { id: string; name: string; style: Mentality; formation: Formation; rating: number; wage: number; since: number };
+const hash = (str: string) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
+const FN = ['Arturo', 'Jens', 'Callum', 'Mateo', 'Viktor', 'Karim', 'Rory', 'Stefan', 'Emre', 'Takumi', 'Didier', 'Paulo'];
+const LN = ['Varga', 'Holm', 'Reid', 'Navarro', 'Ilic', 'Benali', 'Quinn', 'Hofmann', 'Aksoy', 'Mori', 'Lambert', 'Sousa'];
+const STYLES: Mentality[] = ['cautious', 'balanced', 'attacking'];
+const FORMS: Formation[] = ['4-3-3', '4-2-3-1', '4-4-2', '3-5-2', '5-3-2', '4-1-4-1'];
+export function managerCandidates(s: GameState): HiredManager[] {
+  const out: HiredManager[] = [];
+  for (let i = 0; i < 4; i++) {
+    const h = hash(`${s.seed}|hire|${s.season}|${s.hires ?? 0}|${i}`);
+    const rating = 1 + (h % 5);
+    out.push({ id: `m${s.season}-${s.hires ?? 0}-${i}`, name: `${FN[(h >>> 4) % FN.length]} ${LN[(h >>> 9) % LN.length]}`, style: STYLES[(h >>> 13) % 3]!, formation: FORMS[(h >>> 16) % FORMS.length]!, rating, wage: Math.round((6 + rating * rating * 3) * level(s).money), since: s.season });
+  }
+  return out;
+}
+export function hireManager(s: GameState, id: string): GameState {
+  const m = managerCandidates(s).find((x) => x.id === id);
+  if (!m || s.match) return s;
+  const b = copy(s);
+  if (b.hiredManager) { b.budget -= b.hiredManager.wage * 6; book(b, 'wages', b.hiredManager.wage * 6); }
+  b.hiredManager = { ...m, since: b.season };
+  b.hires = (b.hires ?? 0) + 1;
+  b.tactics = { ...b.tactics, mentality: m.style, formation: m.formation };
+  b.headlines = [`🧑‍💼 ${m.name} appointed manager (${'★'.repeat(m.rating)}, ${m.style} ${m.formation}).`, ...b.headlines].slice(0, 6);
+  return b;
+}
+export function fireManager(s: GameState): GameState {
+  if (!s.hiredManager || s.match) return s;
+  const b = copy(s), m = b.hiredManager!, pay = m.wage * 6;
+  b.budget -= pay; book(b, 'wages', pay);
+  delete b.hiredManager;
+  b.headlines = [`🚪 ${m.name} sacked. Compensation £${pay}k. A caretaker takes charge.`, ...b.headlines].slice(0, 6);
+  return b;
+}
+/** Weekly: in Director/Chairman careers the hired manager is paid and lifts (or drags) morale. */
+export function managerWeek(s: GameState) {
+  if ((s.mode ?? 'manager') === 'manager') return;
+  const m = s.hiredManager, d = m ? m.rating - 3 : -2;
+  if (m) { s.budget -= m.wage; book(s, 'wages', m.wage); }
+  if (d) s.players.forEach((p) => { if (p.clubId === s.clubId) p.morale = clamp(p.morale + d); });
+}
+export const validHired = (s: Pick<GameState, 'hiredManager'>) =>
+  s.hiredManager === undefined || (!!s.hiredManager && typeof s.hiredManager.id === 'string' && typeof s.hiredManager.name === 'string' && Number.isFinite(s.hiredManager.wage));

@@ -4118,3 +4118,4 @@ body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; 
 .pp-btn small{font-size:.72rem;opacity:.7}.prepress-card.derby{border:2px solid #b91c1c}
 .scenario-card.won{border:2px solid #15803d}.scenario-card.failed{border:2px solid #b91c1c}.scenario-card p{margin:4px 0;font-size:.85rem}
 .meeting-card p{font-size:.85rem;margin:4px 0}
+.manager-card p{font-size:.85rem;margin:4px 0}.mgr-pool summary{min-height:44px;display:flex;align-items:center;font-weight:700;cursor:pointer}.danger-btn{min-height:44px;margin:6px 0;color:#b91c1c}

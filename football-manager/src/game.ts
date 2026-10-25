@@ -23,6 +23,7 @@ import { fanWeek } from './fans.ts';
 import { noteDerby } from './derby.ts';
 import { judgeScenario } from './scenario.ts';
 import { managerWeek, voteRisk } from './managers.ts';
+import { delegateSelect, delegateWeek } from './delegate.ts';
 import { investorWeek } from './investors.ts';
 import { walletWeek, dividendSeason, salaryReview, moveWallet } from './wallet.ts';
 import { investmentWeek, leaveInvestmentJob, joinInvestmentJob, investmentStrength, investmentTransferBlock, investmentTransferPayment, makeTransfer } from './investments.ts';
@@ -312,6 +313,8 @@ export type GameState = {
   meeting?: import('./meeting.ts').Meeting;
   mode?: 'manager' | 'director' | 'chairman' | 'owner';
   hiredManager?: import('./managers.ts').HiredManager;
+  /** 2.9: the hired manager's budget, approval line, pending request and decision log. */
+  mgr?: import('./delegate.ts').MgrPlan;
   hires?: number;
   investor?: import('./investors.ts').Investor;
   wallet?: import('./wallet.ts').Wallet;
@@ -1123,6 +1126,7 @@ export function startMatch(s: GameState): GameState {
   const b = copy(s),
     opp = opponent(b);
   dropSuspended(b);
+  delegateSelect(b);
   if (b.players.filter((p) => p.clubId === b.clubId && p.starting).length < 11) fillXI(b);
   topUpBench(b);
   b.match = {
@@ -1620,6 +1624,7 @@ export function advanceWeek(s: GameState): GameState {
   b.week++;
   restoreXI(b);
   b.match = null;
+  Object.assign(b, delegateWeek(b));
   runCup(b, b.cup, CUP_WEEKS, CUP_PRIZE, 'Cup');
   runCup(b, b.euro, EURO_WEEKS, EURO_PRIZE, 'Champions Cup');
   runCup(b, b.lcup, LCUP_WEEKS, LCUP_PRIZE, 'League Cup');

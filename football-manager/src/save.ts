@@ -18,6 +18,7 @@ import { validPrePress } from './prepress.ts';
 import { validScenario } from './scenario.ts';
 import { validMeeting } from './meeting.ts';
 import { validHired } from './managers.ts';
+import { validMgr } from './delegate.ts';
 import { validInvestor } from './investors.ts';
 import { validWallet } from './wallet.ts';
 import { validInvestments } from './investments.ts';
@@ -266,6 +267,7 @@ export function decodeSave(raw: string): GameState | null {
     if (!validScenario(s)) delete s.scenario;
     if (!validMeeting(s)) delete s.meeting;
     if (!validHired(s)) delete s.hiredManager;
+    if (!validMgr(s)) delete s.mgr;
     if (!validInvestor(s) || !validWallet(s)) return null;
     if (s.mode === 'director' && (s.wallet?.stake ?? 0) + (s.investor?.stakes ?? 0) > 100) return null;
     if (s.wallet?.holdings && !Object.keys(s.wallet.holdings).every(id => id !== s.clubId && s.clubs.some(c => c.id === id))) return null;

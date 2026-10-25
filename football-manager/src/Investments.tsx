@@ -90,7 +90,7 @@ export function Investments({ state, onUpdate }: { state: GameState; onUpdate: U
 
   return <div className="investments">
     <section className="inv-hero">
-      <div className="inv-heading"><span className="eyebrow">YOUR FOOTBALL INVESTMENTS</span><span className="inv-version">2.5</span></div>
+      <div className="inv-heading"><span className="eyebrow">YOUR FOOTBALL INVESTMENTS</span><span className="inv-version">{__APP_VERSION__}</span></div>
       <h2>Build a football legacy.</h2><p>Invest in clubs. Earn your influence. Shape their future.</p>
       <div className="inv-wealth"><div><Wallet size={18}/><small>Personal cash</small><strong>{money(totals.cash)}</strong></div><div><TrendingUp size={18}/><small>Equity value · estimated</small><strong>{money(totals.equity)}</strong></div><div><Landmark size={18}/><small>Loan claims</small><strong>{money(totals.loans)}</strong></div><div><Building2 size={18}/><small>Net worth · estimated</small><strong>{money(totals.netWorth)}</strong></div></div>
     </section>

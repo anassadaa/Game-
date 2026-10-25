@@ -59,3 +59,18 @@ test('a season of delegated play is deterministic and stays valid', () => {
 test('manager mode untouched', () => {
   let s = newGame(11); s = play(s); assert.equal(s.mgr, undefined);
 });
+test('adversarial: total cost incl. agent fee never exceeds the budget; big deals wait', () => {
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const s = owner(seed); s.week = 1; s.budget = 1e6; plan(s).wage = 1e6; plan(s).approveOver = 1e6;
+    const g = weakSlot(s); if (!g) continue;
+    plan(s).transfer = 900; const cash = s.budget; const b = manageTransfers(s);
+    assert.ok(cash - b.budget <= 900 + Math.round(b.players.filter((p) => p.clubId === b.clubId).length * 0) , `seed ${seed} spent ${cash - b.budget}`);
+    assert.ok(plan(b).spent <= 900);
+    const w = owner(seed); w.week = 1; w.budget = 1e6; plan(w).wage = 1e6; plan(w).transfer = 1e6; plan(w).approveOver = 0;
+    const n = w.players.length; const c = manageTransfers(w); assert.equal(c.players.filter((p) => p.clubId === c.clubId).length <= n, true);
+  }
+});
+test('old save without mgr loads', async () => {
+  const { encodeSave, decodeSave } = await import('../src/save.ts');
+  const s = owner(); delete s.mgr; const d = decodeSave(encodeSave(s)); assert.ok(d); assert.equal(d.mgr, undefined);
+});

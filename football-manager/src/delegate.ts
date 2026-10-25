@@ -3,6 +3,8 @@
 import type { GameState, Player } from './game.ts';
 import { askingPrice, club, copy, negotiate, renewContract, sellPlayer, standings, windowOpen } from './game.ts';
 import { BENCH } from './lineup.ts';
+import { agentFee } from './finance.ts';
+import { dofDiscount } from './staff.ts';
 import { suitability, slotsFor } from './lineup.ts';
 import { FORMATION_SLOTS, slotPeek, type Slot } from './positions.ts';
 import { canHire as canHireStaff, hireStaff, renewStaff, sackStaff, staff, staffBudget, staffWages, roleLabel, type StaffRole } from './staff.ts';
@@ -121,6 +123,8 @@ export function weakSlots(s: GameState): { slot: Slot; best: number }[] {
   }).filter((x) => x.gap > -3).sort((a, b) => b.gap - a.gap || a.slot.localeCompare(b.slot)).map(({ slot, best }) => ({ slot, best }));
 }
 export const weakSlot = (s: GameState) => weakSlots(s)[0] ?? null;
+/** Everything a deal costs up front: fee plus the agent's cut. Free agents cost nothing up front. */
+export const dealCost = (s: GameState, p: Player) => { if (p.clubId === 'market') return 0; const f = askingPrice(p, s); return f + Math.round(agentFee(p, f) * dofDiscount(s)); };
 const wageAsk = (p: Player) => Math.round(p.wage * (p.personality === 'Ambitious' ? 1.15 : 1)) + 1;
 export function manageTransfers(s: GameState): GameState {
   if (!windowOpen(s)) return s;
@@ -137,10 +141,10 @@ export function manageTransfers(s: GameState): GameState {
   if (plan(b).request || ours(b).length >= 25 || b.embargo) return b;
   const left = budgetLeft(b), wageRoom = p0.wage - bill(b), eye = 1 + m.rating; // better managers find better value
   for (const gap of weakSlots(b).slice(0, 3)) {
-    const target = [...b.market, ...(b.rivals ?? [])].filter((p) => slotPeek(p) === gap.slot && p.rating >= gap.best + 2 && askingPrice(p, b) <= left && wageAsk(p) <= wageRoom && p.age <= 33)
+    const target = [...b.market, ...(b.rivals ?? [])].filter((p) => slotPeek(p) === gap.slot && p.rating >= gap.best + 2 && dealCost(b, p) <= left && wageAsk(p) <= wageRoom && p.age <= 33)
       .sort((x, y) => (y.rating * eye - askingPrice(y, b) / 100) - (x.rating * eye - askingPrice(x, b) / 100) || x.id.localeCompare(y.id))[0];
     if (!target) continue;
-    const fee = askingPrice(target, b);
+    const fee = dealCost(b, target);
     if (fee > p0.approveOver) {
       plan(b).request = { playerId: target.id, name: target.name, slot: gap.slot, fee, week: b.week, season: b.season };
       note(b, `Asked you to approve ${target.name} (${gap.slot}) for ${money(fee)}.`);
@@ -154,10 +158,11 @@ export function manageTransfers(s: GameState): GameState {
 }
 function buy(s: GameState, id: string, slot: Slot): GameState {
   const p = s.market.find((x) => x.id === id) ?? s.rivals?.find((x) => x.id === id); if (!p) return s;
+  if (dealCost(s, p) > budgetLeft(s)) return s;
   const fee = p.clubId === 'market' ? 0 : askingPrice(p, s);
   const [n] = negotiate(s, id, { fee, wage: wageAsk(p), years: 3 });
   if (!n.players.some((x) => x.id === id && x.clubId === s.clubId)) return s;
-  const cost = p.clubId === 'market' ? 0 : fee;
+  const cost = dealCost(s, p);
   plan(n).spent += cost; plan(n).signings++;
   note(n, `Signed ${p.name} (${slot}) ${cost ? `for ${money(cost)}` : 'on a free'}.`);
   return n;

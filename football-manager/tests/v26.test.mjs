@@ -117,3 +117,15 @@ test('2.6: losing control ends the side role; moving main club keeps a director 
   assert.equal(t.investments.clubs[home].role, 'director'); assert.equal(t.investments.clubs[a].role, undefined);
   assert.equal(myRoles(t).length, 2);
 });
+
+import { dividendOutlook, maxSellable } from '../src/investments.ts';
+test('2.6: dividend outlook explains a zero dividend; max sellable respects buyer liquidity', () => {
+  let s = setup('manager'); const id = ctrl(s); s = buy(s, id, 60);
+  const rec = s.investments.clubs[id];
+  s = cd2(s, id, 'dividend', 'none'); assert.match(dividendOutlook(s, id).reason, /policy retains/);
+  s = cd2(s, id, 'dividend', 'high'); s.investments.clubs[id].ledger.out.wages += 99999; assert.match(dividendOutlook(s, id).reason, /loss/);
+  s.investments.clubs[id].liquidity = 0; assert.equal(maxSellable(s, id), 0);
+  s.investments.clubs[id].liquidity = 1e9; assert.equal(maxSellable(s, id), 60);
+  s.investments.clubs[id].liquidity = Math.round(rec.value * 0.2); const m = maxSellable(s, id);
+  assert.ok(m > 0 && m < 60 && quoteTrade(s, id, 'sell', m).ok && !quoteTrade(s, id, 'sell', m + 1).ok);
+});

@@ -342,6 +342,7 @@ export function investmentWeek(s: GameState) {
       if (s.week === 18 && b.lastDividend < s.season) {
         const income = earnedIncome(b.ledger), costs = earnedCosts(b.ledger);
         const distribution = Math.max(0, Math.min(Math.round(Math.max(0, income - costs) * (b.policy === 'high' ? 0.5 : b.policy === 'low' ? 0.2 : 0)), Math.floor(b.cash - Math.max(500, b.debt * 0.1))));
+        if (!distribution && owned(s, c.id) > 0) log(s, c.id, 'dividend', 0, `${c.name} paid no dividend: ${noDividendReason(b.policy, income - costs, b.cash, b.debt)}.`);
         if (distribution) {
           const mine = Math.round(distribution * owned(s, c.id) / 100); post(b, 'capital', distribution); b.liquidity += distribution - mine;
           if (mine) { wallet(s).cash += mine; wallet(s).dividends += mine; b.dividends += mine; log(s, c.id, 'dividend', mine, `${c.name} paid you £${mine}k from £${income - costs}k earned profit.`); }
@@ -458,4 +459,27 @@ export function myRoles(s: GameState): { clubId: string; name: string; role: str
   const rows = [{ clubId: main.id, name: main.name, role: modeLabel, main: true, stake: owned(s, main.id), pending: false }];
   for (const [id, b] of Object.entries(s.investments?.clubs ?? {})) if (b.role && id !== s.clubId) rows.push({ clubId: id, name: getClub(s, id)!.name, role: ROLE_LABEL[b.role], main: false, stake: owned(s, id), pending: !!b.request });
   return rows;
+}
+
+function noDividendReason(policy: Policy, earned: number, cash: number, debt: number) {
+  const reserve = Math.max(500, Math.round(debt * 0.1));
+  if (policy === 'none') return 'the board policy retains all profit';
+  if (earned <= 0) return earned < 0 ? `the club made a £${-earned}k loss` : 'the club made no profit';
+  if (cash <= reserve) return `cash £${Math.round(cash)}k is below the £${reserve}k reserve the bank requires`;
+  return '';
+}
+/** What this season's dividend looks like right now, and why it might be zero. */
+export function dividendOutlook(s: GameState, id: string): { amount: number; mine: number; reason: string } {
+  const b = s.investments?.clubs[id]; if (!b) return { amount: 0, mine: 0, reason: 'No data yet' };
+  const earned = earnedIncome(b.ledger) - earnedCosts(b.ledger), share = b.policy === 'high' ? 0.5 : b.policy === 'low' ? 0.2 : 0;
+  const amount = Math.max(0, Math.min(Math.round(Math.max(0, earned) * share), Math.floor(b.cash - Math.max(500, b.debt * 0.1))));
+  const why = noDividendReason(b.policy, earned, b.cash, b.debt);
+  return { amount, mine: Math.round(amount * owned(s, id) / 100), reason: amount ? `About £${amount}k would be paid at season end (${Math.round(share * 100)}% of £${earned}k profit).` : `No dividend expected: ${why || 'nothing left after the cash reserve'}.` };
+}
+/** Largest stake you could sell today given buyers' liquidity. */
+export function maxSellable(s: GameState, id: string): number {
+  const c = marketClubs(s).find(c => c.id === id); if (!c || c.stake < 1) return 0;
+  let lo = 0, hi = c.stake;
+  while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); if (quoteTrade(s, id, 'sell', mid).ok) lo = mid; else hi = mid - 1; }
+  return lo;
 }

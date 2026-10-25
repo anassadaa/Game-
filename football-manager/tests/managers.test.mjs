@@ -17,3 +17,11 @@ test('weekly: hired manager paid in non-manager modes only', () => {
   a.mode = 'chairman'; managerWeek(a); assert.equal(a.budget, c - m.wage);
 });
 test('validation', () => { assert.ok(validHired({})); assert.equal(validHired({ hiredManager: { id: 3 } }), false); });
+import { setMode, MODES } from '../src/managers.ts';
+import { advanceWeek, startMatch } from '../src/game.ts';
+test('chairman mode: survives board collapse', async () => {
+  let s = setMode(newGame(5), 'chairman'); assert.equal(s.mode, 'chairman'); assert.ok(MODES.some((m) => m.id === 'chairman'));
+  s.trust = 1; s.week = 8;
+  for (let i = 0; i < 3; i++) { s = startMatch(s); while (!s.match.complete) s = (await import('../src/game.ts')).advanceMatch(s); s = advanceWeek(s); s.trust = 1; }
+  assert.equal(s.sacked, false);
+});

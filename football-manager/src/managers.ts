@@ -47,3 +47,17 @@ export function managerWeek(s: GameState) {
 }
 export const validHired = (s: Pick<GameState, 'hiredManager'>) =>
   s.hiredManager === undefined || (!!s.hiredManager && typeof s.hiredManager.id === 'string' && typeof s.hiredManager.name === 'string' && Number.isFinite(s.hiredManager.wage));
+
+export type Mode = 'manager' | 'director' | 'chairman';
+export const MODES: { id: Mode; label: string; blurb: string }[] = [
+  { id: 'manager', label: 'Manager', blurb: 'Pick the team, set tactics, play every match. The board can sack you.' },
+  { id: 'chairman', label: 'Chairman', blurb: 'You own the club: money, tickets, sponsors and who manages. You can’t be sacked, but the fans can turn.' },
+];
+export const isManagerMode = (s: Pick<GameState, 'mode'>) => (s.mode ?? 'manager') === 'manager';
+export function setMode(s: GameState, mode: Mode): GameState {
+  if (mode === 'manager') return s;
+  const b = copy(s);
+  b.mode = mode;
+  b.headlines = [`🏛️ You start as ${mode === 'chairman' ? 'Chairman' : 'Director of Football'}. Hire a manager in Club → Board.`, ...b.headlines].slice(0, 6);
+  return b;
+}

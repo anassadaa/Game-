@@ -1889,6 +1889,15 @@ function boardWeek(s: GameState) {
   if (s.trust <= 12 / level(s).patience && s.week >= 4) sack(s, 'The board has lost faith after a run of poor results.');
 }
 function sack(s: GameState, why: string) {
+  if (s.mode === 'chairman') {
+    // An owner can't be sacked: the vote fails, but the pressure lands on the hired manager.
+    s.trust = 35;
+    const m = s.hiredManager;
+    if (m) { delete s.hiredManager; s.budget -= m.wage * 6; }
+    s.fans = clamp(s.fans - 5);
+    s.headlines = [`🏛️ No-confidence motion fails: you own the club.${m ? ` ${m.name} pays the price and is dismissed.` : ''}`, ...s.headlines].slice(0, 6);
+    return;
+  }
   s.sacked = true;
   repSacked(s);
   makeOffers(s, false);

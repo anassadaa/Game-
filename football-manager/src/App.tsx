@@ -6,6 +6,7 @@ import { CaptaincyCard, TraitLine } from './Traits.tsx';
 import { Shouts } from './Shouts.tsx';
 import { FixturesCard, ReviewModal } from './Fixtures.tsx';
 import { SubTabs } from './SubTabs.tsx';
+import { setMode, MODES, isManagerMode, type Mode } from './managers.ts';
 import { FanCard, ManagerCard, MeetingCard, ScenarioCard, SponsorCard, TicketsCard } from './Commercial.tsx';
 import { pickSub } from './subtabs.ts';
 import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
@@ -384,6 +385,7 @@ export default function App() {
   const [chosen, setChosen] = useState('wrexham');
   const [pickDiff, setPickDiff] = useState<Difficulty>('medium');
   const [pickScen, setPickScen] = useState<ScenarioId>('none');
+  const [pickMode, setPickMode] = useState<Mode>('manager');
   const [pickLeague, setPickLeague] = useState(2);
   const [bg, setBg] = useState('sandbox');
   const bgRep = BACKGROUNDS.find((b) => b.id === bg)?.rep ?? null;
@@ -551,6 +553,10 @@ export default function App() {
               ))}
             </select>
             <p className="bg-blurb">{DIFFICULTIES.find((d) => d.id === pickDiff)?.blurb}</p>
+            <div className="mode-pick" role="radiogroup" aria-label="Career mode">
+              {MODES.map((m) => (<button key={m.id} role="radio" aria-checked={pickMode === m.id} className={`mode-opt ${pickMode === m.id ? 'active' : ''}`} onClick={() => setPickMode(m.id)}>{m.label}</button>))}
+            </div>
+            <p className="bg-blurb">{MODES.find((m) => m.id === pickMode)?.blurb}</p>
             <select className="league-select" value={pickScen} onChange={(e) => setPickScen(e.target.value as ScenarioId)} aria-label="Challenge">
               {SCENARIOS.map((x) => (<option key={x.id} value={x.id}>{x.id === 'none' ? 'Challenge · none' : `Challenge · ${x.label}`}</option>))}
             </select>
@@ -576,9 +582,9 @@ export default function App() {
             <button
               className="primary wide"
               disabled={clubLocked(WORLD.find((w) => w.id === chosen) ?? WORLD[0]!, bgRep)}
-              onClick={() => setState(applyScenario(newGame(Date.now() >>> 0, chosen, bgRep, pickDiff), pickScen))}
+              onClick={() => setState(setMode(applyScenario(newGame(Date.now() >>> 0, chosen, bgRep, pickDiff), pickScen), pickMode))}
             >
-              Take the manager’s seat <ArrowRight size={18} />
+              {pickMode === 'manager' ? 'Take the manager’s seat' : pickMode === 'chairman' ? 'Take the chair' : 'Take the DoF office'} <ArrowRight size={18} />
             </button>
             <button
               className="text-button import-start"
@@ -612,14 +618,15 @@ export default function App() {
     Math.round(starters.reduce((a, p) => a + p[key], 0) / 11);
   const locked = !!state.match;
   const seasonLabel = `${String(2026 + state.season).slice(2)}/${String(2027 + state.season).slice(2)}`;
+  if (tab === 'tactics' && !isManagerMode(state)) queueMicrotask(() => setTab('home'));
   const matchAction = () => {
-    if (!state.match) update(startMatch(state));
+    if (!state.match) update(isManagerMode(state) ? startMatch(state) : simToEnd(startMatch(state)));
     else if (state.match.complete)
       update(advanceWeek(state), 'A new week. A fresh challenge.');
     else update(advanceMatch(state));
   };
   const actionLabel = !state.match
-    ? 'Go to matchday'
+    ? isManagerMode(state) ? 'Go to matchday' : 'Simulate matchday'
     : state.match.complete
       ? 'Continue to next week'
       : state.match.minute === 45
@@ -672,12 +679,12 @@ export default function App() {
           <Crest team={team} />
           <div>
             <b>{team.name}</b>
-            <span>Head coach</span>
+            <span>{state.mode === 'chairman' ? 'Chairman' : state.mode === 'director' ? 'Director of Football' : 'Head coach'}</span>
           </div>
         </div>
         <span className="nav-caption">THE MANAGER’S OFFICE</span>
         <nav>
-          {nav.map(({ id, label, icon: Icon }) => (
+          {nav.filter((n) => n.id !== 'tactics' || isManagerMode(state)).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               className={tab === id ? 'active' : ''}
@@ -967,7 +974,7 @@ export default function App() {
                           <Target size={14} /> Opponent: {opp.style} football
                         </span>
                         <button className="primary" onClick={matchAction}>
-                          Go to matchday <ArrowRight size={17} />
+                          {isManagerMode(state) ? 'Go to matchday' : 'Simulate matchday'} <ArrowRight size={17} />
                         </button>
                       </div>
                       <div className="hero-lines" aria-hidden="true" />
@@ -1723,7 +1730,7 @@ export default function App() {
           </footer>
         </main>
         <nav className="mobile-nav" aria-label="Main navigation">
-          {nav.map(({ id, label, icon: Icon }) => (
+          {nav.filter((n) => n.id !== 'tactics' || isManagerMode(state)).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               className={tab === id ? 'active' : ''}

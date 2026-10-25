@@ -68,6 +68,6 @@ export const canHire = (s: GameState) => s.mode !== 'director' || s.trust >= 40;
 /** Owner-Director: chance (0–60%) that a shareholder/fan vote forces you out this check. */
 export function voteRisk(s: GameState) {
   if (s.mode !== 'owner') return 0;
-  const p = (s.fans < 20 ? 1 : 0) + ((s.investor?.stakes ?? 0) >= 40 ? 1 : 0) + (s.trust < 25 ? 1 : 0);
+  const p = (s.fans < 20 ? 1 : 0) + ((s.investor?.stakes ?? 0) >= 40 ? 1 : 0) + (s.trust < 25 ? 1 : 0) + ((s.investor?.stakes ?? 0) > 0 && (s.wallet?.investorMood ?? 50) < 30 ? 1 : 0);
   return p >= 2 || s.fans < 20 ? p * 20 : 0;
 }

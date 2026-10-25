@@ -160,3 +160,47 @@ export function InvestorCard({ state, onUpdate }: { state: GameState; onUpdate: 
     </section>
   );
 }
+import { available, buyShares, injectCash, myStake, PAYOUT, repayLoan, sellShares, setPolicy, sharePrice, valuation, wallet, weeklySalary, type Policy } from './wallet.ts';
+export function MyFinancesCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  const s = state.wallet ? state : (JSON.parse(JSON.stringify(state)) as GameState);
+  const w = wallet(s), mode = state.mode ?? 'manager', stake = myStake(s), price = sharePrice(s), inv = state.investor?.stakes ?? 0;
+  const lump = Math.max(100, Math.round(w.cash * 0.25 / 100) * 100), off = !!state.match;
+  const go = (n: GameState, msg: string) => onUpdate(n === s ? state : n, msg);
+  return (
+    <section className="card wallet-card">
+      <span className="eyebrow">👛 MY FINANCES</span>
+      <div className="wallet-grid">
+        <div><small>Wallet</small><b>£{w.cash.toLocaleString()}k</b></div>
+        <div><small>Salary</small><b>£{weeklySalary(s)}k/wk</b></div>
+        <div><small>Earned</small><b>£{w.salary.toLocaleString()}k</b></div>
+        <div><small>Dividends</small><b>£{w.dividends.toLocaleString()}k</b></div>
+      </div>
+      {mode === 'manager' ? (
+        <p className="small">Your contract wage goes into your own wallet. Managers can’t own shares.</p>
+      ) : (
+        <>
+          <p className="small">Club value £{valuation(s).toLocaleString()}k · 1% = £{price}k · You own <b>{stake}%</b> · Investors {inv}%{mode === 'director' ? ` · Owners ${100 - stake - inv}%` : ''}{w.loan ? ` · Club owes you £${w.loan}k` : ''}</p>
+          <div className="own-bar" aria-hidden="true"><span style={{ width: `${stake}%` }} /><i style={{ width: `${inv}%` }} /></div>
+          <div className="wallet-btns">
+            {[1, 5].map((p) => <button key={`b${p}`} className="secondary" disabled={off || p > available(s) || w.cash < price * p} onClick={() => go(buyShares(s, p), `Bought ${p}%.`)}>Buy {p}%<small>£{price * p}k</small></button>)}
+            {[1, 5].map((p) => <button key={`s${p}`} className="secondary" disabled={off || p > stake} onClick={() => go(sellShares(s, p), `Sold ${p}%.`)}>Sell {p}%<small>£{Math.round(price * p * 0.9)}k</small></button>)}
+            <button className="secondary" disabled={off || w.cash < lump} onClick={() => go(injectCash(s, lump, 'loan'), 'Loan made.')}>Lend club<small>£{lump}k loan</small></button>
+            <button className="secondary" disabled={off || w.cash < lump} onClick={() => go(injectCash(s, lump, 'equity'), 'Equity injected.')}>Invest<small>£{lump}k equity</small></button>
+            {w.loan > 0 && <button className="secondary" disabled={off || state.budget < w.loan} onClick={() => go(repayLoan(s), 'Loan repaid.')}>Repay loan<small>£{w.loan}k to you</small></button>}
+          </div>
+          <span className="eyebrow">DIVIDEND POLICY</span>
+          <div className="mode-pick" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
+            {(['none', 'low', 'high'] as Policy[]).map((p) => <button key={p} className={`mode-opt ${w.policy === p ? 'active' : ''}`} onClick={() => go(setPolicy(s, p), `Dividend policy: ${p}.`)}><b>{p[0]!.toUpperCase() + p.slice(1)}</b><small>{PAYOUT[p] * 100}% of profit</small></button>)}
+          </div>
+          <p className="small">Paid at season end only if the club made a profit, and the board caps it if the bank is low. High pleases investors{w.investorMood !== undefined ? ` (mood ${w.investorMood}/100)` : ''}; none annoys them. Your salary is reviewed every 4 weeks and at season end.</p>
+        </>
+      )}
+      {(w.log?.length ?? 0) > 0 && (
+        <details className="wallet-log">
+          <summary>Salary & dividend history</summary>
+          <ul>{w.log!.map((e, i) => <li key={i}><b className={e.amount < 0 ? 'neg' : ''}>{e.kind === 'salary' ? (e.amount > 0 ? '▲' : '▼') : e.kind === 'bonus' ? '🎁' : '💰'}</b> <small>S{e.season} W{e.week}</small> {e.reason}</li>)}</ul>
+        </details>
+      )}
+    </section>
+  );
+}

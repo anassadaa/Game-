@@ -23,6 +23,7 @@ import { noteDerby } from './derby.ts';
 import { judgeScenario } from './scenario.ts';
 import { managerWeek, voteRisk } from './managers.ts';
 import { investorWeek } from './investors.ts';
+import { walletWeek, dividendSeason, salaryReview } from './wallet.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
@@ -307,6 +308,7 @@ export type GameState = {
   hiredManager?: import('./managers.ts').HiredManager;
   hires?: number;
   investor?: import('./investors.ts').Investor;
+  wallet?: import('./wallet.ts').Wallet;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1416,6 +1418,8 @@ function rollSeason(s: GameState) {
   book(s, 'tv', pay.tv); book(s, 'prize', pay.prize);
   addNews(s, `💷 Season payment: TV £${pay.tv}k · prize money £${pay.prize}k.`);
   closeLedger(s);
+  salaryReview(s, pos, { outcome, trophies: (s.trophies ?? []).filter((t) => t.season === s.season && t.club === club(s).name).length });
+  dividendSeason(s);
   judgeScenario(s, pos, outcome);
   refreshWageBudget(s, 0.5);
   s.trust = clamp(
@@ -1575,6 +1579,8 @@ export function advanceWeek(s: GameState): GameState {
   noteDerby(b, opp.id, m.us, m.them);
   managerWeek(b);
   investorWeek(b);
+  walletWeek(b);
+  if (b.week % 4 === 0) salaryReview(b, leaguePos(b));
   fanWeek(b);
   const played = new Set(Object.keys(m.ratings ?? {}));
   train(b);

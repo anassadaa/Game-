@@ -5,3 +5,7 @@
 .self-appoint-btns{display:flex;flex-wrap:wrap;gap:8px}
 .self-appoint-btns button{min-height:48px;flex:1 1 140px}
 .job-stake{display:block;color:var(--accent-ink,#2d5a1e);font-weight:600;margin-top:4px}
+.roles-list{display:grid;gap:6px;margin-bottom:14px}
+.roles-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.04)}
+.roles-row span{display:grid;min-width:0}.roles-row b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roles-pending{font-style:normal;font-size:12px;font-weight:700;color:#8a4b00;background:#ffe9c7;border-radius:999px;padding:2px 8px;white-space:nowrap}

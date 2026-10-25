@@ -4,6 +4,7 @@ import { LEAGUES, leagueName } from './world.ts';
 import { APPROACH_LIMIT, APPROACH_WINDOW, appointSelf, stakeIn, stakeBoost, applyJob, canApply, fmtFactor, jobChance, reputation, resign, stature, topFactors } from './jobs.ts';
 import type { Club } from './game.ts';
 import type { JobResult } from './jobs.ts';
+import { myRoles } from './investments.ts';
 
 type Up = (s: GameState, m?: string) => void;
 export function JobCentre({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
@@ -29,7 +30,7 @@ export function JobCentre({ state, onUpdate }: { state: GameState; onUpdate: Up 
       <div key={c.id} className={`job-row${x.vac ? ' vacancy' : ''}`}>
         <div className="job-main">
           <span><b>{c.name}</b>{x.vac ? <em className="vac-tag"> 🪑 Vacancy</em> : null}<br />
-            <small>{leagueName(c.division)} · stature {stature(c)} · <b>{x.chance}%</b></small><br />
+            <small>{leagueName(c.division)} · stature {stature(c)} · <b>{stakeIn(state, c.id) >= 51 ? '✅ Yours to take' : `${x.chance}%`}</b></small><br />
             <small className="job-top">{topFactors(x.factors).map(fmtFactor).join(' · ')}</small></span>
           {stakeIn(state, c.id) < 51 && <button className="secondary job-btn" disabled={!!x.why} onClick={() => { const [n, r] = applyJob(state, c.id); setRes({ ...r, club: c.name }); onUpdate(n, r.ok ? r.reason : undefined); }}>{x.vac ? 'Apply' : 'Approach'}</button>}
         </div>
@@ -43,6 +44,7 @@ export function JobCentre({ state, onUpdate }: { state: GameState; onUpdate: Up 
   };
   return (
     <section className="card">
+      <RolesList state={state} />
       <p className="eyebrow">JOB CENTRE</p>
       <h3>Manager reputation {rep}/100</h3>
       <div className="ffp-bar"><i style={{ width: `${rep}%`, background: '#3e63dd' }} /></div>
@@ -79,4 +81,12 @@ export function SelfAppoint({ state, clubId, onUpdate }: { state: GameState; clu
   const stake = stakeIn(state, clubId), roles = [['director', 'Director of Football'], ['chairman', 'Chairman'], ['owner', 'Owner-Director']] as const;
   return <div className="self-appoint"><small>🏛️ You own {stake}% and control the board. Appoint yourself, no application needed:</small>
     <div className="self-appoint-btns">{roles.map(([r, label]) => <button key={r} className="secondary" disabled={!!state.match} onClick={() => { const n = appointSelf(state, clubId, r); if (n !== state) onUpdate(n, `You are now ${label}.`); }}>{label}</button>)}</div></div>;
+}
+
+/** Your roles across clubs: one hands-on main club plus boardroom roles where you hold 51%+. */
+export function RolesList({ state }: { state: GameState }) {
+  const roles = myRoles(state);
+  return <div className="roles-list"><p className="eyebrow">YOUR ROLES ({roles.length})</p>
+    {roles.map(r => <div key={r.clubId} className="roles-row"><span><b>{r.name}</b><small>{r.role}{r.main ? ' · main club' : ' · boardroom'}{r.stake ? ` · ${r.stake}%` : ''}</small></span>{r.pending && <em className="roles-pending">Decision waiting</em>}</div>)}
+    {roles.length === 1 && <small className="muted">Own 51%+ of another club to add a board role there from Investments. At clubs you don’t control, apply below as normal.</small>}</div>;
 }

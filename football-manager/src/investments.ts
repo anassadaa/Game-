@@ -23,8 +23,12 @@ export type Business = {
   revision: number; lastDividend: number; lastDivision: number; baselineManager: number;
   facilities: Facilities; tickets: Tickets; instalments: Instalment[];
   project?: { type: 'academy' | 'scouting' | 'stadium'; weeks: number };
-  request?: { type: 'transfer' | 'funding'; playerId?: string; cost: number; message: string; season: number; week: number };
+  request?: { type: 'transfer' | 'funding' | 'sale'; playerId?: string; buyerId?: string; cost: number; message: string; season: number; week: number };
+  /** 2.6: a board role you hold here alongside your main job (needs 51%+). Deals at or above approveOver come to you. */
+  role?: RemoteRole; approveOver?: number;
 };
+export type RemoteRole = 'director' | 'chairman' | 'owner';
+export const ROLE_LABEL: Record<RemoteRole, string> = { director: 'Director of Football', chairman: 'Chairman', owner: 'Owner-Director' };
 export type InvestmentState = { version: 1; clubs: Record<string, Business>; lastTick: string; log: InvestmentEntry[]; watch: string[] };
 export type TradeQuote = { ok: boolean; reason: string; clubId: string; side: 'buy' | 'sell'; pct: number; price: number; fee: number; premium: number; total: number; before: number; after: number; losesControl: boolean; stamp: string };
 export type ClubView = Business & { id: string; name: string; division: number; color: string; stake: number; investors: number; loan: number; profit: number; available: number; controlled: boolean; status: string };
@@ -214,7 +218,7 @@ export function hireClubManager(s: GameState, id: string, candidateId: string): 
   commitActive(b, id); log(b, id, 'manager', -cost, `${candidate.name} appointed. Compensation £${cost}k; wage £${candidate.wage}k/week.`); return b;
 }
 
-export type ClubAction = 'strategy' | 'dividend' | 'delegation' | 'wages' | 'transfers' | 'ticket' | 'sponsor' | 'academy' | 'stadium' | 'scouting' | 'dismiss' | 'approve' | 'decline' | 'watch' | 'proposal' | 'outside-capital' | 'borrow' | 'repay-bank' | 'take-charge';
+export type ClubAction = 'strategy' | 'dividend' | 'delegation' | 'wages' | 'transfers' | 'ticket' | 'sponsor' | 'academy' | 'stadium' | 'scouting' | 'dismiss' | 'approve' | 'decline' | 'watch' | 'proposal' | 'outside-capital' | 'borrow' | 'repay-bank' | 'take-charge' | 'role' | 'threshold';
 export function clubDecision(s: GameState, id: string, action: ClubAction, value?: string | number): GameState {
   if (!getClub(s, id) || s.match) return s;
   if (action !== 'watch' && action !== 'proposal' && owned(s, id) < 51) return s;
@@ -255,7 +259,16 @@ export function clubDecision(s: GameState, id: string, action: ClubAction, value
   } else if (action === 'approve' && rec.request?.type === 'transfer') {
     if (!makeTransfer(b, id, rec.request.playerId!, rec.request.cost)) return s;
     delete rec.request;
-  } else if (action === 'decline') { if (!rec.request) return s; delete rec.request; }
+  } else if (action === 'approve' && rec.request?.type === 'sale') {
+    if (!rec.request.buyerId || !makeTransfer(b, rec.request.buyerId, rec.request.playerId!, rec.request.cost)) return s;
+    log(b, id, 'sale', rec.request.cost, `You approved the sale: ${rec.request.message}`); delete rec.request;
+  } else if (action === 'role') {
+    if (id === b.clubId) return s;
+    if (value === 'none') { if (!rec.role) return s; log(b, id, 'role', 0, `You stepped down as ${ROLE_LABEL[rec.role]} of ${getClub(b, id)!.name}.`); delete rec.role; }
+    else if (['director', 'chairman', 'owner'].includes(String(value))) { rec.role = value as RemoteRole; rec.approveOver ??= 500; if (rec.delegation === 'hands-on') rec.delegation = 'approval'; log(b, id, 'role', 0, `You are now ${ROLE_LABEL[rec.role]} of ${getClub(b, id)!.name} as well as your main job. Staff run deals; big ones need your approval.`); }
+    else return s;
+  } else if (action === 'threshold' && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 100000) rec.approveOver = value;
+  else if (action === 'decline') { if (!rec.request) return s; if (rec.request.type === 'sale') log(b, id, 'sale', 0, `You blocked the sale: ${rec.request.message}`); delete rec.request; }
   else return s;
   rec.revision++; commitActive(b, id); log(b, id, 'decision', 0, `${action}${value !== undefined ? `: ${value}` : ''}`); return b;
 }
@@ -299,6 +312,7 @@ export function investmentWeek(s: GameState) {
     b.quality = ps.length ? ps.reduce((n, p) => n + p.rating, 0) / ps.length : c.rating;
     if (b.project && --b.project.weeks <= 0) { b[b.project.type] = Math.min(5, b[b.project.type] + 1); log(s, c.id, 'project', 0, `${b.project.type} project completed (level ${b[b.project.type]}).`); delete b.project; if (c.id === s.clubId) commitActive(s, c.id); }
     if (c.id !== s.clubId) {
+      if (b.role && owned(s, c.id) < 51) { log(s, c.id, 'role', 0, `You lost control of ${c.name}, so your ${ROLE_LABEL[b.role]} role there ended.`); delete b.role; if (b.request?.type === 'sale') delete b.request; }
       if (b.facilities.building && --b.facilities.building.weeks <= 0) { const type = b.facilities.building.type; b.facilities[type] = Math.min(5, b.facilities[type] + 1); b.stadium = b.facilities.stadium; delete b.facilities.building; }
       for (const i of b.instalments) { const payment = Math.min(i.amount, i.remaining ?? i.amount); post(b, 'signings', payment); if (i.clubId && state.clubs[i.clubId]) { if (i.clubId === s.clubId) { s.budget += payment; s.ledger!.inc.sales += payment; s.ledger!.last += payment; state.clubs[s.clubId]!.cash += payment; state.clubs[s.clubId]!.ledger.inc.sales += payment; state.clubs[s.clubId]!.ledger.last += payment; } else post(state.clubs[i.clubId]!, 'sales', payment); } if (i.remaining !== undefined) i.remaining -= payment; i.weeks--; }
       b.instalments = b.instalments.filter(i => i.weeks > 0);
@@ -316,6 +330,7 @@ export function investmentWeek(s: GameState) {
         if (b.strategy === 'youth') for (const p of ps) if (p.age < 23 && p.rating < p.potential && hash(`${p.id}|develop|${s.season}|${s.week}`) % 100 < b.academy * 12) p.rating++;
         if (b.request && (b.request.season !== s.season || s.week - b.request.week > 4)) delete b.request;
         if (b.cash < 500) b.request = { type: 'funding', cost: Math.max(500, 1000 - b.cash), message: 'Cash reserves are low. Consider a shareholder loan or equity funding.', season: s.season, week: s.week };
+        else if (!b.request && b.role) roleWeek(s, c, b, ps);
         else if (!b.request && b.strategy !== 'stability') {
           const candidate = (s.rivals ?? []).find(p => p.clubId !== c.id && p.clubId !== s.clubId && p.rating >= b.quality + 2 && p.price <= b.transferBudget && p.price < b.cash - 500 && p.wage < b.wageLimit * 0.15);
           if (candidate) {
@@ -355,7 +370,9 @@ export function investmentStrength(s: GameState, id: string): { rating: number; 
 export function leaveInvestmentJob(s: GameState, nextId: string) {
   if (!s.investments) return;
   activeSnapshot(s);
-  const next = s.investments.clubs[nextId]!;
+  const next = s.investments.clubs[nextId]!, prev = s.investments.clubs[s.clubId];
+  if (prev && s.clubId !== nextId && owned(s, s.clubId) >= 51) { prev.role = 'director'; prev.approveOver ??= 500; }
+  if (next.role) { delete next.role; if (next.request?.type === 'sale') delete next.request; }
   s.budget = next.cash; s.ledger = structuredClone(next.ledger); s.fans = next.fans; s.academy = next.academy; s.scouting = next.scouting;
   s.facilities = { ...structuredClone(next.facilities), stadium: next.stadium }; s.tickets = { ...structuredClone(next.tickets), price: next.ticket }; s.instalments = structuredClone(next.instalments);
 }
@@ -389,7 +406,10 @@ export function validInvestments(s: GameState): boolean {
     if (!Array.isArray(b.history) || b.history.length > 24 || !b.history.every(h => h && integer(h.season, 1, 1000) && integer(h.week, 0, 18) && finite(h.value, 1))) return false;
     if (!Array.isArray(b.reasons) || b.reasons.length > 6 || !b.reasons.every(r => text(r, 150))) return false;
     if (b.project && (!['academy', 'scouting', 'stadium'].includes(b.project.type) || !integer(b.project.weeks, 1, 2))) return false;
-    if (b.request && (!['transfer', 'funding'].includes(b.request.type) || !text(b.request.message, 400) || !finite(b.request.cost, 0) || !integer(b.request.season, 1, 1000) || !integer(b.request.week, 0, 18) || (b.request.type === 'transfer' && !text(b.request.playerId, 200)))) return false;
+    if (b.role !== undefined && !['director', 'chairman', 'owner'].includes(b.role)) return false;
+    if (b.approveOver !== undefined && !finite(b.approveOver, 0, 100000)) return false;
+    if (b.request?.type === 'sale' && (!text(b.request.playerId, 200) || !getClub(s, b.request.buyerId ?? ''))) return false;
+    if (b.request && (!['transfer', 'funding', 'sale'].includes(b.request.type) || !text(b.request.message, 400) || !finite(b.request.cost, 0) || !integer(b.request.season, 1, 1000) || !integer(b.request.week, 0, 18) || (b.request.type === 'transfer' && !text(b.request.playerId, 200)))) return false;
     const l = b.ledger;
     return !!l && integer(l.season, 1, 1001) && finite(l.last) && !!l.inc && !!l.out && Object.values(l.inc).every(n => finite(n, 0)) && Object.values(l.out).every(n => finite(n, 0)) && ['gate', 'tv', 'sponsor', 'prize', 'sales', 'other'].every(k => finite(l.inc[k as keyof Ledger['inc']], 0)) && ['wages', 'running', 'signings'].every(k => finite(l.out[k as keyof Ledger['out']], 0)) && (l.inc.funding === undefined || finite(l.inc.funding, 0)) && (l.out.capital === undefined || finite(l.out.capital, 0)) && Array.isArray(l.weeks) && l.weeks.length <= 18 && l.weeks.every(w => w && integer(w.w, 0, 18) && finite(w.net)) && (l.prev === undefined || (!!l.prev && integer(l.prev.season, 1, 1000) && finite(l.prev.income, 0) && finite(l.prev.costs, 0) && (l.prev.transferNet === undefined || finite(l.prev.transferNet))));
   });
@@ -410,4 +430,32 @@ export function investmentTransferPayment(s: GameState, id: string | undefined, 
   if (id !== s.clubId) post(b, kind, amount);
   if (kind === 'signings') b.transferBudget = Math.max(0, b.transferBudget - commitment);
   b.revision++;
+}
+
+/** Clubs you hold a board role at other than your main club: staff do small deals, big ones wait for you. */
+function roleWeek(s: GameState, c: Club, b: Business, ps: Player[]) {
+  const limit = b.approveOver ?? 500, stamp = `${c.id}|role|${s.season}|${s.week}`;
+  if (b.strategy !== 'stability') {
+    const candidate = (s.rivals ?? []).filter(p => p.clubId !== c.id && p.clubId !== s.clubId && p.rating >= b.quality + 2 && p.price <= b.transferBudget && p.price < b.cash - 500 && p.wage < b.wageLimit * 0.15).sort((x, y) => hash(`${stamp}|${x.id}`) - hash(`${stamp}|${y.id}`))[0];
+    if (candidate) {
+      if (candidate.price >= limit) { b.request = { type: 'transfer', playerId: candidate.id, cost: candidate.price, message: `${b.manager?.name ?? 'Your staff'} want ${candidate.name} (${candidate.rating} rating), £${candidate.price}k plus £${candidate.wage}k/week.`, season: s.season, week: s.week }; return; }
+      if (makeTransfer(s, c.id, candidate.id, candidate.price)) { log(s, c.id, 'signing', candidate.price, `Your staff at ${c.name} signed ${candidate.name} for £${candidate.price}k (under your £${limit}k approval line).`); return; }
+    }
+  }
+  if (hash(`${stamp}|bid`) % 100 >= 45 || ps.length <= 16) return;
+  const star = [...ps].sort((x, y) => y.price - x.price)[hash(`${stamp}|who`) % Math.min(3, ps.length)]!;
+  const fee = Math.round(star.price * (1.05 + (hash(`${stamp}|fee`) % 20) / 100));
+  const buyer = s.clubs.filter(x => x.id !== c.id && x.id !== s.clubId && owned(s, x.id) < 51 && (s.investments!.clubs[x.id]!.cash >= fee + 250)).sort((x, y) => hash(`${stamp}|${x.id}`) - hash(`${stamp}|${y.id}`))[0];
+  if (!buyer) return;
+  const brec = s.investments!.clubs[buyer.id]!; brec.transferBudget = Math.max(brec.transferBudget, fee);
+  if (fee >= limit) b.request = { type: 'sale', playerId: star.id, buyerId: buyer.id, cost: fee, message: `${buyer.name} bid £${fee}k for ${star.name} (${star.rating} rating).`, season: s.season, week: s.week };
+  else if (makeTransfer(s, buyer.id, star.id, fee)) log(s, c.id, 'sale', fee, `Your staff at ${c.name} sold ${star.name} to ${buyer.name} for £${fee}k.`);
+}
+
+/** Every role you hold: the main club where you work hands-on, plus board roles at clubs you control. */
+export function myRoles(s: GameState): { clubId: string; name: string; role: string; main: boolean; stake: number; pending: boolean }[] {
+  const main = getClub(s, s.clubId)!, modeLabel = { manager: 'Manager', director: 'Director of Football', chairman: 'Chairman', owner: 'Owner-Director' }[s.mode ?? 'manager'];
+  const rows = [{ clubId: main.id, name: main.name, role: modeLabel, main: true, stake: owned(s, main.id), pending: false }];
+  for (const [id, b] of Object.entries(s.investments?.clubs ?? {})) if (b.role && id !== s.clubId) rows.push({ clubId: id, name: getClub(s, id)!.name, role: ROLE_LABEL[b.role], main: false, stake: owned(s, id), pending: !!b.request });
+  return rows;
 }

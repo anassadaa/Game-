@@ -154,3 +154,18 @@ test('2.6: market filters by detailed position and by line groups without mutati
   assert.ok(df.length && df.every(p => ['LB', 'CB', 'RB'].includes(slotPeek(p))));
   assert.equal(JSON.stringify(s.rivals), before);
 });
+
+test('F8: transfer approval re-prices at approval time; new career has wage room', async () => {
+  const { prepareInvestments, clubDecision } = await import('../src/investments.ts');
+  const s0 = newGame('medium');
+  const bill = s0.players.filter((p) => p.clubId === s0.clubId).reduce((a, p) => a + (p.wage || 0), 0);
+  assert.ok(s0.wageBudget.limit >= Math.round(bill * 1.12) - 1, 'starting wage room ≥ 12%');
+  const s = prepareInvestments(s0);
+  const id = Object.keys(s.investments.clubs).find((k) => k !== s.clubId);
+  const rec = s.investments.clubs[id];
+  const p = s.rivals.find((x) => x.clubId !== id && x.clubId !== s.clubId);
+  rec.request = { type: 'transfer', playerId: p.id, cost: 1, message: 'x', season: s.season, week: s.week };
+  const r = clubDecision(s, id, 'approve');
+  // stale cost of £1k must never be what gets paid
+  if (r !== s) assert.notEqual(r.investments.clubs[id].transferBudget, rec.transferBudget - 1);
+});

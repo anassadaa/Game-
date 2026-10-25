@@ -46,7 +46,7 @@ export const wageTarget = (s: GameState) => wageBreakdown(s).target;
 /** Board review (season start, every 4 weeks): move 40% toward target, max ±15% per review. */
 export function refreshWageBudget(s: GameState, weight = 0.4) {
   const t = wageTarget(s), old = s.wageBudget?.limit;
-  let limit = old === undefined ? Math.max(t, Math.round(wageBill(s) * 1.05))
+  let limit = old === undefined ? Math.max(t, Math.round(wageBill(s) * 1.12))
     : Math.round(clampN(old + (t - old) * weight, old * 0.85, old * 1.15));
   // opening season: the board honours the wage bill you inherited
   const prev = s.wageBudget, grace = old === undefined ? limit : prev?.graceSeason === s.season ? prev.grace : undefined;

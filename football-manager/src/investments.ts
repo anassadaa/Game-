@@ -257,7 +257,9 @@ export function clubDecision(s: GameState, id: string, action: ClubAction, value
     const cost = (rec.manager?.wage ?? 0) * 6; if (rec.cash < cost + 200) return s;
     const stake = owned(b, id); post(rec, 'wages', cost); wallet(b).stake = stake; b.mode = 'manager'; delete b.hiredManager; rec.manager = null;
   } else if (action === 'approve' && rec.request?.type === 'transfer') {
-    if (!makeTransfer(b, id, rec.request.playerId!, rec.request.cost)) return s;
+    // Re-price at approval: the player's value may have moved since the request was raised.
+    const now = b.rivals?.find(p => p.id === rec.request!.playerId)?.price ?? rec.request.cost;
+    if (!makeTransfer(b, id, rec.request.playerId!, now)) return s;
     delete rec.request;
   } else if (action === 'approve' && rec.request?.type === 'sale') {
     if (!rec.request.buyerId || !makeTransfer(b, rec.request.buyerId, rec.request.playerId!, rec.request.cost)) return s;

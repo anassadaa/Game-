@@ -4092,3 +4092,7 @@ body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; 
 .job-factors li{display:flex;justify-content:space-between;padding:3px 0;border-top:1px dashed rgba(0,0,0,.08)}
 .job-factors .pos{color:#1f7a3a}.job-factors .neg{color:#b42318}
 .job-row .job-factors{width:100%;box-sizing:border-box}.job-factors li{gap:12px}
+.big-seg button{min-height:44px;flex:1}
+.st-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+.st-btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:56px;text-align:left}
+.st-btn small{font-size:.72rem;opacity:.8}

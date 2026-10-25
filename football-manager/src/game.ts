@@ -14,6 +14,7 @@ import type { Award, Trophy } from './stats.ts';
 import { agentFee, ffpSeason, ffpSpend, releaseClause, saleIncome, sellOnReceipt } from './finance.ts';
 import type { Ffp, SellOn, Ledger } from './finance.ts';
 import { refreshWageBudget } from './budget.ts';
+import { fanSwing, homeGate } from './tickets.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
@@ -284,6 +285,7 @@ export type GameState = {
   approaches?: { clubId: string; season: number; week: number }[];
   resigned?: boolean;
   scoutReports?: ScoutReport[];
+  tickets?: import('./tickets.ts').Tickets;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1525,7 +1527,7 @@ export function advanceWeek(s: GameState): GameState {
     .reduce((sum, p) => sum + p.wage, 0);
   const mult = level(b).money,
     tv = Math.round((league(club(b).division).tier === 1 ? 130 : 90) * mult),
-    gate = Math.round((m.home ? 90 + Math.round(b.fans * 0.5) : 35) * mult) + stadiumBonus(b, m.home),
+    gate = (m.home ? homeGate(b) : Math.round(35 * mult)) + stadiumBonus(b, m.home),
     sponsor = Math.round(Math.round(b.fans * 0.2) * mult),
     income = tv + gate + sponsor;
   b.budget += income - wages;
@@ -1540,7 +1542,7 @@ export function advanceWeek(s: GameState): GameState {
     b.players.forEach((p) => (p.morale = clamp(p.morale - 3)));
   }
   b.trust = clamp(b.trust + (m.us > m.them ? 3 : m.us < m.them ? -3 : 0));
-  b.fans = clamp(b.fans + (m.us > m.them ? 2 : m.us < m.them ? -2 : 0));
+  b.fans = clamp(b.fans + (m.us > m.them ? 2 : m.us < m.them ? -2 : 0) + (m.home ? fanSwing(b) : 0));
   const played = new Set(Object.keys(m.ratings ?? {}));
   train(b);
   weeklyTraining(b, played);

@@ -77,7 +77,9 @@ import { FinancePanel, LedgerCard } from './Finance.tsx';
 import { agentFee, ffpLimit, ffpNet, releaseClause } from './finance.ts';
 import { RegensPanel } from './Regens.tsx';
 import { DepthPanel } from './Depth.tsx';
-import { setBackHandler } from './native';
+import { haptic, setBackHandler } from './native';
+import { celebrations, type Celebration } from './fun.ts';
+import { Celebrate } from './Celebrate.tsx';
 import { AssignSheet, LineupPicker } from './Lineup.tsx';
 import { SubsPanel } from './Subs.tsx';
 import { placeOf } from './lineup.ts';
@@ -395,6 +397,28 @@ export default function App() {
   const setSub = (id: string) => { const n = { ...subs, [tab]: id }; setSubs(n); localStorage.setItem('touchline-subtabs', JSON.stringify(n)); };
   const [tableDiv, setTableDiv] = useState<number | null>(null);
   const [toast, setToast] = useState('');
+  const [cel, setCel] = useState<Celebration[]>([]);
+  const prevState = useRef<GameState | null>(state);
+  useEffect(() => {
+    const found = celebrations(prevState.current, state);
+    prevState.current = state;
+    if (found.length) setCel((c) => [...c, ...found].slice(0, 4));
+  }, [state]);
+  const [goalFx, setGoalFx] = useState<{ side: 'us' | 'them'; n: number } | null>(null);
+  const lastScore = useRef<[number, number] | null>(null);
+  useEffect(() => {
+    const m = state?.match;
+    if (!m) { lastScore.current = null; return; }
+    const prev = lastScore.current;
+    lastScore.current = [m.us, m.them];
+    if (!prev || m.complete) return;
+    const side = m.us > prev[0] ? 'us' : m.them > prev[1] ? 'them' : null;
+    if (!side) return;
+    setGoalFx({ side, n: m.us + m.them });
+    void haptic('goal');
+    const id = setTimeout(() => setGoalFx(null), 2200);
+    return () => clearTimeout(id);
+  }, [state?.match?.us, state?.match?.them, !!state?.match]);
   const [help, setHelp] = useState(false);
   const [saveOk, setSaveOk] = useState(true);
   const [filter, setFilter] = useState('All');
@@ -804,7 +828,7 @@ export default function App() {
                     <h3>{team.name}</h3>
                     <small>{home ? 'HOME' : 'AWAY'}</small>
                   </div>
-                  <div className="score">
+                  <div className={`score${goalFx ? ' bump' : ''}`} key={goalFx ? `g${goalFx.n}` : 'score'}>
                     {state.match.us}
                     <span>:</span>
                     {state.match.them}
@@ -815,6 +839,7 @@ export default function App() {
                     <small>{home ? 'AWAY' : 'HOME'}</small>
                   </div>
                 </div>
+                {goalFx && <div className={`goal-banner ${goalFx.side}`} role="status">{goalFx.side === 'us' ? `⚽ GOAL! ${team.name} ${state.match.us}–${state.match.them}` : `${opp.name} score · ${state.match.us}–${state.match.them}`}</div>}
                 <div className="match-progress">
                   <i style={{ width: `${(state.match.minute / 90) * 100}%` }} />
                 </div>
@@ -1748,6 +1773,7 @@ export default function App() {
         </nav>
       </div>
       {profileId && <PlayerModal state={state} id={profileId} onClose={closeProfile} />}
+      {cel.length > 0 && !state.match && <Celebrate items={cel} onDone={() => setCel((c) => c.slice(1))} />}
       {toast && (
         <div className="toast" role="status">
           <Check size={17} />

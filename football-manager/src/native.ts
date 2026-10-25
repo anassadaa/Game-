@@ -7,7 +7,11 @@ export const setBackHandler = (h: BackHandler) => (backHandler = h);
 
 /** Light haptic tap; heavier patterns for goals and full time. */
 export async function haptic(kind: 'tap' | 'goal' | 'whistle' = 'tap') {
-  if (!isNative) return;
+  if (!isNative) {
+    // Web fallback: short buzz on phones that support it (ignored elsewhere).
+    try { if (kind !== 'tap') navigator.vibrate?.(kind === 'goal' ? [80, 60, 120] : 300); } catch { /* ignore */ }
+    return;
+  }
   try {
     const { Haptics, ImpactStyle, NotificationType } = await import('@capacitor/haptics');
     if (kind === 'tap') await Haptics.impact({ style: ImpactStyle.Light });

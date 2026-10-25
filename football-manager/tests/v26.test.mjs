@@ -169,3 +169,19 @@ test('F8: transfer approval re-prices at approval time; new career has wage room
   // stale cost of £1k must never be what gets paid
   if (r !== s) assert.notEqual(r.investments.clubs[id].transferBudget, rec.transferBudget - 1);
 });
+
+test('fun: celebrations detect win, trophy, promotion, control; confetti is deterministic; level and badges', async () => {
+  const { celebrations, confetti, managerLevel, badges } = await import('../src/fun.ts');
+  const a = newGame('medium');
+  const b = structuredClone(a);
+  b.results = [...(a.results ?? []), { week: 1, opp: 'Rivals', home: true, us: 3, them: 0 }];
+  b.trophies = [{ season: a.season, name: 'National Cup', club: a.clubs.find((c) => c.id === a.clubId).name }];
+  b.history = [{ season: a.season, division: 2, position: 1, points: 90, outcome: 'Promoted' }, ...a.history];
+  const k = celebrations(a, b).map((c) => c.kind);
+  assert.deepEqual(k, ['trophy', 'promotion', 'win']);
+  assert.deepEqual(celebrations(a, a), []);
+  assert.deepEqual(confetti('x'), confetti('x'));
+  assert.ok(managerLevel(b).level > managerLevel(a).level);
+  assert.ok(badges(b).find((x) => x.id === 'first-win').got);
+  assert.ok(!badges(a).find((x) => x.id === 'champ').got);
+});

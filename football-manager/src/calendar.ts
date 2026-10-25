@@ -1,9 +1,10 @@
 import type { Cup, GameState } from './game.ts';
-import { CUP_WEEKS, EURO_WEEKS, LCUP_WEEKS, EURO2_WEEKS, copy } from './game.ts';
+import { CUP_WEEKS, EURO_WEEKS, LCUP_WEEKS, EURO2_WEEKS, copy, cupOpponent } from './game.ts';
 import { fixtureList, SEASON_WEEKS } from './fixtures.ts';
 
 /** Season calendar: the double round-robin league plus midweek cup ties, and the load they put on the squad. */
-export type CalEntry = { week: number; kind: 'league' | 'cup'; opp?: string; label: string; home?: boolean };
+export type CalEntry = { week: number; kind: 'league' | 'cup'; opp?: string; label: string; home?: boolean; comp?: string; icon?: string; color?: string; oppName?: string; round?: string; done?: boolean };
+export const COMP_STYLE: Record<string, { icon: string; color: string }> = { cup: { icon: '🏆', color: '#b7791f' }, euro: { icon: '⭐', color: '#3e63dd' }, lcup: { icon: '🥈', color: '#6b7280' }, euro2: { icon: '🌍', color: '#0f766e' } };
 const cups = (): ['cup' | 'euro' | 'lcup' | 'euro2', number[], string][] => [['cup', CUP_WEEKS, 'Cup'], ['euro', EURO_WEEKS, 'Champions Cup'], ['lcup', LCUP_WEEKS, 'League Cup'], ['euro2', EURO2_WEEKS, 'Continental Trophy']];
 const ROUND = ['R16', 'QF', 'SF', 'Final'];
 const inCup = (s: GameState, c: Cup | undefined) => !!c && c.alive.includes(s.clubId);
@@ -14,7 +15,10 @@ export function calendar(s: GameState): CalEntry[] {
     const c = s[key] as Cup | undefined;
     if (!c) continue;
     weeks.forEach((w, i) => {
-      if (i < c.round || (i >= c.round && inCup(s, c))) out.push({ week: w, kind: 'cup', label: `${name} ${ROUND[i]}${i < c.round ? ' ✓' : ''}` });
+      if (i < c.round || (i >= c.round && inCup(s, c))) {
+        const opp = i === c.round && c.round < 4 ? cupOpponent(s, c) : null;
+        out.push({ week: w, kind: 'cup', label: `${name} ${ROUND[i]}${i < c.round ? ' ✓' : ''}`, comp: key, ...COMP_STYLE[key]!, round: ROUND[i], done: i < c.round, ...(opp ? { oppName: opp.name } : {}) });
+      }
     });
   }
   return out.sort((a, b) => a.week - b.week || (a.kind === 'cup' ? -1 : 1));

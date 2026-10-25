@@ -22,11 +22,11 @@ export function FixturesCard({ state, onUpdate }: { state: GameState; onUpdate?:
       <ol className="fixture-list">
         {list.flatMap((f) => [
           ...mid.filter((e) => e.week === f.week).map((e) => (
-            <li key={`m${f.week}${e.label}`} className="midweek">
-              <span className="fx-week">MW</span>
-              <span className="fx-ha">🏆</span>
-              <span className="fx-opp">{e.label}</span>
-              <small className="fx-res">Midweek</small>
+            <li key={`m${f.week}${e.label}`} className="midweek" style={{ borderLeft: `4px solid ${e.color}` }}>
+              <span className="fx-week">W{f.week}½</span>
+              <span className="fx-ha" aria-hidden>{e.icon}</span>
+              <span className="fx-opp">{e.oppName ? <>vs {e.oppName}<br /><small style={{ color: e.color }}>{e.label}</small></> : <small style={{ color: e.color }}>{e.label}{e.done ? '' : ' · TBD'}</small>}</span>
+              <small className="fx-res">{e.done ? 'Through' : 'Midweek'}</small>
             </li>
           )),
           <li key={f.week} className={f.current ? 'current' : ''}>

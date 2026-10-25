@@ -27,3 +27,12 @@ test('congestion: midweek ties drain starters unless you rotate', () => {
   assert.ok(decodeSave(JSON.stringify(t)));
   assert.equal(decodeSave(JSON.stringify({ ...t, cupRotate: 'x' })), null);
 });
+test('midweek cup entries name the opponent and carry a competition icon and colour', async () => {
+  const { newGame } = await import('../src/game.ts'); const { calendar } = await import('../src/calendar.ts');
+  const s = newGame(11);
+  const mid = calendar(s).filter((e) => e.kind === 'cup');
+  assert.ok(mid.length);
+  for (const e of mid) { assert.ok(e.icon && e.color && e.comp, JSON.stringify(e)); }
+  const next = mid.find((e) => e.oppName);
+  assert.ok(next, 'the next tie shows who we play');
+});

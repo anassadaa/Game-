@@ -8,6 +8,6 @@ test('remembered sub-tab is used only when valid', () => {
   assert.equal(pickSub('squad', 'nope'), SUBTABS.squad[0].id);
   assert.equal(pickSub('home', 'x'), null);
 });
-test('club tab splits into Board / Career / Cups / Fixtures', () => {
-  assert.deepEqual(SUBTABS.club.map((x) => x.label), ['Board', 'Career', 'Cups', 'Fixtures']);
+test('club tab splits into Board / Investments / Career / Cups / Fixtures', () => {
+  assert.deepEqual(SUBTABS.club.map((x) => x.label), ['Board', 'Investments', 'Career', 'Cups', 'Fixtures']);
 });

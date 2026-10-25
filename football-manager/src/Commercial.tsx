@@ -161,7 +161,7 @@ export function InvestorCard({ state, onUpdate }: { state: GameState; onUpdate: 
   );
 }
 import { available, buyShares, injectCash, myStake, PAYOUT, repayLoan, sellShares, setPolicy, sharePrice, valuation, wallet, weeklySalary, type Policy } from './wallet.ts';
-export function MyFinancesCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+export function MyFinancesCard({ state, onUpdate, onInvest }: { state: GameState; onUpdate: Up; onInvest?: () => void }) {
   const s = state.wallet ? state : (JSON.parse(JSON.stringify(state)) as GameState);
   const w = wallet(s), mode = state.mode ?? 'manager', stake = myStake(s), price = sharePrice(s), inv = state.investor?.stakes ?? 0;
   const lump = Math.max(100, Math.round(w.cash * 0.25 / 100) * 100), off = !!state.match;
@@ -169,6 +169,7 @@ export function MyFinancesCard({ state, onUpdate }: { state: GameState; onUpdate
   return (
     <section className="card wallet-card">
       <span className="eyebrow">👛 MY FINANCES</span>
+      {onInvest && <button className="secondary" onClick={onInvest}>Explore club investments →</button>}
       <div className="wallet-grid">
         <div><small>Wallet</small><b>£{w.cash.toLocaleString()}k</b></div>
         <div><small>Salary</small><b>£{weeklySalary(s)}k/wk</b></div>

@@ -3,6 +3,7 @@ import type { GameState } from './game.ts';
 import { clamp, club, copy } from './game.ts';
 import { book, earnedIncome, earnedCosts } from './finance.ts';
 import { level } from './difficulty.ts';
+import { marketClubs, quoteTrade, executeTrade, fundClub, repayClubLoan, clubDecision } from './investments.ts';
 
 export type Policy = 'none' | 'low' | 'high';
 export type WalletEntry = { season: number; week: number; kind: 'salary' | 'bonus' | 'dividend'; amount: number; reason: string };
@@ -65,17 +66,20 @@ export function walletWeek(s: GameState) {
 }
 /** Club value: ~1.5x last season's income (or a stature estimate) plus a stature premium; top tier is worth more. */
 export function valuation(s: GameState) {
+  if (s.investments) return marketClubs(s).find(c => c.id === s.clubId)!.value;
   const c = club(s), inc = s.ledger?.prev?.income ?? c.rating * 35;
   return Math.round((inc * 1.5 + c.rating * 40) * (c.division === 1 ? 1.4 : 1) * level(s).money);
 }
 export const sharePrice = (s: GameState) => Math.max(1, Math.round(valuation(s) / 100));
 export function available(s: GameState) {
+  if (s.investments) return marketClubs(s).find(c => c.id === s.clubId)!.available;
   const inv = s.investor?.stakes ?? 0;
   if (owns(s)) return inv;
   if (mode(s) === 'director') return Math.max(0, Math.min(25 - wallet(s).stake, 100 - inv - wallet(s).stake));
   return 0;
 }
 export function buyShares(s: GameState, pct: number): GameState {
+  if (s.investments) return executeTrade(s, quoteTrade(s, s.clubId, 'buy', pct));
   if (s.match || !Number.isInteger(pct) || pct <= 0 || pct > available(s)) return s;
   const cost = sharePrice(s) * pct; if (wallet(s).cash < cost) return s;
   const b = copy(s), w = wallet(b);
@@ -86,6 +90,7 @@ export function buyShares(s: GameState, pct: number): GameState {
   return b;
 }
 export function sellShares(s: GameState, pct: number): GameState {
+  if (s.investments) return executeTrade(s, quoteTrade(s, s.clubId, 'sell', pct));
   if (s.match || !Number.isInteger(pct) || pct <= 0 || pct > myStake(s) || mode(s) === 'manager') return s;
   const b = copy(s), w = wallet(b), get = Math.round(sharePrice(b) * pct * 0.9);
   w.cash += get;
@@ -96,6 +101,7 @@ export function sellShares(s: GameState, pct: number): GameState {
 }
 /** Put personal money into the club: a loan (repayable) or equity (dilutes investors / raises your stake). */
 export function injectCash(s: GameState, amount: number, kind: 'loan' | 'equity'): GameState {
+  if (s.investments) return fundClub(s, s.clubId, amount, kind);
   if (s.match || !Number.isSafeInteger(amount) || amount <= 0 || !['loan', 'equity'].includes(kind) || wallet(s).cash < amount || mode(s) === 'manager') return s;
   const b = copy(s), w = wallet(b), val = valuation(b);
   w.cash -= amount; b.budget += amount; book(b, 'funding', amount);
@@ -110,19 +116,24 @@ export function injectCash(s: GameState, amount: number, kind: 'loan' | 'equity'
   return b;
 }
 export function repayLoan(s: GameState): GameState {
+  if (s.investments) return repayClubLoan(s, s.clubId);
   const w = wallet(s); if (s.match || !w.loan || s.budget < w.loan) return s;
   const b = copy(s), bw = wallet(b), amt = bw.loan;
   b.budget -= amt; book(b, 'capital', amt); bw.cash += amt; bw.loan = 0;
   return b;
 }
 export function setPolicy(s: GameState, policy: Policy): GameState {
+  if (s.investments) return clubDecision(s, s.clubId, 'dividend', policy);
   if (s.match || !['none', 'low', 'high'].includes(policy)) return s;
   const b = copy(s); wallet(b).policy = policy; return b;
 }
 /** Season end (after closeLedger): pay a share of last season's profit to all shareholders, pro rata. */
 export function dividendSeason(s: GameState) {
-  if (mode(s) === 'manager') return;
+  if (mode(s) === 'manager' && myStake(s) === 0) return;
   const w = wallet(s), prev = s.ledger?.prev; if (!prev) return;
+  const business = s.investments?.clubs[s.clubId];
+  if (business && business.lastDividend >= prev.season) return;
+  if (business) business.lastDividend = prev.season;
   const profit = prev.income - prev.costs, inv = s.investor?.stakes ?? 0;
   let total = profit > 0 ? Math.round(profit * PAYOUT[w.policy]) : 0, capped = false;
   const floor = Math.round(valuation(s) * 0.03), room = Math.max(0, s.budget - floor);
@@ -134,7 +145,7 @@ export function dividendSeason(s: GameState) {
   if (total > 0) {
     const mine = Math.round((total * myStake(s)) / 100);
     s.budget -= total; book(s, 'capital', total);
-    w.cash += mine; w.dividends += mine;
+    w.cash += mine; w.dividends += mine; if (business) business.dividends += mine;
     note(s, { kind: 'dividend', amount: mine, reason: `£${total}k paid (${PAYOUT[w.policy] * 100}% of £${profit}k profit${capped ? ', capped by board' : ''}), you own ${myStake(s)}%` });
     s.headlines = [`💰 Dividend: £${total}k paid out, £${mine}k to you (${myStake(s)}%).`, ...s.headlines].slice(0, 6);
   }

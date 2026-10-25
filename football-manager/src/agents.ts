@@ -1,5 +1,7 @@
 import type { GameState, Player } from './game.ts';
 import { askingPrice, clamp, club, copy, int, next, pick } from './game.ts';
+import { investmentTransferBlock, investmentTransferPayment } from './investments.ts';
+import { book, sync } from './finance.ts';
 import { reputation } from './jobs.ts';
 
 /** An inbox message: an agent touting a client, or a free agent approaching you. */
@@ -63,6 +65,7 @@ export function signFreeAgent(s: GameState, id: string, o: FreeOffer): [GameStat
   if (s.match || !p) return [s, 'That player is no longer available.'];
   if (s.players.filter((x) => x.clubId === s.clubId).length >= 25) return [s, 'Your squad is full (25).'];
   if (o.bonus < 0 || o.wage <= 0 || o.years < 1 || o.years > 5) return [s, 'Invalid offer.'];
+  const blocked = investmentTransferBlock(s, s.clubId, o.bonus, o.wage); if (blocked) return [s, blocked];
   if (o.bonus > s.budget) return [s, 'You cannot afford that signing bonus.'];
   if (p.rating > ceiling(s) + 3) return [s, `${p.name} isn't interested in a club of your stature.`];
   const ask = freeAsk(s, p);
@@ -74,7 +77,7 @@ export function signFreeAgent(s: GameState, id: string, o: FreeOffer): [GameStat
   Object.assign(t, { clubId: b.clubId, starting: false, morale: clamp(70 + (o.wage > ask ? 10 : 0)), wage: o.wage, contract: o.years, price: t.price });
   delete t.released;
   b.players.push(t);
-  b.budget -= o.bonus;
+  sync(b, 'deals'); b.budget -= o.bonus; book(b, 'signings', o.bonus); investmentTransferPayment(b, b.clubId, 'signings', o.bonus);
   b.agentMsgs = agentMsgs(b).filter((m) => m.playerId !== id);
   const msg = `${t.name} signs on a free: £${o.wage}k/wk for ${o.years} year${o.years > 1 ? 's' : ''}${o.bonus ? `, £${o.bonus}k bonus` : ''}.`;
   b.headlines = [msg, ...b.headlines].slice(0, 6);

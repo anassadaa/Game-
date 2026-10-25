@@ -3,6 +3,7 @@ import { club, windowOpen } from './game.ts';
 import { agentFee, ledger, seasonPayout, earnedIncome, earnedCosts } from './finance.ts';
 import { level } from './difficulty.ts';
 import { dofDiscount } from './staff.ts';
+import { investmentTransferBlock } from './investments.ts';
 import { league } from './world.ts';
 
 const ours = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId);
@@ -64,6 +65,7 @@ export function offerBlock(s: GameState, p: Player, fee: number, instalments = f
   if (s.match) return 'Not during a match';
   const rival = p.clubId !== 'market';
   if (ours(s).length >= 25) return 'Squad full (25)';
+  const ownerLimit = investmentTransferBlock(s, s.clubId, rival ? fee : 0, p.wage); if (ownerLimit) return ownerLimit;
   if (!rival) return null;
   if (s.embargo) return 'FFP embargo this season';
   if (!windowOpen(s)) return 'Window closed';

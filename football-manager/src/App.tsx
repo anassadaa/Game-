@@ -107,6 +107,7 @@ import { CupPanel } from './Cup.tsx';
 import { BoardRoom, SackedModal } from './Board.tsx';
 import { askingPrice } from './game.ts';
 import { decodeSave, encodeSave, loadSave, storeSave } from './save.ts';
+import { Investments } from './Investments.tsx';
 
 const money = (n: number) =>
   n >= 1000 ? `£${(n / 1000).toFixed(2)}m` : `£${Math.round(n)}k`;
@@ -475,7 +476,7 @@ export default function App() {
   const importGame = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selected = event.target.files?.[0];
     if (!selected) return;
-    if (selected.size > 2_000_000) {
+    if (selected.size > 6_000_000) {
       setToast('Save is too large. Please choose a Touchline JSON save.');
       return;
     }
@@ -1529,6 +1530,7 @@ export default function App() {
               {tab === 'club' && (
                 <>
                   <SubTabs tab={tab} value={sub} onChange={setSub} />
+                  {sub === 'investments' && <Investments state={state} onUpdate={update} />}
                   {sub === 'cups' && (<>
                   <CupPanel state={state} />
                   <CupPanel state={state} kind="lcup" />
@@ -1544,7 +1546,7 @@ export default function App() {
                   {sub === 'board' && (<>
                   <BoardRoom state={state} onUpdate={update} />
                   <MeetingCard state={state} onUpdate={update} />
-                  <MyFinancesCard state={state} onUpdate={update} />
+                  <MyFinancesCard state={state} onUpdate={update} onInvest={() => setSub('investments')} />
                   <ManagerCard state={state} onUpdate={update} />
                   <InvestorCard state={state} onUpdate={update} />
                   <ScenarioCard state={state} />

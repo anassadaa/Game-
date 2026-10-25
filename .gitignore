@@ -1,3 +1,8 @@
 **/node_modules/
 **/dist/
 **/*.tsbuildinfo
+
+# Private Android signing material
+*.jks
+*.keystore
+keystore.properties

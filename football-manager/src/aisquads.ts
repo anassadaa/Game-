@@ -1,4 +1,5 @@
 import type { Club, GameState, Player } from './game.ts';
+import { investmentStrength } from './investments.ts';
 
 /** AI clubs field real squads: their best available XI (injuries, sales) moves their match strength. */
 function h(str: string) {
@@ -28,7 +29,11 @@ export function squadDelta(s: GameState, c: Club) {
   const d = Math.max(-8, Math.min(0, (now - ref) * 0.5 + 0.3));
   return Math.abs(d) < 0.05 ? 0 : Math.round(d * 10) / 10;
 }
-export const squadClub = (s: GameState, c: Club): Club => (c.id === s.clubId ? c : { ...c, rating: c.rating + squadDelta(s, c) });
+export const squadClub = (s: GameState, c: Club): Club => {
+  if (c.id === s.clubId) return c;
+  const management = investmentStrength(s, c.id);
+  return { ...c, rating: c.rating + squadDelta(s, c) + management.rating, style: management.style ?? c.style };
+};
 
 /** Weekly: AI players recover and pick up knocks (hash-based; the main RNG stream is untouched). */
 export function aiInjuriesWeek(s: GameState) {

@@ -20,6 +20,7 @@ import { validMeeting } from './meeting.ts';
 import { validHired } from './managers.ts';
 import { validInvestor } from './investors.ts';
 import { validWallet } from './wallet.ts';
+import { validInvestments } from './investments.ts';
 import { validScouts } from './scouts.ts';
 import { validTrophies } from './stats.ts';
 import { validFacilities } from './facilities.ts';
@@ -179,7 +180,7 @@ export function decodeSave(raw: string): GameState | null {
       (s.instalments !== undefined &&
         (!Array.isArray(s.instalments) ||
           !s.instalments.every(
-            (i) => i && typeof i.name === 'string' && Number.isFinite(i.amount) && Number.isInteger(i.weeks),
+            (i) => i && typeof i.name === 'string' && Number.isFinite(i.amount) && i.amount >= 0 && Number.isInteger(i.weeks) && (i.clubId === undefined || s.clubs.some(c => c.id === i.clubId)) && (i.remaining === undefined || (Number.isFinite(i.remaining) && i.remaining >= 0)),
           ))) ||
       !s.history.every(
         (h) =>
@@ -357,6 +358,7 @@ export function decodeSave(raw: string): GameState | null {
         !s.inbox.options.every((o) => typeof o === 'string'))
     )
       return null;
+    if (!validInvestments(s)) return null;
     return s;
   } catch {
     return null;

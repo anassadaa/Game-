@@ -68,3 +68,16 @@ export function FanCard({ state }: { state: GameState }) {
     </section>
   );
 }
+import { scenarioInfo } from './scenario.ts';
+export function ScenarioCard({ state }: { state: GameState }) {
+  const sc = state.scenario; if (!sc) return null;
+  const i = scenarioInfo(sc.id)!;
+  const st = sc.status === 'won' ? '✅ Complete' : sc.status === 'failed' ? '❌ Failed' : `⏳ Ends after season ${sc.deadline}`;
+  return (
+    <section className={`card scenario-card ${sc.status}`}>
+      <span className="eyebrow">🎯 CHALLENGE · {i.label.toUpperCase()}</span>
+      <h3>{i.goal}</h3>
+      <p className="small">{st}</p>
+    </section>
+  );
+}

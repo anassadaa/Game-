@@ -20,6 +20,7 @@ import { checkAchievements, noteMatch, seasonRecords } from './records.ts';
 import { induct } from './hof.ts';
 import { fanWeek } from './fans.ts';
 import { noteDerby } from './derby.ts';
+import { judgeScenario } from './scenario.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
@@ -298,6 +299,7 @@ export type GameState = {
   fanLog?: import('./fans.ts').FanLog;
   derby?: import('./derby.ts').DerbyLog;
   prePress?: { season: number; week: number; tone: number };
+  scenario?: import('./scenario.ts').Scenario;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1407,6 +1409,7 @@ function rollSeason(s: GameState) {
   book(s, 'tv', pay.tv); book(s, 'prize', pay.prize);
   addNews(s, `💷 Season payment: TV £${pay.tv}k · prize money £${pay.prize}k.`);
   closeLedger(s);
+  judgeScenario(s, pos, outcome);
   refreshWageBudget(s, 0.5);
   s.trust = clamp(
     s.trust +

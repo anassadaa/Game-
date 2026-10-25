@@ -4213,3 +4213,17 @@ button.primary, .primary { font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.08)
 @media (max-height: 450px) and (orientation: landscape) {
   .mobile-nav button, .mobile-nav a { min-height: 44px; }
 }
+
+/* 2.9 manager office */
+.mgr-office{display:grid;gap:8px;margin:8px 0}
+.mgr-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mgr-stats div{background:rgba(127,127,127,.12);border-radius:10px;padding:6px;text-align:center;display:flex;flex-direction:column}
+.mgr-stats small{opacity:.7;font-size:11px}
+.mgr-bar{height:8px;border-radius:4px;background:rgba(127,127,127,.25);overflow:hidden}
+.mgr-bar span{display:block;height:100%;background:#3ecf8e}
+.mgr-edit{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.mgr-edit .pp-btn{font-size:12px;padding:8px 4px;min-width:0}
+.mgr-request{border:1px solid #f5b942;border-radius:10px;padding:8px}
+.mgr-log ul{margin:4px 0;padding-left:16px;max-height:220px;overflow:auto}
+.mgr-log li{overflow-wrap:anywhere}
+.mgr-request .pp-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}

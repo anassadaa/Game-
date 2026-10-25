@@ -118,7 +118,8 @@ export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: U
       {m ? (
         <>
           <h3>{m.name} · {'★'.repeat(m.rating)}{'☆'.repeat(5 - m.rating)}</h3>
-          <p className="small">{m.style} {m.formation} · £{m.wage}k/wk · since season {m.since}. Picks the team and plays the matches.</p>
+          <p className="small">{m.style} {m.formation} · £{m.wage}k/wk · since season {m.since}. Runs the team, staff, contracts and transfers within your budget.</p>
+          <ManagerOffice state={state} onUpdate={onUpdate} />
           <button className="secondary danger-btn" disabled={!!state.match} onClick={() => onUpdate(fireManager(state), 'Manager sacked.')}>Sack manager (£{m.wage * 6}k compensation)</button>
         </>
       ) : (
@@ -204,5 +205,48 @@ export function MyFinancesCard({ state, onUpdate, onInvest }: { state: GameState
         </details>
       )}
     </section>
+  );
+}
+
+import { answerRequest, budgetLeft, expectedPos, leaguePosition, plan, record, setPlan } from './delegate.ts';
+function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  const p = plan({ ...state, mgr: state.mgr && structuredClone(state.mgr) } as GameState), r = record(state);
+  const bill = state.players.filter((x) => x.clubId === state.clubId).reduce((a, x) => a + (x.wage || 0), 0);
+  const k = (n: number) => (n >= 1000 ? `£${(n / 1000).toFixed(1)}m` : `£${n}k`);
+  const edit = (key: 'transfer' | 'wage' | 'approveOver', label: string) => {
+    const v = window.prompt(`${label} (£k)`, String(p[key]));
+    if (v === null) return; const n = Math.round(Number(v));
+    if (Number.isSafeInteger(n) && n >= 0) onUpdate(setPlan(state, { [key]: n }), `${label} set to ${k(n)}.`);
+  };
+  const used = Math.min(100, Math.round((p.spent / Math.max(1, p.transfer)) * 100));
+  return (
+    <div className="mgr-office">
+      <div className="mgr-stats">
+        <div><b>{r.w}-{r.d}-{r.l}</b><small>W-D-L</small></div>
+        <div><b>{leaguePosition(state)}th</b><small>exp. {expectedPos(state)}th</small></div>
+        <div><b>{p.signings}/{p.sales}</b><small>in / out</small></div>
+      </div>
+      <p className="small">Transfer budget: {k(p.spent)} used · {k(budgetLeft(state))} left of {k(p.transfer)}</p>
+      <div className="mgr-bar"><span style={{ width: `${used}%` }} /></div>
+      <p className="small">Wages: £{bill}k of £{p.wage}k/wk · deals over {k(p.approveOver)} need your OK</p>
+      <div className="pp-list mgr-edit">
+        <button className="secondary pp-btn" disabled={!!state.match} onClick={() => edit('transfer', 'Transfer budget')}>Transfer budget</button>
+        <button className="secondary pp-btn" disabled={!!state.match} onClick={() => edit('wage', 'Wage budget per week')}>Wage budget</button>
+        <button className="secondary pp-btn" disabled={!!state.match} onClick={() => edit('approveOver', 'Approval line')}>Approval line</button>
+      </div>
+      {p.request && (
+        <div className="mgr-request">
+          <p className="small">📨 Wants <b>{p.request.name}</b> ({p.request.slot}) for {k(p.request.fee)}</p>
+          <div className="pp-list">
+            <button className="primary pp-btn" disabled={!!state.match} onClick={() => onUpdate(answerRequest(state, true), 'Deal approved.')}>Approve</button>
+            <button className="secondary pp-btn" disabled={!!state.match} onClick={() => onUpdate(answerRequest(state, false), 'Deal blocked.')}>Block</button>
+          </div>
+        </div>
+      )}
+      <details className="mgr-log" open>
+        <summary>His decisions</summary>
+        {p.log.length ? <ul>{p.log.slice(0, 12).map((x, i) => <li key={i} className="small">{x}</li>)}</ul> : <p className="small">Nothing yet. He acts after each match.</p>}
+      </details>
+    </div>
   );
 }

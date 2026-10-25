@@ -11,3 +11,4 @@ Devil's-advocate pass over the whole game before 3.1. Each finding is fixed test
 | # | Area | Finding | Fix |
 |---|------|---------|-----|
 | R1 | Season rollover / dividends | The new season's ledger was labelled with the *old* season, so season 2 closed as "season 1" again: Finance showed the wrong season and boardroom dividends (`lastDividend >= prev.season`) were skipped every other season. | New ledger is labelled `season + 1`; old saves relabelled on load. |
+| R2 | Hired manager / staff | After 3.1 limited staff changes to one per window, refilling vacancies counted as that change (and needed rating ≥ bar−3), so expired staff left roles empty for seasons (audit runs ended with 0 staff). | Filling a vacancy is not churn: one fill per week while not in the red, rating floor relaxed; only payoff sacks are limited. |

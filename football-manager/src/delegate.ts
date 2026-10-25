@@ -115,12 +115,13 @@ export function manageStaff(s: GameState): GameState {
       }
     }
   }
-  // Fill the most important empty role with the best affordable candidate.
-  for (const role of KEY) {
-    if (staff(b).some((x) => x.role === role)) continue;
-    const c = (b.staffMarket ?? []).filter((x) => x.role === role && x.rating >= bar - 3 && !canHireStaff(b, x)).sort((x, y) => y.rating - x.rating)[0];
-    if (c) { const n = hireStaff(b, c.id); if (n !== b) { b = n; plan(b).staffAt = win; note(b, `Hired ${c.name} as ${roleLabel(role).toLowerCase()} (rated ${c.rating}).`); break changes; } }
   }
+  // Fill one empty role per week with the best affordable candidate. Filling a vacancy pays no payoff, so it
+  // is not churn and does not use up the window's one change.
+  if (!inRed(b)) for (const role of KEY) {
+    if (staff(b).some((x) => x.role === role)) continue;
+    const c = (b.staffMarket ?? []).filter((x) => x.role === role && x.rating >= Math.min(bar - 3, 6) && !canHireStaff(b, x)).sort((x, y) => y.rating - x.rating)[0];
+    if (c) { const n = hireStaff(b, c.id); if (n !== b && n.budget >= 0) { b = n; note(b, `Hired ${c.name} as ${roleLabel(role).toLowerCase()} (rated ${c.rating}).`); break; } }
   }
   // Late season: keep good staff whose contracts end.
   if (b.week >= 15) for (const x of staff(b).filter((y) => y.contract <= 1 && y.rating >= bar && !(y as any).renewedBy)) {

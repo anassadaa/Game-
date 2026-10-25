@@ -10,7 +10,7 @@ for (const seed of [7, 12, 40]) test(`seed ${seed}: 18 weeks with a top manager 
   let s = top(seed, 100); const start = s.season; let changes = 0;
   while (s.season === start) {
     const before = s.budget, log0 = s.mgr?.log?.[0]; s = week(s); if (s.season !== start) break;
-    if (s.mgr.log[0] !== log0 && /Replaced|Hired .* as /.test(s.mgr.log[0])) changes++;
+    if (s.mgr.log[0] !== log0 && /Replaced/.test(s.mgr.log[0])) changes++; // sacks with a payoff; filling vacancies is not churn
     assert.ok(plan(s).spent <= plan(s).transfer + 1, 'spend within plan');
     assert.ok(plan(s).wage <= wageLimit(s), 'wage budget never above the board limit');
   }

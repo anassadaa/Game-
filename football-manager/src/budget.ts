@@ -54,7 +54,7 @@ export function refreshWageBudget(s: GameState, weight = 0.4) {
   s.wageBudget = { limit, season: s.season, week: s.week, ...(grace !== undefined ? { grace, graceSeason: s.season } : {}) };
   return s;
 }
-/** Board's weekly wage budget. Advisory (never blocks a deal). */
+/** Board weekly wage limit: shown on screen and enforced for new signings by investmentTransferBlock. */
 export const wageLimit = (s: GameState) => s.wageBudget?.limit ?? Math.max(wageTarget(s), Math.round(wageBill(s) * 1.05));
 export const validWageBudget = (w: unknown) => w === undefined || (!!w && typeof w === 'object' && Number.isFinite((w as WageBudget).limit) && (w as WageBudget).limit > 0 && Number.isFinite((w as WageBudget).season) && Number.isFinite((w as WageBudget).week));
 export const wageRoom = (s: GameState) => wageLimit(s) - wageBill(s);

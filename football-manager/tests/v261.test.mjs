@@ -39,3 +39,11 @@ test('owner wage limit for the main club sets the board wage limit used by the c
   assert.equal(investmentTransferBlock(s, s.clubId, 0, 40), null);
   assert.equal(clubDecision(s, s.clubId, 'transfers', 5), s); // main club has no separate owner transfer cap
 });
+
+test('investment activity log uses plain sentences, not raw action keys', async () => {
+  const { clubDecision, decisionText } = await import('../src/investments.ts');
+  assert.equal(decisionText('wages', 120), 'Weekly wage limit set to £120k.');
+  let s = setup(); s = clubDecision(s, s.clubId, 'dividend', 'high');
+  assert.equal(s.investments.log.at(-1)?.message ?? s.investments.log[0].message, s.investments.log.find(e => /Dividend/.test(e.message)).message);
+  assert.ok(!s.investments.log.some(e => /^role|^dividend:/.test(e.message)));
+});

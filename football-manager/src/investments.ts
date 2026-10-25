@@ -273,9 +273,14 @@ export function clubDecision(s: GameState, id: string, action: ClubAction, value
   } else if (action === 'threshold' && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 100000) rec.approveOver = value;
   else if (action === 'decline') { if (!rec.request) return s; if (rec.request.type === 'sale') log(b, id, 'sale', 0, `You blocked the sale: ${rec.request.message}`); delete rec.request; }
   else return s;
-  rec.revision++; commitActive(b, id); log(b, id, 'decision', 0, `${action}${value !== undefined ? `: ${value}` : ''}`); return b;
+  rec.revision++; commitActive(b, id); if (action !== 'role' && action !== 'approve' && action !== 'decline') log(b, id, 'decision', 0, decisionText(action, value)); return b;
 }
 
+const DECISION: Partial<Record<ClubAction, string>> = { strategy: 'Strategy set to', dividend: 'Dividend policy set to', delegation: 'Delegation set to', wages: 'Weekly wage limit set to £%k', transfers: 'Transfer spending limit set to £%k', ticket: 'Ticket price level set to', sponsor: 'Commercial strategy set to', academy: 'Academy upgrade started', stadium: 'Stadium upgrade started', scouting: 'Scouting upgrade started', dismiss: 'Manager dismissed', borrow: 'Bank loan taken: £%k', 'repay-bank': 'Bank debt repaid: £%k', 'outside-capital': 'Outside investment accepted: £%k', 'take-charge': 'You took charge of matchdays', threshold: 'Approval line set to £%k' };
+export function decisionText(action: ClubAction, value?: string | number) {
+  const base = DECISION[action] ?? action; if (value === undefined) return `${base}.`;
+  return base.includes('%') ? `${base.replace('%', String(value))}.` : `${base} ${value}.`;
+}
 export function makeTransfer(s: GameState, id: string, playerId: string, fee: number, approved = true): boolean {
   const rec = s.investments!.clubs[id]!, p = s.rivals?.find(p => p.id === playerId);
   if (!p || (!approved && ((owned(s, id) >= 51 && rec.delegation !== 'auto') || (owned(s, p.clubId) >= 51 && s.investments!.clubs[p.clubId]!.delegation !== 'auto'))) || p.clubId === id || p.clubId === s.clubId || id === s.clubId || rec.cash < fee + 250 || fee > rec.transferBudget || !Number.isInteger(fee) || fee <= 0) return false;

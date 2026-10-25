@@ -9,6 +9,7 @@ import { validRegens } from './regens.ts';
 import { validFinance } from './finance.ts';
 import { validWageBudget } from './budget.ts';
 import { validTickets } from './tickets.ts';
+import { validSponsor } from './sponsors.ts';
 import { validScouts } from './scouts.ts';
 import { validTrophies } from './stats.ts';
 import { validFacilities } from './facilities.ts';
@@ -245,6 +246,7 @@ export function decodeSave(raw: string): GameState | null {
     if (!validWageBudget(s.wageBudget)) delete s.wageBudget;
     if (!validApproaches(s.approaches)) delete s.approaches;
     if (!validTickets(s.tickets)) delete s.tickets;
+    if (!validSponsor(s.sponsor)) delete s.sponsor;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {
       if (p.unhappy !== undefined && typeof p.unhappy !== 'string') delete p.unhappy;

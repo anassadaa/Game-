@@ -32,3 +32,26 @@ export function TicketsCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
+import { SPONSOR_TERMS, signSponsor, sponsorDeal, sponsorOffers } from './sponsors.ts';
+export function SponsorCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  const d = sponsorDeal(state);
+  return (
+    <section className="card sponsor-card">
+      <span className="eyebrow">🤝 SHIRT SPONSOR · SEASON {state.season}</span>
+      {d ? (
+        <><h3>{d.name}</h3><p className="small">£{d.weekly}k a week{d.bonus ? ` · £${d.bonus}k bonus: ${SPONSOR_TERMS[d.kind].replace(/^.*?if /, 'if ')}` : ''}. New offers next season.</p></>
+      ) : (
+        <>
+          <h3>Pick a deal for this season</h3>
+          <div className="sp-list">
+            {sponsorOffers(state).map((o) => (
+              <button key={o.id} className="secondary sp-btn" disabled={!!state.match} onClick={() => onUpdate(signSponsor(state, o.id), `${o.name} signed.`)}>
+                <b>{o.name}</b><small>{SPONSOR_TERMS[o.kind]}</small><span>£{o.weekly}k/wk{o.bonus ? ` + £${o.bonus}k bonus` : ''}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}

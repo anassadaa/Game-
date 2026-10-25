@@ -15,6 +15,7 @@ import { agentFee, ffpSeason, ffpSpend, releaseClause, saleIncome, sellOnReceipt
 import type { Ffp, SellOn, Ledger } from './finance.ts';
 import { refreshWageBudget } from './budget.ts';
 import { fanSwing, homeGate } from './tickets.ts';
+import { paySponsor, settleSponsor } from './sponsors.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
@@ -286,6 +287,7 @@ export type GameState = {
   resigned?: boolean;
   scoutReports?: ScoutReport[];
   tickets?: import('./tickets.ts').Tickets;
+  sponsor?: import('./sponsors.ts').Sponsor;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1377,6 +1379,7 @@ function rollSeason(s: GameState) {
   s.applied = [];
   staffSeason(s);
   addNews(s, ffpSeason(s));
+  settleSponsor(s, pos, outcome);
   boardReview(s, pos, outcome);
   s.euro = newEuro(s);
   s.euro2 = newEuro2(s, false, s.euro.alive);
@@ -1532,6 +1535,7 @@ export function advanceWeek(s: GameState): GameState {
     income = tv + gate + sponsor;
   b.budget += income - wages;
   book(b, 'tv', tv); book(b, 'gate', gate); book(b, 'sponsor', sponsor); book(b, 'wages', wages);
+  paySponsor(b);
   for (const i of b.instalments ?? []) {
     b.budget -= i.amount;
     i.weeks--;

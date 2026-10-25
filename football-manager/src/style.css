@@ -4096,3 +4096,7 @@ body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; 
 .st-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
 .st-btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:56px;text-align:left}
 .st-btn small{font-size:.72rem;opacity:.8}
+.sp-list{display:flex;flex-direction:column;gap:8px}
+.sp-btn{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 8px;text-align:left;min-height:56px}
+.sp-btn small{grid-column:1;opacity:.75;font-size:.75rem}.sp-btn span{grid-column:2;grid-row:1/3;font-weight:700;font-size:.85rem}
+.sp-btn{grid-template-columns:1fr}.sp-btn span{grid-column:1;grid-row:auto}

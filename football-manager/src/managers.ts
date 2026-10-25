@@ -20,10 +20,13 @@ export const endOf = (s: Pick<GameState, 'season'>, m: HiredManager) => m.contra
 export const weeksLeft = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager) => Math.max(0, (endOf(s, m) - s.season) * SEASON_WEEKS + (SEASON_WEEKS - s.week));
 /** Sacking pays off the rest of the contract. */
 export const compensation = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager) => weeksLeft(s, m) * m.wage;
-/** Leaving early: he (or his new club) pays ~6 months' wages, more for top managers. */
-/** 3.1 release fee: remaining wages × 1.5, scaled up by rating and form; never below a year's wages (min £250k). */
-export const exitPenalty = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager, overperf = 0) =>
-  Math.round(Math.max(m.wage * 52, 250, weeksLeft(s, m) * m.wage * 1.5 * (1 + 0.1 * Math.max(0, m.rating - 3)) * (1 + 0.05 * Math.min(6, Math.max(0, overperf)))));
+/** 3.1 release fee when he leaves early: about a quarter of his remaining wages, scaled by rating and form,
+ *  at least 8 weeks' wages, but never more than half a season of wages or what the club still owed him. */
+export const exitPenalty = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager, overperf = 0) => {
+  const rem = weeksLeft(s, m) * m.wage;
+  const fee = rem * 0.25 * (1 + 0.15 * Math.max(0, m.rating - 3)) * (1 + 0.05 * Math.min(6, Math.max(0, overperf)));
+  return Math.round(Math.min(rem, m.wage * 26, Math.max(m.wage * 8, fee)));
+};
 export const tenure = (s: Pick<GameState, 'season'>, m: HiredManager) => s.season - m.since + 1;
 /** % chance per check that he walks out. overperf = places above expectation. */
 export function leaveChance(s: Pick<GameState, 'trust'>, m: Pick<HiredManager, 'rating'>, overperf: number) {

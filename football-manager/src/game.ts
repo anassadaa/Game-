@@ -22,6 +22,7 @@ import { fanWeek } from './fans.ts';
 import { noteDerby } from './derby.ts';
 import { judgeScenario } from './scenario.ts';
 import { managerWeek } from './managers.ts';
+import { investorWeek } from './investors.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
@@ -305,6 +306,7 @@ export type GameState = {
   mode?: 'manager' | 'director' | 'chairman';
   hiredManager?: import('./managers.ts').HiredManager;
   hires?: number;
+  investor?: import('./investors.ts').Investor;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1572,6 +1574,7 @@ export function advanceWeek(s: GameState): GameState {
   b.fans = clamp(b.fans + (m.us > m.them ? 2 : m.us < m.them ? -2 : 0) + (m.home ? fanSwing(b) : 0));
   noteDerby(b, opp.id, m.us, m.them);
   managerWeek(b);
+  investorWeek(b);
   fanWeek(b);
   const played = new Set(Object.keys(m.ratings ?? {}));
   train(b);

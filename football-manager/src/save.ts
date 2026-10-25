@@ -18,6 +18,7 @@ import { validPrePress } from './prepress.ts';
 import { validScenario } from './scenario.ts';
 import { validMeeting } from './meeting.ts';
 import { validHired } from './managers.ts';
+import { validInvestor } from './investors.ts';
 import { validScouts } from './scouts.ts';
 import { validTrophies } from './stats.ts';
 import { validFacilities } from './facilities.ts';
@@ -263,6 +264,7 @@ export function decodeSave(raw: string): GameState | null {
     if (!validScenario(s)) delete s.scenario;
     if (!validMeeting(s)) delete s.meeting;
     if (!validHired(s)) delete s.hiredManager;
+    if (!validInvestor(s)) delete s.investor;
     if (s.mode !== undefined && !['manager', 'director', 'chairman'].includes(s.mode)) delete s.mode;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {

@@ -7,7 +7,7 @@ import { Shouts } from './Shouts.tsx';
 import { FixturesCard, ReviewModal } from './Fixtures.tsx';
 import { SubTabs } from './SubTabs.tsx';
 import { setMode, MODES, isManagerMode, type Mode } from './managers.ts';
-import { FanCard, ManagerCard, MeetingCard, ScenarioCard, SponsorCard, TicketsCard } from './Commercial.tsx';
+import { FanCard, InvestorCard, ManagerCard, MeetingCard, ScenarioCard, SponsorCard, TicketsCard } from './Commercial.tsx';
 import { pickSub } from './subtabs.ts';
 import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -1545,6 +1545,7 @@ export default function App() {
                   <BoardRoom state={state} onUpdate={update} />
                   <MeetingCard state={state} onUpdate={update} />
                   <ManagerCard state={state} onUpdate={update} />
+                  <InvestorCard state={state} onUpdate={update} />
                   <ScenarioCard state={state} />
                   <FanCard state={state} />
                   <TicketsCard state={state} onUpdate={update} />

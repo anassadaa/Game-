@@ -4120,3 +4120,4 @@ body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; 
 .meeting-card p{font-size:.85rem;margin:4px 0}
 .manager-card p{font-size:.85rem;margin:4px 0}.mgr-pool summary{min-height:44px;display:flex;align-items:center;font-weight:700;cursor:pointer}.danger-btn{min-height:44px;margin:6px 0;color:#b91c1c}
 .mode-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.mode-opt{min-height:48px;padding:0 4px;font-size:.9rem;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:700}.mode-opt.active{background:#0f766e;color:#fff;border-color:#0f766e}
+.investor-card p{font-size:.85rem;margin:4px 0}.investor-card h3{font-size:1rem}

@@ -137,3 +137,25 @@ export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
+import { acceptInvestment, declineInvestment } from './investors.ts';
+export function InvestorCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  const inv = state.investor;
+  if (!inv || (!inv.offer && !inv.stakes && inv.takeover === undefined)) return null;
+  const o = inv.offer;
+  return (
+    <section className="card investor-card">
+      <span className="eyebrow">💼 OWNERSHIP & INVESTORS</span>
+      {inv.takeover !== undefined && <p className="small">🏦 New owners since season {inv.takeover}.</p>}
+      {inv.stakes > 0 && <p className="small">Investors hold {inv.stakes}% · £{inv.raised}k raised · ~£{Math.max(1, Math.round(inv.raised * 0.004))}k/wk dividends.</p>}
+      {o && (
+        <>
+          <h3>{o.name}: £{o.cash}k for {o.stake}%</h3>
+          <div className="pp-list">
+            <button className="primary pp-btn" disabled={!!state.match} onClick={() => onUpdate(acceptInvestment(state), 'Investment accepted.')}>Accept · +£{o.cash}k</button>
+            <button className="secondary pp-btn" disabled={!!state.match} onClick={() => onUpdate(declineInvestment(state), 'Offer declined.')}>Decline</button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}

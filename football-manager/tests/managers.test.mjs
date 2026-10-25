@@ -9,7 +9,7 @@ test('four stable candidates with ratings 1-5 and wages', () => {
 test('hiring sets tactics; firing costs compensation', () => {
   const s = newGame(12); const m = managerCandidates(s)[0];
   const a = hireManager(s, m.id); assert.equal(a.hiredManager.id, m.id); assert.equal(a.tactics.mentality, m.style); assert.equal(a.tactics.formation, m.formation);
-  const cash = a.budget; const f = fireManager(a); assert.equal(f.hiredManager, undefined); assert.equal(f.budget, cash - m.wage * 6);
+  const cash = a.budget; const f = fireManager(a); assert.equal(f.hiredManager, undefined); assert.equal(f.budget, cash - a.hiredManager.wage * ((a.hiredManager.contractEnd - a.season) * 18 + 18 - a.week));
 });
 test('weekly: hired manager paid in non-manager modes only', () => {
   const s = newGame(12); const m = managerCandidates(s)[1]; const a = hireManager(s, m.id);

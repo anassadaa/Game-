@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, takeJob, startMatch, advanceWeek, signPlayer, negotiate, askingPrice, acceptBid, ownerVoteWeek } from '../src/game.ts';
-import { setMode } from '../src/managers.ts';
+import { setMode, compensation } from '../src/managers.ts';
 import { wallet, myStake, buyShares as legacyBuy, dividendSeason } from '../src/wallet.ts';
 import { earnedCosts, sync } from '../src/finance.ts';
 import { simToEnd } from '../src/highlights.ts';
@@ -170,8 +170,8 @@ test('legacy current-club share buttons use the same executable market price', (
 test('taking personal charge does not manufacture ownership and pays dismissal compensation', () => {
   let s = setup(); s.investor = { stakes: 30, raised: 0 }; s.wallet.stake = 70;
   const m = clubCandidates(s, s.clubId)[0]; s = hireClubManager(s, s.clubId, m.id);
-  const cash = s.budget; s = clubDecision(s, s.clubId, 'take-charge');
-  assert.equal(s.mode, 'manager'); assert.equal(myStake(s), 70); assert.equal(s.budget, cash - m.wage * 6);
+  const cash = s.budget, due = compensation(s, s.hiredManager); assert.ok(due > 0); s = clubDecision(s, s.clubId, 'take-charge');
+  assert.equal(s.mode, 'manager'); assert.equal(myStake(s), 70); assert.equal(s.budget, cash - due);
 });
 
 test('a modified quote cannot manufacture selling-shareholder liquidity', () => {

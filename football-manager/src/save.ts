@@ -267,6 +267,9 @@ export function decodeSave(raw: string): GameState | null {
     if (!validScenario(s)) delete s.scenario;
     if (!validMeeting(s)) delete s.meeting;
     if (!validHired(s)) delete s.hiredManager;
+    // 3.0: managers without a contract get 1 year from the current season.
+    if (s.hiredManager && !Number.isInteger(s.hiredManager.contractEnd)) s.hiredManager.contractEnd = s.season + 1;
+    for (const r of Object.values(s.investments?.clubs ?? {})) if (r && r.manager && typeof r.manager === 'object' && !Number.isInteger(r.manager.contractEnd)) r.manager.contractEnd = s.season + 1;
     if (!validMgr(s)) delete s.mgr;
     if (!validInvestor(s) || !validWallet(s)) return null;
     if (s.mode === 'director' && (s.wallet?.stake ?? 0) + (s.investor?.stakes ?? 0) > 100) return null;

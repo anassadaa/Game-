@@ -6,6 +6,7 @@ import { earnedIncome, earnedCosts, sync, book, sellOnReceipt } from './finance.
 import type { Ledger, InKind, OutKind } from './finance.ts';
 import { league } from './world.ts';
 import type { HiredManager } from './managers.ts';
+import { compensation, contractWage, contractEndFor, minYears, contractTick, renewalTerms, finalSeason, endOf, overperformance } from './managers.ts';
 import type { Facilities } from './facilities.ts';
 import { validFacilities } from './facilities.ts';
 import type { Tickets } from './tickets.ts';
@@ -206,20 +207,26 @@ export function repayClubLoan(s: GameState, id: string): GameState {
   log(b, id, 'repayment', loan, `£${loan}k loan principal repaid by ${c.name}.`); return b;
 }
 
+/** Boardroom clubs: recent form stands in for board trust and over-performance. */
+const lastFour = (c: { form: string[] }) => c.form.slice(-4);
+export const formTrust = (c: { form: string[] }) => (lastFour(c).filter(f => f === 'L').length >= 3 ? 20 : 50);
+export const formEdge = (c: { form: string[] }) => (lastFour(c).filter(f => f === 'W').length >= 3 ? 4 : 0);
 export function clubCandidates(s: GameState, id: string): HiredManager[] {
   return [0, 1, 2, 3].map(i => { const h = hash(`${id}|candidate|${s.season}|${i}`), rating = 2 + h % 4; return { id: `${id}-${s.season}-${i}`, name: ['Rafael Costa', 'Karim Bennett', 'Luca Weiss', 'Daniel Moreau'][i]!, rating, wage: 6 + rating * rating * 2, since: s.season, style: (['balanced', 'attacking', 'cautious'] as const)[h % 3]!, formation: (['4-4-2', '4-3-3', '4-2-3-1'] as const)[h % 3]! }; });
 }
-export function hireClubManager(s: GameState, id: string, candidateId: string): GameState {
+export function hireClubManager(s: GameState, id: string, candidateId: string, years?: number): GameState {
   if (s.match || owned(s, id) < 51) return s;
-  const candidate = clubCandidates(s, id).find(c => c.id === candidateId); if (!candidate) return s;
-  const b = edit(s), rec = b.investments!.clubs[id]!, cost = (rec.manager?.wage ?? 0) * 6;
+  const pick = clubCandidates(s, id).find(c => c.id === candidateId); if (!pick) return s;
+  const y = years ?? minYears(pick); if (!Number.isInteger(y) || y < minYears(pick) || y > 5) return s;
+  const candidate: HiredManager = { ...pick, wage: contractWage(pick, y), contractEnd: contractEndFor(s, y) };
+  const b = edit(s), rec = b.investments!.clubs[id]!, cost = rec.manager ? compensation(b, rec.manager) : 0;
   if (rec.manager?.id === candidateId || rec.cash < cost + candidate.wage * 4) return s;
   post(rec, 'wages', cost); rec.manager = candidate; rec.revision++;
   if (id === b.clubId) { const stake = owned(b, id); wallet(b).stake = stake; b.hiredManager = candidate; b.tactics = { ...b.tactics, formation: candidate.formation, mentality: candidate.style }; if (b.mode !== 'chairman') b.mode = 'owner'; b.investor ??= { stakes: 100 - stake, raised: 0 }; b.investor.stakes = 100 - stake; }
   commitActive(b, id); log(b, id, 'manager', -cost, `${candidate.name} appointed. Compensation £${cost}k; wage £${candidate.wage}k/week.`); return b;
 }
 
-export type ClubAction = 'strategy' | 'dividend' | 'delegation' | 'wages' | 'transfers' | 'ticket' | 'sponsor' | 'academy' | 'stadium' | 'scouting' | 'dismiss' | 'approve' | 'decline' | 'watch' | 'proposal' | 'outside-capital' | 'borrow' | 'repay-bank' | 'take-charge' | 'role' | 'threshold';
+export type ClubAction = 'strategy' | 'dividend' | 'delegation' | 'wages' | 'transfers' | 'ticket' | 'sponsor' | 'academy' | 'stadium' | 'scouting' | 'dismiss' | 'approve' | 'decline' | 'watch' | 'proposal' | 'outside-capital' | 'borrow' | 'repay-bank' | 'take-charge' | 'role' | 'threshold' | 'renew';
 export function clubDecision(s: GameState, id: string, action: ClubAction, value?: string | number): GameState {
   if (!getClub(s, id) || s.match) return s;
   if (action !== 'watch' && action !== 'proposal' && owned(s, id) < 51) return s;
@@ -251,11 +258,19 @@ export function clubDecision(s: GameState, id: string, action: ClubAction, value
     if (rec.project || rec[type] >= 5 || rec.cash < cost + 200 || (id === b.clubId && b.facilities?.building)) return s;
     post(rec, 'signings', cost); rec.project = { type, weeks: 2 };
   } else if (action === 'dismiss') {
-    if (!rec.manager || rec.cash < rec.manager.wage * 6) return s;
-    post(rec, 'wages', rec.manager.wage * 6); rec.manager = null; if (id === b.clubId) delete b.hiredManager;
+    const due = rec.manager ? compensation(b, rec.manager) : 0;
+    if (!rec.manager || rec.cash < due) return s;
+    post(rec, 'wages', due); rec.manager = null; if (id === b.clubId) delete b.hiredManager;
+  } else if (action === 'renew') {
+    const m = rec.manager, y = Number(value);
+    if (!m || !Number.isInteger(y) || y < 1 || y > 5 || !finalSeason(b, m)) return s;
+    const t = renewalTerms(b, y, id === b.clubId ? overperformance(b) : formEdge(getClub(b, id)!), m), end = endOf(b, m) + y;
+    rec.manager = { ...m, wage: t.wage, contractEnd: end, alerted: false };
+    if (id === b.clubId) b.hiredManager = { ...rec.manager };
+    log(b, id, 'manager', 0, `${m.name} renewed for ${y} year${y > 1 ? 's' : ''} to season ${end} at £${t.wage}k/week${t.raise ? ` (+${t.raise}% raise)` : ''}.`);
   } else if (action === 'take-charge') {
     if (id !== b.clubId || b.mode === 'manager') return s;
-    const cost = (rec.manager?.wage ?? 0) * 6; if (rec.cash < cost + 200) return s;
+    const cost = rec.manager ? compensation(b, rec.manager) : 0; if (rec.cash < cost + 200) return s;
     const stake = owned(b, id); post(rec, 'wages', cost); wallet(b).stake = stake; b.mode = 'manager'; delete b.hiredManager; rec.manager = null;
   } else if (action === 'approve' && rec.request?.type === 'transfer') {
     // Re-price at approval: the player's value may have moved since the request was raised.
@@ -329,6 +344,12 @@ export function investmentWeek(s: GameState) {
       post(b, 'gate', gate); post(b, 'tv', tvMoney(s, c.division, groups));
       post(b, 'sponsor', Math.round(15 + c.rating * 0.3 + (b.sponsor === 'performance' && last === 'W' ? 35 : b.sponsor === 'youth' ? b.academy * 5 : 10)));
       post(b, 'wages', Math.round(ps.reduce((n, p) => n + p.wage, 0) + (b.manager?.wage ?? 5)));
+      if (b.manager && owned(s, c.id) >= 51) {
+        const m = b.manager, ev = contractTick(s, m, c.id, formTrust(c), formEdge(c));
+        if (ev.kind === 'expire') { b.manager = null; log(s, c.id, 'manager', 0, `${m.name}'s contract expired; he left on a free. A caretaker is in charge.`); }
+        else if (ev.kind === 'leave') { post(b, 'other', ev.penalty!); b.manager = null; log(s, c.id, 'manager', ev.penalty!, `${m.name} quit ${c.name} early${formTrust(c) < 30 ? ' after a poor run' : ' for a bigger club'}. £${ev.penalty}k exit penalty paid to the club.`); s.headlines = [`✈️ ${m.name} walks out on ${c.name}; £${ev.penalty}k penalty paid.`, ...s.headlines].slice(0, 6); }
+        else if (ev.kind === 'alert') { m.alerted = true; log(s, c.id, 'manager', 0, `${m.name}'s contract ends after season ${endOf(s, m)}. Offer a renewal or let him go.`); }
+      }
       post(b, 'running', Math.round(12 + (b.academy + b.scouting + b.stadium + b.facilities.training + b.facilities.medical - 5) * 4 + b.debt * 0.003 + Math.max(0, -b.cash) * 0.01));
       if (b.strategy === 'stability' && b.debt > 0 && b.cash > 1500) { const principal = Math.min(b.debt, 50); b.debt -= principal; post(b, 'capital', principal); }
       b.fans = clamp(b.fans + (last === 'W' ? 2 : last === 'L' ? -2 : 0) + (b.ticket <= 2 ? 1 : b.ticket === 5 ? -1 : 0));
@@ -412,7 +433,7 @@ export function validInvestments(s: GameState): boolean {
     if (!b || !Array.isArray(b.instalments) || b.instalments.length > 100 || !b.instalments.every(i => i && text(i.name, 200) && finite(i.amount, 0) && integer(i.weeks, 1, 100) && (i.clubId === undefined || !!getClub(s, i.clubId)) && (i.remaining === undefined || finite(i.remaining, 0))) || !validFacilities(b.facilities) || !validTickets(b.tickets) || !integer(b.baselineManager, 1, 5) || !['cash', 'realized'].every(k => finite(b[k as keyof Business])) || !['debt', 'liquidity', 'value', 'cost', 'dividends', 'wageLimit', 'transferBudget'].every(k => finite(b[k as keyof Business], 0))) return false;
     if (!integer(b.fans, 0, 100) || !integer(b.academy, 1, 5) || !integer(b.scouting, 1, 5) || !integer(b.stadium, 1, 5) || !integer(b.ticket, 1, 5) || !integer(b.saleLimit, 0, 100) || !finite(b.quality, 0, 100) || !integer(b.revision, 0, 1e9) || !integer(b.lastDividend, 0, 1000) || !integer(b.lastDivision, 1, 100)) return false;
     if (!['balanced', 'growth', 'youth', 'stability'].includes(b.strategy) || !['auto', 'approval', 'hands-on'].includes(b.delegation) || !['none', 'low', 'high'].includes(b.policy) || !['fixed', 'performance', 'youth'].includes(b.sponsor)) return false;
-    if (b.manager !== null && (!b.manager || !text(b.manager.id, 150) || !text(b.manager.name, 150) || !integer(b.manager.rating, 1, 5) || !finite(b.manager.wage, 0, 100000) || !['balanced', 'attacking', 'cautious'].includes(b.manager.style) || !text(b.manager.formation, 20) || !integer(b.manager.since, 1, 1000))) return false;
+    if (b.manager !== null && (!b.manager || !text(b.manager.id, 150) || !text(b.manager.name, 150) || !integer(b.manager.rating, 1, 5) || !finite(b.manager.wage, 0, 100000) || !['balanced', 'attacking', 'cautious'].includes(b.manager.style) || !text(b.manager.formation, 20) || !integer(b.manager.since, 1, 1000) || (b.manager.contractEnd !== undefined && !integer(b.manager.contractEnd, 1, 1100)))) return false;
     if (!Array.isArray(b.history) || b.history.length > 24 || !b.history.every(h => h && integer(h.season, 1, 1000) && integer(h.week, 0, 18) && finite(h.value, 1))) return false;
     if (!Array.isArray(b.reasons) || b.reasons.length > 6 || !b.reasons.every(r => text(r, 150))) return false;
     if (b.project && (!['academy', 'scouting', 'stadium'].includes(b.project.type) || !integer(b.project.weeks, 1, 2))) return false;

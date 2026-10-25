@@ -107,10 +107,13 @@ export function MeetingCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
-import { voteRisk, canHire, fireManager, hireManager, managerCandidates } from './managers.ts';
+import { useState } from 'react';
+import { voteRisk, canHire, fireManager, hireManager, managerCandidates, compensation, contractWage, minYears, endOf, tenure, finalSeason, renewalTerms, renewManager, overperformance, CONTRACT_YEARS } from './managers.ts';
 export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
   if ((state.mode ?? 'manager') === 'manager') return null;
   const m = state.hiredManager;
+  const [years, setYears] = useState(2);
+  const [renewYears, setRenewYears] = useState(2);
   return (
     <section className="card manager-card">
       <span className="eyebrow">🧑‍💼 FIRST-TEAM MANAGER</span>
@@ -119,19 +122,30 @@ export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: U
         <>
           <h3>{m.name} · {'★'.repeat(m.rating)}{'☆'.repeat(5 - m.rating)}</h3>
           <p className="small">{m.style} {m.formation} · £{m.wage}k/wk · since season {m.since}. Runs the team, staff, contracts and transfers within your budget.</p>
+          <p className="small mgr-contract">📄 Tenure: {tenure(state, m)} season{tenure(state, m) > 1 ? 's' : ''} · contract to end of season {endOf(state, m)}</p>
+          {finalSeason(state, m) && (
+            <div className="mgr-request">
+              <b>Contract ends this season.</b> Renew or let him leave free.
+              <div className="mgr-actions">
+                <select aria-label="Renewal length" value={renewYears} onChange={(e) => setRenewYears(Number(e.target.value))}>{CONTRACT_YEARS.map((y) => <option key={y} value={y}>{y} yr</option>)}</select>
+                <button className="secondary" disabled={!!state.match} onClick={() => onUpdate(renewManager(state, renewYears), 'Contract renewed.')}>Offer renewal (£{renewalTerms(state, renewYears, overperformance(state), m).wage}k/wk{renewalTerms(state, renewYears, overperformance(state), m).raise ? ` · +${renewalTerms(state, renewYears, overperformance(state), m).raise}% raise` : ''})</button>
+              </div>
+            </div>
+          )}
           <ManagerOffice state={state} onUpdate={onUpdate} />
-          <button className="secondary danger-btn" disabled={!!state.match} onClick={() => onUpdate(fireManager(state), 'Manager sacked.')}>Sack manager (£{m.wage * 6}k compensation)</button>
+          <button className="secondary danger-btn" disabled={!!state.match} onClick={() => onUpdate(fireManager(state), 'Manager sacked.')}>Sack manager (£{compensation(state, m)}k: {Math.round(compensation(state, m) / Math.max(1, m.wage))} weeks left)</button>
         </>
       ) : (
         <p className="small">No manager: a caretaker is in charge and morale slips every week. Hire one below.</p>
       )}
       <details className="mgr-pool" open={!m}>
         <summary>{m ? 'Replace with…' : 'Candidates'}</summary>
+        <label className="small mgr-years">Contract length <select value={years} onChange={(e) => setYears(Number(e.target.value))}>{CONTRACT_YEARS.map((y) => <option key={y} value={y}>{y} year{y > 1 ? 's' : ''}</option>)}</select> (longer = cheaper wage; 5★ need 2+)</label>
         {!canHire(state) && <p className="small">🔒 The board must back you (trust 40+, now {Math.round(state.trust)}) before you can appoint a manager.</p>}
         <div className="pp-list">
           {managerCandidates(state).map((c) => (
-            <button key={c.id} className="secondary pp-btn" disabled={!!state.match || !canHire(state)} onClick={() => onUpdate(hireManager(state, c.id), `${c.name} hired.`)}>
-              <span>{c.name} · {'★'.repeat(c.rating)}</span><small>{c.style} {c.formation} · £{c.wage}k/wk</small>
+            <button key={c.id} className="secondary pp-btn" disabled={!!state.match || !canHire(state) || years < minYears(c)} onClick={() => onUpdate(hireManager(state, c.id, years), `${c.name} hired.`)}>
+              <span>{c.name} · {'★'.repeat(c.rating)}</span><small>{c.style} {c.formation} · £{contractWage(c, years)}k/wk · {years} yr{years < minYears(c) ? ` (wants ${minYears(c)}+)` : ''}</small>
             </button>
           ))}
         </div>

@@ -4227,3 +4227,4 @@ button.primary, .primary { font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.08)
 .mgr-log ul{margin:4px 0;padding-left:16px;max-height:220px;overflow:auto}
 .mgr-log li{overflow-wrap:anywhere}
 .mgr-request .pp-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mgr-years select,.mgr-actions select{margin-left:6px}.mgr-contract{opacity:.85}

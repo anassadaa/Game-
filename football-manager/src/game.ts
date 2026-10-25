@@ -22,7 +22,7 @@ import { induct } from './hof.ts';
 import { fanWeek } from './fans.ts';
 import { noteDerby } from './derby.ts';
 import { judgeScenario } from './scenario.ts';
-import { managerWeek, voteRisk } from './managers.ts';
+import { managerWeek, voteRisk, compensation } from './managers.ts';
 import { delegateSelect, delegateWeek } from './delegate.ts';
 import { investorWeek } from './investors.ts';
 import { walletWeek, dividendSeason, salaryReview, moveWallet } from './wallet.ts';
@@ -1945,7 +1945,7 @@ function sack(s: GameState, why: string, forced = false) {
     // An owner can't be sacked: the vote fails, but the pressure lands on the hired manager.
     s.trust = 35;
     const m = s.hiredManager;
-    if (m) { delete s.hiredManager; s.budget -= m.wage * 6; }
+    if (m) { delete s.hiredManager; s.budget -= compensation(s, m); }
     s.fans = clamp(s.fans - 5);
     s.headlines = [`🏛️ No-confidence motion fails: you own the club.${m ? ` ${m.name} pays the price and is dismissed.` : ''}`, ...s.headlines].slice(0, 6);
     return;

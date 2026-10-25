@@ -7,10 +7,10 @@ test('chairman gets a stake offer at week 10 (hash-based, deterministic)', () =>
   const s = withOffer('chairman'); assert.ok(s); const o = s.investor.offer;
   assert.ok(o.cash > 0 && o.stake >= 10 && o.stake <= 25);
 });
-test('accepting adds cash, records stake; dividends paid weekly', () => {
+test('accepting adds financing cash and stake; dividends wait for season profit', () => {
   const s = withOffer('chairman'); const o = s.investor.offer; const c = s.budget;
   const a = acceptInvestment(s); assert.equal(a.budget, c + o.cash); assert.equal(a.investor.stakes, o.stake); assert.equal(a.investor.offer, undefined);
-  a.week = 11; const before = a.budget; investorWeek(a); assert.ok(a.budget < before);
+  a.week = 11; const before = a.budget; investorWeek(a); assert.equal(a.budget, before); assert.equal(a.ledger.inc.funding, o.cash);
   const d = declineInvestment(withOffer('chairman')); assert.equal(d.investor.offer, undefined);
 });
 test('manager mode: no stake offers', () => { for (let seed = 1; seed < 40; seed++) { const s = newGame(seed); s.week = 10; investorWeek(s); assert.equal(s.investor?.offer, undefined); } });

@@ -147,7 +147,7 @@ export function InvestorCard({ state, onUpdate }: { state: GameState; onUpdate: 
     <section className="card investor-card">
       <span className="eyebrow">💼 OWNERSHIP & INVESTORS</span>
       {inv.takeover !== undefined && <p className="small">🏦 New owners since season {inv.takeover}.</p>}
-      {inv.stakes > 0 && <p className="small">Investors hold {inv.stakes}% · £{inv.raised}k raised · ~£{Math.max(1, Math.round(inv.raised * 0.004))}k/wk dividends.</p>}
+      {inv.stakes > 0 && <p className="small">Investors hold {inv.stakes}% · £{inv.raised}k raised · dividends depend on season profit and policy.</p>}
       {o && (
         <>
           <h3>{o.name}: £{o.cash}k for {o.stake}%</h3>
@@ -175,6 +175,7 @@ export function MyFinancesCard({ state, onUpdate }: { state: GameState; onUpdate
         <div><small>Earned</small><b>£{w.salary.toLocaleString()}k</b></div>
         <div><small>Dividends</small><b>£{w.dividends.toLocaleString()}k</b></div>
       </div>
+      {!!Object.keys(w.holdings ?? {}).length && <details className="wallet-log"><summary>Investments at previous clubs</summary><p className="small">These remain with the original club. They become available if you return there; your new club cannot repay another club’s loan.</p><ul>{Object.entries(w.holdings!).filter(([, h]) => h.loan || h.stake).map(([id, h]) => <li key={id}>{state.clubs.find(c => c.id === id)?.name ?? id}: {h.stake}% shares · £{h.loan}k loan outstanding</li>)}</ul></details>}
       {mode === 'manager' ? (
         <p className="small">Your contract wage goes into your own wallet. Managers can’t own shares.</p>
       ) : (

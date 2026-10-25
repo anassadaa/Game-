@@ -265,8 +265,9 @@ export function decodeSave(raw: string): GameState | null {
     if (!validScenario(s)) delete s.scenario;
     if (!validMeeting(s)) delete s.meeting;
     if (!validHired(s)) delete s.hiredManager;
-    if (!validInvestor(s)) delete s.investor;
-    if (!validWallet(s)) delete s.wallet;
+    if (!validInvestor(s) || !validWallet(s)) return null;
+    if (s.mode === 'director' && (s.wallet?.stake ?? 0) + (s.investor?.stakes ?? 0) > 100) return null;
+    if (s.wallet?.holdings && !Object.keys(s.wallet.holdings).every(id => id !== s.clubId && s.clubs.some(c => c.id === id))) return null;
     if (s.mode !== undefined && !['manager', 'director', 'chairman', 'owner'].includes(s.mode)) delete s.mode;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {

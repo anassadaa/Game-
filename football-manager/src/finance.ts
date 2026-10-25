@@ -52,18 +52,20 @@ export const validFinance = (s: GameState) =>
   s.players.every((p) => (p.clause === undefined || Number.isFinite(p.clause)) && (p.sellOn === undefined || (typeof p.sellOn.clubId === 'string' && p.sellOn.pct > 0 && p.sellOn.pct <= 50)));
 
 // ---- Club ledger: where the money comes from and goes, per season ----
-export type InKind = 'gate' | 'tv' | 'sponsor' | 'prize' | 'sales' | 'other';
-export type OutKind = 'wages' | 'running' | 'signings';
-export type Ledger = { season: number; inc: Record<InKind, number>; out: Record<OutKind, number>; last: number; weeks: { w: number; net: number }[]; prev?: { season: number; income: number; costs: number } };
-const zeroIn = (): Record<InKind, number> => ({ gate: 0, tv: 0, sponsor: 0, prize: 0, sales: 0, other: 0 });
-const zeroOut = (): Record<OutKind, number> => ({ wages: 0, running: 0, signings: 0 });
+export type InKind = 'gate' | 'tv' | 'sponsor' | 'prize' | 'sales' | 'other' | 'funding';
+export type OutKind = 'wages' | 'running' | 'signings' | 'capital';
+export type Ledger = { season: number; inc: Record<Exclude<InKind, 'funding'>, number> & { funding?: number }; out: Record<Exclude<OutKind, 'capital'>, number> & { capital?: number }; last: number; weeks: { w: number; net: number }[]; prev?: { season: number; income: number; costs: number; transferNet?: number; funding?: number; capital?: number } };
+const zeroIn = (): Ledger['inc'] => ({ gate: 0, tv: 0, sponsor: 0, prize: 0, sales: 0, other: 0, funding: 0 });
+const zeroOut = (): Ledger['out'] => ({ wages: 0, running: 0, signings: 0, capital: 0 });
 export function ledger(s: GameState): Ledger {
   return (s.ledger ??= { season: s.season, inc: zeroIn(), out: zeroOut(), last: s.budget, weeks: [] });
 }
 export function book(s: GameState, kind: InKind | OutKind, amount: number) {
   const l = ledger(s), a = Math.round(amount);
-  if (kind in l.inc) l.inc[kind as InKind] += a; else l.out[kind as OutKind] += a;
-  l.last += kind in l.inc ? a : -a;
+  const incoming = ['gate', 'tv', 'sponsor', 'prize', 'sales', 'other', 'funding'].includes(kind);
+  if (incoming) l.inc[kind as InKind] = (l.inc[kind as InKind] ?? 0) + a;
+  else l.out[kind as OutKind] = (l.out[kind as OutKind] ?? 0) + a;
+  l.last += incoming ? a : -a;
 }
 /** Anything not booked explicitly since the last sync: user deals (signings/sales) or weekly running costs. */
 export function sync(s: GameState, how: 'deals' | 'running') {
@@ -74,6 +76,9 @@ export function sync(s: GameState, how: 'deals' | 'running') {
 }
 export const totalIn = (l: Ledger) => Object.values(l.inc).reduce((a, b) => a + b, 0);
 export const totalOut = (l: Ledger) => Object.values(l.out).reduce((a, b) => a + b, 0);
+/** Financing and distributions change the bank, not the club's earnings. */
+export const earnedIncome = (l: Ledger) => totalIn(l) - (l.inc.funding ?? 0);
+export const earnedCosts = (l: Ledger) => totalOut(l) - (l.out.capital ?? 0);
 export function weekNet(s: GameState, before: number) {
   const l = ledger(s);
   l.weeks = [...l.weeks, { w: s.week, net: Math.round(s.budget - before) }].slice(-18);
@@ -81,7 +86,7 @@ export function weekNet(s: GameState, before: number) {
 export function closeLedger(s: GameState) {
   const l = ledger(s);
   sync(s, 'running');
-  s.ledger = { season: s.season, inc: zeroIn(), out: zeroOut(), last: s.budget, weeks: [], prev: { season: l.season, income: totalIn(l), costs: totalOut(l) } };
+  s.ledger = { season: s.season, inc: zeroIn(), out: zeroOut(), last: s.budget, weeks: [], prev: { season: l.season, income: earnedIncome(l), costs: earnedCosts(l), transferNet: l.inc.sales - l.out.signings, funding: l.inc.funding ?? 0, capital: l.out.capital ?? 0 } };
 }
 /** Season-end central payment: TV share by tier plus merit money by league position, and a promotion bonus. */
 export function seasonPayout(tier: number, pos: number, size: number, promoted: boolean) {

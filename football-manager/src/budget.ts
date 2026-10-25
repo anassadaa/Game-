@@ -1,6 +1,6 @@
 import type { GameState, Player } from './game.ts';
 import { club, windowOpen } from './game.ts';
-import { agentFee, ledger, seasonPayout, totalIn, totalOut } from './finance.ts';
+import { agentFee, ledger, seasonPayout, earnedIncome, earnedCosts } from './finance.ts';
 import { level } from './difficulty.ts';
 import { dofDiscount } from './staff.ts';
 import { league } from './world.ts';
@@ -29,7 +29,7 @@ export function wageBreakdown(s: GameState) {
   // season-to-date figures take over as the season goes on
   // the central TV/prize payment lands at season end, so in-season income counts its expected weekly share
   const tier = league(club(s).division).tier, pay = seasonPayout(tier, 10, 20, false);
-  const curInc = n ? totalIn(l) / n + (pay.tv + pay.prize) / SEASON_WEEKS : baseInc, curCost = n ? totalOut(l) / n : baseCost;
+  const curInc = n ? earnedIncome(l) / n + (pay.tv + pay.prize) / SEASON_WEEKS : baseInc, curCost = n ? earnedCosts(l) / n : baseCost;
   const w = n >= 4 ? n / SEASON_WEEKS : 0;
   const incomeWk = Math.round(curInc * w + baseInc * (1 - w)), costsWk = Math.round(curCost * w + baseCost * (1 - w));
   const pnlWk = incomeWk - costsWk;

@@ -23,7 +23,7 @@ import { noteDerby } from './derby.ts';
 import { judgeScenario } from './scenario.ts';
 import { managerWeek, voteRisk } from './managers.ts';
 import { investorWeek } from './investors.ts';
-import { walletWeek, dividendSeason, salaryReview } from './wallet.ts';
+import { walletWeek, dividendSeason, salaryReview, moveWallet } from './wallet.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
@@ -1968,6 +1968,7 @@ export function takeJob(s: GameState, clubId: string): GameState {
     delete p.counter;
     return Object.assign(p, { listed: false, contract: Math.max(1, p.contract ?? 2) });
   });
+  moveWallet(b, clubId);
   b.clubId = clubId;
   while (b.players.length < 14 || !b.players.some((p) => p.position === 'GK'))
     b.players.push(makePlayer(b, clubId, 300 + b.players.length, b.players.some((p) => p.position === 'GK') ? pick(b, POSITIONS) : 'GK', target.rating - 8));

@@ -72,8 +72,8 @@ export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: 
   );
 }
 
-const IN_LABEL = { gate: 'Matchday gate', tv: 'TV rights', sponsor: 'Sponsorship', prize: 'Prize money', sales: 'Player sales', other: 'Other' } as const;
-const OUT_LABEL = { wages: 'Player wages', running: 'Staff, scouts & upkeep', signings: 'Signings & upgrades' } as const;
+const IN_LABEL = { gate: 'Matchday gate', tv: 'TV rights', sponsor: 'Sponsorship', prize: 'Prize money', sales: 'Player sales', other: 'Other income', funding: 'Loans & equity funding' } as const;
+const OUT_LABEL = { wages: 'Wages & bonuses', running: 'Staff, scouts & upkeep', signings: 'Signings & upgrades', capital: 'Loan repayments & dividends' } as const;
 export function LedgerCard({ state }: { state: GameState }) {
   const l = ledger(state), inc = totalIn(l), out = totalOut(l), net = inc - out;
   const max = Math.max(1, inc, out);
@@ -81,10 +81,10 @@ export function LedgerCard({ state }: { state: GameState }) {
   return (
     <section className="card ledger-card">
       <p className="eyebrow">FINANCES · SEASON {l.season + 1}</p>
-      <h3>£{state.budget}k cash · <span className={net >= 0 ? 'pos' : 'neg'}>{net >= 0 ? '+' : '−'}£{Math.abs(net)}k</span> this season</h3>
+      <h3>£{state.budget}k cash · <span className={net >= 0 ? 'pos' : 'neg'}>{net >= 0 ? '+' : '−'}£{Math.abs(net)}k</span> net cash flow this season</h3>
       <div className="ledger-bars">
-        <div><span>Income £{inc}k</span><i className="in" style={{ width: `${(inc / max) * 100}%` }} /></div>
-        <div><span>Costs £{out}k</span><i className="out" style={{ width: `${(out / max) * 100}%` }} /></div>
+        <div><span>Cash in £{inc}k</span><i className="in" style={{ width: `${(inc / max) * 100}%` }} /></div>
+        <div><span>Cash out £{out}k</span><i className="out" style={{ width: `${(out / max) * 100}%` }} /></div>
       </div>
       <div className="ledger-cols">
         <dl>{(Object.keys(IN_LABEL) as (keyof typeof IN_LABEL)[]).filter((k) => l.inc[k]).map((k) => <div key={k}><dt>{IN_LABEL[k]}</dt><dd>£{l.inc[k]}k</dd></div>)}</dl>

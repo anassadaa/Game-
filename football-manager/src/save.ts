@@ -271,6 +271,8 @@ export function decodeSave(raw: string): GameState | null {
     if (s.hiredManager && !Number.isInteger(s.hiredManager.contractEnd)) s.hiredManager.contractEnd = s.season + 1;
     for (const r of Object.values(s.investments?.clubs ?? {})) if (r && r.manager && typeof r.manager === 'object' && !Number.isInteger(r.manager.contractEnd)) r.manager.contractEnd = s.season + 1;
     if (!validMgr(s)) delete s.mgr;
+    // 3.1: 3.0 labelled the new ledger with the old season (dividends could be skipped); relabel.
+    if (s.ledger && Number.isInteger(s.ledger.season) && s.ledger.season < s.season) s.ledger.season = s.season;
     // 3.1: saves where 3.0 wrongly removed the manager: keep playing with a caretaker and say so once.
     if ((s.mode === 'owner' || s.mode === 'chairman') && !s.hiredManager && Array.isArray(s.headlines) && !s.headlines.some((h: unknown) => typeof h === 'string' && h.startsWith('🧢'))) s.headlines = ['🧢 A caretaker is in charge: no manager under contract. Offer one a contract in Club → Board.', ...s.headlines].slice(0, 6);
     if (!validInvestor(s) || !validWallet(s)) return null;

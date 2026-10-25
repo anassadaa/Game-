@@ -86,7 +86,7 @@ export function weekNet(s: GameState, before: number) {
 export function closeLedger(s: GameState) {
   const l = ledger(s);
   sync(s, 'running');
-  s.ledger = { season: s.season, inc: zeroIn(), out: zeroOut(), last: s.budget, weeks: [], prev: { season: l.season, income: earnedIncome(l), costs: earnedCosts(l), transferNet: l.inc.sales - l.out.signings, funding: l.inc.funding ?? 0, capital: l.out.capital ?? 0 } };
+  s.ledger = { season: s.season + 1, inc: zeroIn(), out: zeroOut(), last: s.budget, weeks: [], prev: { season: l.season, income: earnedIncome(l), costs: earnedCosts(l), transferNet: l.inc.sales - l.out.signings, funding: l.inc.funding ?? 0, capital: l.out.capital ?? 0 } };
 }
 /** Season-end central payment: TV share by tier plus merit money by league position, and a promotion bonus. */
 export function seasonPayout(tier: number, pos: number, size: number, promoted: boolean) {

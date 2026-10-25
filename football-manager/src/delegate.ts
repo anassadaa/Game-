@@ -31,16 +31,20 @@ export function autoBudget(s: GameState) {
   const income = s.ledger?.prev?.income ?? 0;
   const jitter = 0.95 + 0.1 * hash(`${s.seed}|${s.clubId}|auto|${phase(s)}`);
   // 3.1: real cash only. Money already committed to wages the club can't cover from income this season is not spendable.
-  const incWk = s.ledger?.prev ? income / 18 : wageLimit(s) * 1.4, /* no history yet: the wage limit is set from income */ left = Math.max(0, 18 - s.week), shortfall = Math.max(0, bill(s) - incWk) * left;
+  const incWk = s.ledger?.prev ? income / 18 : wageLimit(s) * 1.4, /* no history yet: the wage limit is set from income */ left = Math.max(0, 18 - s.week);
+  // Real weekly burn this season (staff, upkeep, salaries, instalments): TV/prize money only lands at season end.
+  const nets = (s.ledger?.season === s.season ? s.ledger.weeks : []).filter((w) => w.w > 0 && w.w < 18).slice(-6).map((w) => w.net);
+  const burn = nets.length ? Math.max(0, -nets.reduce((a, b) => a + b, 0) / nets.length) : 0;
+  const shortfall = Math.max(burn, bill(s) - incWk, 0) * left;
   const free = Math.max(0, s.budget - shortfall);
   const transfer = Math.max(0, Math.round((free * 0.35 + Math.min(free, income * 0.08)) * form * ambition * jitter));
   // Never above the board's wage limit, whatever the current bill is.
   const wage = Math.max(1, Math.round(wageLimit(s) * (0.94 + 0.06 * form) * jitter));
-  return { transfer, wage };
+  return { transfer, wage, free: Math.round(free) };
 }
 function applyAuto(s: GameState, p: MgrPlan) {
   const a = autoBudget(s), k = 1 + (p.mod ?? 0) / 100;
-  p.auto = { ...a, at: phase(s) }; p.transfer = Math.round(a.transfer * k); p.wage = Math.min(wageLimit(s), Math.round(a.wage * k));
+  p.auto = { ...a, at: phase(s) }; p.transfer = Math.min(Math.round(a.transfer * k), a.free); p.wage = Math.min(wageLimit(s), Math.round(a.wage * k));
 }
 /** The manager's budget: set automatically each window (and season), times your % modifier. Spending resets each season. */
 export function plan(s: GameState): MgrPlan {

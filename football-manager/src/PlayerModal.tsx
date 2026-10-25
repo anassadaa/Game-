@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { GameState } from './game.ts';
 import { pidFromTexts, playerProfile } from './profile.ts';
+import { valueTrend } from './trends.ts';
+import { Spark } from './Career.tsx';
 
 /** Long-press never opens a profile from inside these (dialogs own their buttons). */
 export const NO_LONG = '.pp-modal, [role="dialog"], .modal-backdrop, [data-noprofile]';
@@ -91,6 +93,7 @@ export function PlayerModal({ state, id, onClose }: { state: GameState; id: stri
           <h3>Personality & traits</h3>
           <p>{pr.personality}{pr.leadership !== null ? ` · Leadership ${pr.leadership}/20` : ''}</p>
           <p>{pr.traits.length ? pr.traits.join(' · ') : 'No notable traits'}</p>
+          {pr.ours && (() => { const v = valueTrend(state, id); return <><h3>Value trend</h3>{v.length >= 2 ? <><Spark values={v} label={`Value over the last ${v.length} weeks`} /><p className="small">£{v[0]}k → £{v.at(-1)}k over {v.length} weeks {v.at(-1)! > v[0]! ? '📈' : v.at(-1)! < v[0]! ? '📉' : '➖'}</p></> : <p className="empty-note">📈 His value chart builds up week by week.</p>}</>; })()}
           <h3>Contract</h3>
           <p>{pr.contract}</p>
           <h3>Fitness & injury</h3>

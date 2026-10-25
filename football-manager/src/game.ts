@@ -39,6 +39,7 @@ import { buildReview, recordResult, type Result, type SeasonReview } from './fix
 import { shoutEffect, type ShoutId } from './shouts.ts';
 import { captainWeek, formSwing, hidden, leaderEdge, ppmEffect, revealWeek } from './traits.ts';
 import { dropSuspended, matchCards, resetCards, settleCards, type Card } from './cards.ts';
+import { recordTrend, type TrendPoint } from './trends.ts';
 import { injuryWeek, matchInjuries, migrateInjuries } from './injuries.ts';
 import { midweekLoad } from './calendar.ts';
 import { roomWeek } from './room.ts';
@@ -259,6 +260,9 @@ export type GameState = {
   tacticSets?: import('./tacticsets.ts').TacticSet[];
   bids?: Bid[];
   news?: string[];
+  /** 2.6 charts: weekly income/wage snapshots and squad value history. */
+  trend?: TrendPoint[];
+  valueHist?: Record<string, number[]>;
   board?: Board;
   offers?: string[];
   sacked?: boolean;
@@ -1598,6 +1602,7 @@ export function advanceWeek(s: GameState): GameState {
   scoutsWeek(b);
   aiInjuriesWeek(b);
   revealWeek(b);
+  recordTrend(b);
   captainWeek(b);
   roomWeek(b);
   familiarityWeek(b);

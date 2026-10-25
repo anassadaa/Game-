@@ -80,6 +80,7 @@ import { DepthPanel } from './Depth.tsx';
 import { haptic, setBackHandler } from './native';
 import { celebrations, type Celebration } from './fun.ts';
 import { Celebrate } from './Celebrate.tsx';
+import { CareerCard } from './Career.tsx';
 import { AssignSheet, LineupPicker } from './Lineup.tsx';
 import { SubsPanel } from './Subs.tsx';
 import { placeOf } from './lineup.ts';
@@ -766,43 +767,11 @@ export default function App() {
               closing the game.
             </div>
           )}
-          <div className="page-heading">
-            <div>
-              <span className="eyebrow">
-                SEASON {String(state.season).padStart(2, '0')} / MATCHWEEK{' '}
-                {String(state.week + 1).padStart(2, '0')}
-              </span>
-              <h1>
-                {state.match
-                  ? 'Under the floodlights.'
-                  : tab === 'home'
-                    ? 'Welcome back, gaffer.'
-                    : tab === 'squad'
-                      ? 'The people behind the badge.'
-                      : tab === 'tactics'
-                        ? 'Give your football an identity.'
-                        : tab === 'transfers'
-                          ? 'Do the deals that shape the season.'
-                          : tab === 'recruitment'
-                          ? 'Find your next difference-maker.'
-                          : 'Build beyond the next result.'}
-              </h1>
-              <p>
-                {state.match
-                  ? 'Every decision can change the next fifteen minutes.'
-                  : tab === 'home'
-                    ? `${team.name}. A new week. A chance to write the next chapter.`
-                    : tab === 'squad'
-                      ? 'Tap Assign on any player to put him in a position, on the bench or in the reserves.'
-                      : tab === 'tactics'
-                        ? 'Balance risk, preparation and the strengths of the opposition.'
-                        : tab === 'transfers'
-                          ? 'Offers, agents, free agents and the market, all in one place.'
-                          : tab === 'recruitment'
-                          ? 'Your scouts and their reports.'
-                          : 'Keep the club healthy, develop tomorrow’s talent and protect your legacy.'}
-              </p>
-            </div>
+          <div className="page-heading one-line">
+            <h1>
+              <span className="eyebrow">S{String(state.season).padStart(2, '0')} · W{String(state.week + 1).padStart(2, '0')}</span>
+              {state.match ? 'Matchday' : ({ home: 'Overview', squad: 'Squad', tactics: 'Tactics', transfers: 'Transfers', recruitment: 'Recruitment', club: 'Club' } as Record<string, string>)[tab]}
+            </h1>
             <div className="season-pill">
               <Flag size={15} />{' '}
               {leagueName(team.division)}
@@ -967,7 +936,6 @@ export default function App() {
             <>
               {tab === 'home' && (
                 <>
-                  <PrePressCard state={state} onUpdate={update} />
                   <div className="overview-grid">
                     <section className="fixture-hero">
                       <div className="fixture-top">
@@ -1042,6 +1010,8 @@ export default function App() {
                       </p>
                     </section>
                   </div>
+                  <PrePressCard state={state} onUpdate={update} />
+                  <CareerCard state={state} />
                   <div className="metrics">
                     <div>
                       <Users />

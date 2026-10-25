@@ -4147,3 +4147,28 @@ body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; 
 .score.bump { animation: score-bump 0.6s ease-out; }
 @keyframes score-bump { 30% { transform: scale(1.35); color: #ffd54a; } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .confetti { display: none; } .celebrate-card, .goal-banner, .score.bump { animation: none; } }
+
+/* 2.6 career card + charts */
+.career-card { display: grid; gap: 10px; margin-bottom: 16px; }
+.career-top { display: flex; align-items: baseline; gap: 10px; }
+.career-level { font-size: 22px; color: #17301f; }
+.career-top small { margin-left: auto; color: #4f6347; font-size: 13px; }
+.career-xp { height: 8px; border-radius: 6px; background: #e4eadc; overflow: hidden; }
+.career-xp i { display: block; height: 100%; background: linear-gradient(90deg, #8bc34a, #2f7d4f); }
+.badge-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.badge-chip { flex: 0 0 auto; display: grid; justify-items: center; gap: 2px; width: 74px; padding: 6px 4px; border-radius: 10px; background: #f1f4ec; font-size: 20px; filter: grayscale(1); opacity: .55; text-align: center; }
+.badge-chip.got { filter: none; opacity: 1; background: #fff6d6; }
+.badge-chip small { font-size: 10px; line-height: 1.2; color: #33452c; }
+.wage-chart { display: grid; gap: 6px; }
+.wage-bars { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
+.wage-bars > div { flex: 1; display: flex; align-items: flex-end; gap: 1px; height: 100%; }
+.wage-bars i, .wage-legend i { display: block; flex: 1; border-radius: 3px 3px 0 0; }
+.inc { background: #3c9a5f; } .wag { background: #e0a43a; }
+.wage-legend { display: flex; gap: 12px; align-items: center; font-size: 12px; color: #33452c; flex-wrap: wrap; }
+.wage-legend span { display: flex; align-items: center; gap: 4px; } .wage-legend i { width: 10px; height: 10px; flex: none; border-radius: 2px; }
+.wage-legend b { margin-left: auto; font-size: 12px; }
+.spark { width: 100%; height: 44px; display: block; }
+.empty-note { font-size: 13px; color: #4f6347; background: #f4f7ef; border: 1px dashed #c9d5bd; border-radius: 10px; padding: 12px; text-align: center; }
+.page-heading.one-line { margin-bottom: 14px; }
+.page-heading.one-line h1 { display: flex; align-items: baseline; gap: 10px; font-size: 22px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.page-heading.one-line h1 .eyebrow { margin: 0; font-size: 11px; color: #5d7155; }

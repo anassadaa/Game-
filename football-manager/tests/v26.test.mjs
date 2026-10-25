@@ -185,3 +185,19 @@ test('fun: celebrations detect win, trophy, promotion, control; confetti is dete
   assert.ok(badges(b).find((x) => x.id === 'first-win').got);
   assert.ok(!badges(a).find((x) => x.id === 'champ').got);
 });
+
+test('charts: weekly trend and value history recorded, capped, and survive save round-trip', async () => {
+  const { advanceWeek, startMatch } = await import('../src/game.ts');
+  const { simToEnd } = await import('../src/highlights.ts');
+  const { wagesVsIncome, valueTrend } = await import('../src/trends.ts');
+  const save = await import('../src/save.ts');
+  let s = newGame('medium');
+  for (let i = 0; i < 3; i++) s = advanceWeek(simToEnd(startMatch(s)));
+  assert.ok((s.trend ?? []).length >= 2, 'trend recorded');
+  assert.ok(wagesVsIncome(s).length >= 1);
+  const p = s.players.find((x) => x.clubId === s.clubId);
+  assert.ok(valueTrend(s, p.id).length >= 2);
+  const enc = save.encodeSave ?? ((x) => JSON.stringify(x));
+  const back = save.decodeSave(enc(s));
+  assert.ok(back && back.trend.length === s.trend.length);
+});

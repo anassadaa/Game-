@@ -4233,3 +4233,9 @@ button.primary, .primary { font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.08)
 .mod-chip.on{background:#3ecf8e;color:#06281a;border-color:#3ecf8e}
 .mod-custom{min-height:44px;border-radius:22px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;text-align:center;font-size:16px;min-width:0;width:100%}
 .mgr-budget{display:grid;gap:6px}.mgr-approve-line{min-height:44px;width:100%}
+.mgr-main-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:6px 0}
+.big-btn{min-height:48px;font-size:16px;font-weight:700;border-radius:12px;width:100%}
+.mgr-sheet{position:sticky;bottom:8px;z-index:5;border:2px solid #3ecf8e;border-radius:14px;padding:12px;margin:8px 0;background:#fff;color:#111;display:grid;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.year-chips{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.mgr-warn{border-left:3px solid #f5b942;padding-left:8px}
+.mgr-cands .pp-btn{min-height:52px}

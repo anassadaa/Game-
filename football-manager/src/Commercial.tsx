@@ -110,10 +110,21 @@ export function MeetingCard({ state, onUpdate }: { state: GameState; onUpdate: U
 import { useState } from 'react';
 import { voteRisk, canHire, fireManager, hireManager, managerCandidates, compensation, contractWage, minYears, endOf, tenure, finalSeason, renewalTerms, renewManager, overperformance, CONTRACT_YEARS } from './managers.ts';
 export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  const [offer, setOffer] = useState<{ id: string | null; years: number } | null>(null);
   if ((state.mode ?? 'manager') === 'manager') return null;
-  const m = state.hiredManager;
-  const [years, setYears] = useState(2);
-  const [renewYears, setRenewYears] = useState(2);
+  const m = state.hiredManager, busy = !!state.match;
+  const cands = managerCandidates(state);
+  const target = offer && (offer.id ? cands.find((c) => c.id === offer.id) : m);
+  const renewing = !!offer && offer.id === null;
+  const terms = (y: number) => (renewing && m ? renewalTerms(state, y, overperformance(state), m).wage : target ? contractWage(target, y) : 0);
+  const blocked = (y: number) => !target || (!renewing && y < minYears(target));
+  const confirm = () => {
+    if (!offer || !target) return;
+    const next = renewing ? renewManager(state, offer.years) : hireManager(state, target.id, offer.years);
+    if (next !== state) onUpdate(next, renewing ? `${target.name} renewed for ${offer.years} yr.` : `${target.name} hired for ${offer.years} yr.`);
+    setOffer(null);
+  };
+  const due = m ? compensation(state, m) : 0;
   return (
     <section className="card manager-card">
       <span className="eyebrow">🧑‍💼 FIRST-TEAM MANAGER</span>
@@ -121,35 +132,44 @@ export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: U
       {m ? (
         <>
           <h3>{m.name} · {'★'.repeat(m.rating)}{'☆'.repeat(5 - m.rating)}</h3>
-          <p className="small">{m.style} {m.formation} · £{m.wage}k/wk · since season {m.since}. Runs the team, staff, contracts and transfers within your budget.</p>
-          <p className="small mgr-contract">📄 Tenure: {tenure(state, m)} season{tenure(state, m) > 1 ? 's' : ''} · contract to end of season {endOf(state, m)}</p>
-          {finalSeason(state, m) && (
-            <div className="mgr-request">
-              <b>Contract ends this season.</b> Renew or let him leave free.
-              <div className="mgr-actions">
-                <select aria-label="Renewal length" value={renewYears} onChange={(e) => setRenewYears(Number(e.target.value))}>{CONTRACT_YEARS.map((y) => <option key={y} value={y}>{y} yr</option>)}</select>
-                <button className="secondary" disabled={!!state.match} onClick={() => onUpdate(renewManager(state, renewYears), 'Contract renewed.')}>Offer renewal (£{renewalTerms(state, renewYears, overperformance(state), m).wage}k/wk{renewalTerms(state, renewYears, overperformance(state), m).raise ? ` · +${renewalTerms(state, renewYears, overperformance(state), m).raise}% raise` : ''})</button>
-              </div>
-            </div>
-          )}
+          <p className="small">{m.style} {m.formation} · £{m.wage}k/wk</p>
+          <div className="mgr-stats mgr-contract">
+            <div><b>{tenure(state, m)}</b><small>season{tenure(state, m) > 1 ? 's' : ''} in charge</small></div>
+            <div><b>S{endOf(state, m)}</b><small>contract ends</small></div>
+            <div><b>£{due}k</b><small>to sack now</small></div>
+          </div>
+          {finalSeason(state, m) && <p className="small mgr-warn">📄 Final contract season: offer a new deal or he leaves free at season end.</p>}
           <ManagerOffice state={state} onUpdate={onUpdate} />
-          <button className="secondary danger-btn" disabled={!!state.match} onClick={() => onUpdate(fireManager(state), 'Manager sacked.')}>Sack manager (£{compensation(state, m)}k: {Math.round(compensation(state, m) / Math.max(1, m.wage))} weeks left)</button>
+          <div className="mgr-main-actions">
+            {finalSeason(state, m) && <button className="primary big-btn" disabled={busy} onClick={() => setOffer({ id: null, years: 2 })}>Offer contract</button>}
+            <button className="secondary big-btn danger-btn" disabled={busy} onClick={() => { if (window.confirm(`Sack ${m.name}? Pays the rest of his contract: £${due}k.`)) onUpdate(fireManager(state), 'Manager sacked.'); }}>Sack · £{due}k</button>
+          </div>
         </>
       ) : (
-        <p className="small">No manager: a caretaker is in charge and morale slips every week. Hire one below.</p>
+        <p className="small">No manager: a caretaker is in charge and morale slips every week. Pick one below.</p>
       )}
-      <details className="mgr-pool" open={!m}>
-        <summary>{m ? 'Replace with…' : 'Candidates'}</summary>
-        <label className="small mgr-years">Contract length <select value={years} onChange={(e) => setYears(Number(e.target.value))}>{CONTRACT_YEARS.map((y) => <option key={y} value={y}>{y} year{y > 1 ? 's' : ''}</option>)}</select> (longer = cheaper wage; 5★ need 2+)</label>
-        {!canHire(state) && <p className="small">🔒 The board must back you (trust 40+, now {Math.round(state.trust)}) before you can appoint a manager.</p>}
-        <div className="pp-list">
-          {managerCandidates(state).map((c) => (
-            <button key={c.id} className="secondary pp-btn" disabled={!!state.match || !canHire(state) || years < minYears(c)} onClick={() => onUpdate(hireManager(state, c.id, years), `${c.name} hired.`)}>
-              <span>{c.name} · {'★'.repeat(c.rating)}</span><small>{c.style} {c.formation} · £{contractWage(c, years)}k/wk · {years} yr{years < minYears(c) ? ` (wants ${minYears(c)}+)` : ''}</small>
-            </button>
-          ))}
+      {offer && target && (
+        <div className="mgr-sheet" role="dialog" aria-label="Offer contract">
+          <b>{renewing ? 'Renew' : 'Offer'} {target.name} a contract</b>
+          <div className="year-chips">
+            {CONTRACT_YEARS.map((y) => <button key={y} className={`mod-chip${offer.years === y ? ' on' : ''}`} aria-pressed={offer.years === y} disabled={blocked(y)} onClick={() => setOffer({ ...offer, years: y })}>{y} yr</button>)}
+          </div>
+          <p className="small">£{terms(offer.years)}k/wk · ends season {renewing && m ? endOf(state, m) + offer.years : state.season + offer.years - (state.week <= 9 ? 1 : 0)}{!renewing && minYears(target) > 1 ? ` · ${target.name} insists on ${minYears(target)}+ years` : ''}{renewing && m && renewalTerms(state, offer.years, overperformance(state), m).raise ? ` · asks +${renewalTerms(state, offer.years, overperformance(state), m).raise}% for his results` : ''}{!renewing && m ? ` · pays off ${m.name}: £${due}k` : ''}</p>
+          <div className="mgr-main-actions">
+            <button className="primary big-btn" disabled={busy || blocked(offer.years) || (!renewing && !canHire(state))} onClick={confirm}>Confirm</button>
+            <button className="secondary big-btn" onClick={() => setOffer(null)}>Cancel</button>
+          </div>
         </div>
-      </details>
+      )}
+      <p className="small mgr-sub"><b>{m ? 'Replace him' : 'Candidates'}</b> · longer deals = lower wage</p>
+      {!canHire(state) && <p className="small">🔒 The board must back you (trust 40+, now {Math.round(state.trust)}) before you can appoint a manager.</p>}
+      <div className="pp-list mgr-cands">
+        {cands.map((c) => (
+          <button key={c.id} className="secondary pp-btn" disabled={busy || !canHire(state)} onClick={() => setOffer({ id: c.id, years: Math.max(2, minYears(c)) })}>
+            <span>{c.name} · {'★'.repeat(c.rating)}</span><small>{c.style} {c.formation} · from £{contractWage(c, 5)}k/wk{minYears(c) > 1 ? ` · ${minYears(c)}+ yrs` : ''}</small>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -236,6 +256,7 @@ export function ModControl({ mod, disabled, onSet }: { mod: number; disabled?: b
   );
 }
 export const autoLine = (auto: number, mod: number, k: (n: number) => string) => `Auto ${k(auto)} ${mod < 0 ? '−' : '+'} ${Math.abs(mod)}% = ${k(Math.round(auto * (1 + mod / 100)))}`;
+const ord = (n: number) => `${n}${[11, 12, 13].includes(n % 100) ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
   const p = plan({ ...state, mgr: state.mgr && structuredClone(state.mgr) } as GameState), r = record(state);
   const bill = state.players.filter((x) => x.clubId === state.clubId).reduce((a, x) => a + (x.wage || 0), 0);
@@ -250,7 +271,7 @@ function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) 
     <div className="mgr-office">
       <div className="mgr-stats">
         <div><b>{r.w}-{r.d}-{r.l}</b><small>W-D-L</small></div>
-        <div><b>{leaguePosition(state)}th</b><small>exp. {expectedPos(state)}th</small></div>
+        <div><b>{ord(leaguePosition(state))}</b><small>exp. {ord(expectedPos(state))}</small></div>
         <div><b>{p.signings}/{p.sales}</b><small>in / out</small></div>
       </div>
       <div className="mgr-budget">
@@ -266,8 +287,8 @@ function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) 
         <div className="mgr-request">
           <p className="small">📨 Wants <b>{p.request.name}</b> ({p.request.slot}) for {k(p.request.fee)}</p>
           <div className="pp-list">
-            <button className="primary pp-btn" disabled={!!state.match} onClick={() => onUpdate(answerRequest(state, true), 'Deal approved.')}>Approve</button>
-            <button className="secondary pp-btn" disabled={!!state.match} onClick={() => onUpdate(answerRequest(state, false), 'Deal blocked.')}>Block</button>
+            <button className="primary big-btn" disabled={!!state.match} onClick={() => onUpdate(answerRequest(state, true), 'Deal approved.')}>Approve</button>
+            <button className="secondary big-btn" disabled={!!state.match} onClick={() => onUpdate(answerRequest(state, false), 'Deal blocked.')}>Block</button>
           </div>
         </div>
       )}

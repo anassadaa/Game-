@@ -32,7 +32,7 @@ jobs:
             football-manager/android/**/gradle-wrapper.properties
       - name: Android SDK packages (preinstalled SDK on runner)
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" >/dev/null
-      - run: npm ci
+      - run: npm install
       - run: npm test
       - run: npm run build
       - run: npx cap sync android

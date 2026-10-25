@@ -55,3 +55,16 @@ export function SponsorCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
+import { fanMood } from './fans.ts';
+export function FanCard({ state }: { state: GameState }) {
+  const m = fanMood(state), l = state.fanLog?.last;
+  return (
+    <section className="card fan-card">
+      <span className="eyebrow">📣 SUPPORTERS</span>
+      <h3><span className="fan-i">{m.icon}</span> {m.label} · {state.fans}/100</h3>
+      <div className="hof-bar"><i style={{ width: `${state.fans}%`, background: m.color }} /></div>
+      <p className="small">Wins, cheap tickets and keeping promises lift the mood. Below 25 the fans protest and the board lose trust; above 88 they sing your name.</p>
+      {l && <p className="small">Last: {l.kind === 'protest' ? '📣 protest' : '🎶 chant'} in season {l.season}, week {l.week + 1}{state.fanLog!.protests ? ` · ${state.fanLog!.protests} protest(s) so far` : ''}.</p>}
+    </section>
+  );
+}

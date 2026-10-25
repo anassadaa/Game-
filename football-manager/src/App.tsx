@@ -6,7 +6,7 @@ import { CaptaincyCard, TraitLine } from './Traits.tsx';
 import { Shouts } from './Shouts.tsx';
 import { FixturesCard, ReviewModal } from './Fixtures.tsx';
 import { SubTabs } from './SubTabs.tsx';
-import { SponsorCard, TicketsCard } from './Commercial.tsx';
+import { FanCard, SponsorCard, TicketsCard } from './Commercial.tsx';
 import { pickSub } from './subtabs.ts';
 import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -1526,6 +1526,7 @@ export default function App() {
                   </>)}
                   {sub === 'board' && (<>
                   <BoardRoom state={state} onUpdate={update} />
+                  <FanCard state={state} />
                   <TicketsCard state={state} onUpdate={update} />
                   <SponsorCard state={state} onUpdate={update} />
                   <StaffRoom state={state} onUpdate={update} />

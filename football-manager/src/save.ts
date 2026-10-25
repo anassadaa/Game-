@@ -12,6 +12,7 @@ import { validTickets } from './tickets.ts';
 import { validSponsor } from './sponsors.ts';
 import { validRecords } from './records.ts';
 import { validHof } from './hof.ts';
+import { validFanLog } from './fans.ts';
 import { validScouts } from './scouts.ts';
 import { validTrophies } from './stats.ts';
 import { validFacilities } from './facilities.ts';
@@ -251,6 +252,7 @@ export function decodeSave(raw: string): GameState | null {
     if (!validSponsor(s.sponsor)) delete s.sponsor;
     if (!validRecords(s)) { delete s.records; delete s.achievements; }
     if (!validHof(s)) delete s.hof;
+    if (!validFanLog(s)) delete s.fanLog;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {
       if (p.unhappy !== undefined && typeof p.unhappy !== 'string') delete p.unhappy;

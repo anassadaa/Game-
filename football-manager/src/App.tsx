@@ -1,3 +1,4 @@
+import { cashLabel } from './BudgetLine.tsx';
 import { TacticSets } from './TacticSets.tsx';
 import { abilityRange, rangeText } from './scoutrange.ts';
 import { EXT_LABEL, FOOT_LABEL, ext, footOf, slotOf } from './positions.ts';
@@ -996,7 +997,7 @@ export default function App() {
                       </div>
                       <div className="brief-stat">
                         <span>Available funds</span>
-                        <b>{money(state.budget)}</b>
+                        <b>{state.budget < 0 ? cashLabel(state.budget) : money(state.budget)}</b>
                       </div>
                       <div className="brief-stat">
                         <span>Board confidence</span>
@@ -1356,7 +1357,7 @@ export default function App() {
                     <div>
                       <Wallet size={25} />
                       <span>
-                        Transfer funds<b>{money(state.budget)}</b>
+                        Transfer funds<b>{state.budget < 0 ? cashLabel(state.budget) : money(state.budget)}</b>
                       </span>
                     </div>
                     <div>
@@ -1395,7 +1396,7 @@ export default function App() {
                     <div>
                       <Wallet size={25} />
                       <span>
-                        Transfer funds<b>{money(state.budget)}</b>
+                        Transfer funds<b>{state.budget < 0 ? cashLabel(state.budget) : money(state.budget)}</b>
                       </span>
                     </div>
                     <div>

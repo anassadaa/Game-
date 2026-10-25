@@ -3,6 +3,7 @@ import { newGame } from '../src/game.ts';
 import { setMode, managerCandidates, hireManager } from '../src/managers.ts';
 import { plan, autoBudget, setBudgetMod, delegateWeek } from '../src/delegate.ts';
 import { wallet } from '../src/wallet.ts';
+import { wageLimit } from '../src/budget.ts';
 import { prepareInvestments, marketClubs, quoteTrade, executeTrade, clubDecision, investmentWeek, clubAuto } from '../src/investments.ts';
 const owner = (seed = 5) => { const s = setMode(newGame(seed), 'chairman'); return structuredClone(hireManager(s, managerCandidates(s).find(m => m.rating < 5).id, 2)); };
 test('auto budget is deterministic and follows bank balance and results', () => {
@@ -16,7 +17,7 @@ test('auto budget is deterministic and follows bank balance and results', () => 
 test('% modifier: -50..+100, persists, applied on top of auto', () => {
   const s = owner(); const p0 = plan(s); const a = autoBudget(s);
   assert.equal(p0.transfer, a.transfer);
-  const m = setBudgetMod(s, 20); assert.equal(plan(m).mod, 20); assert.equal(plan(m).transfer, Math.round(a.transfer * 1.2)); assert.equal(plan(m).wage, Math.round(a.wage * 1.2));
+  const m = setBudgetMod(s, 20); assert.equal(plan(m).mod, 20); assert.equal(plan(m).transfer, Math.round(a.transfer * 1.2)); assert.equal(plan(m).wage, Math.min(wageLimit(m), Math.round(a.wage * 1.2))); assert.ok(plan(setBudgetMod(s, 100)).wage <= wageLimit(s));
   assert.equal(setBudgetMod(s, 101), s); assert.equal(setBudgetMod(s, -51), s); assert.equal(setBudgetMod(s, 2.5), s);
   assert.equal(plan(setBudgetMod(s, -50)).transfer, Math.round(a.transfer * 0.5));
   // next window / season: recomputed, mod persists

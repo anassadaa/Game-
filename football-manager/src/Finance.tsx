@@ -1,3 +1,4 @@
+import { cashLabel } from './BudgetLine.tsx';
 import type { GameState } from './game.ts';
 import { renewContract } from './game.ts';
 import { salaryList, wageBill, wageBreakdown, wageLimit, wageRoom } from './budget.ts';
@@ -16,7 +17,7 @@ export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: 
   return (
     <section className="card" id="finances">
       <p className="eyebrow">BUDGETS</p>
-      <h3>Transfer budget £{state.budget}k</h3>
+      <h3>Transfer budget {state.budget < 0 ? <span className="neg">£0 · {cashLabel(state.budget)}</span> : `£${state.budget}k`}</h3>
       <div className="wage-budget">
         <p><b>Wage bill £{bill}k / £{wl}k a week</b> · <span className={room < 0 ? 'neg' : 'pos'}>{room >= 0 ? `£${room}k left` : `£${-room}k over budget`}</span></p>
         <div className="ffp-bar"><i style={{ width: `${wpct}%`, background: room < 0 ? '#e5484d' : wpct >= 85 ? '#f5a524' : '#30a46c' }} /></div>
@@ -81,7 +82,7 @@ export function LedgerCard({ state }: { state: GameState }) {
   return (
     <section className="card ledger-card">
       <p className="eyebrow">FINANCES · SEASON {l.season + 1}</p>
-      <h3>£{state.budget}k cash · <span className={net >= 0 ? 'pos' : 'neg'}>{net >= 0 ? '+' : '−'}£{Math.abs(net)}k</span> net cash flow this season</h3>
+      <h3><span className={state.budget < 0 ? 'neg' : ''}>{state.budget < 0 ? cashLabel(state.budget) : `£${state.budget}k cash`}</span> · <span className={net >= 0 ? 'pos' : 'neg'}>{net >= 0 ? '+' : '−'}£{Math.abs(net)}k</span> net cash flow this season</h3>
       <div className="ledger-bars">
         <div><span>Cash in £{inc}k</span><i className="in" style={{ width: `${(inc / max) * 100}%` }} /></div>
         <div><span>Cash out £{out}k</span><i className="out" style={{ width: `${(out / max) * 100}%` }} /></div>

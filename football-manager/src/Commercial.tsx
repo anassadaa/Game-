@@ -107,13 +107,14 @@ export function MeetingCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
-import { canHire, fireManager, hireManager, managerCandidates } from './managers.ts';
+import { voteRisk, canHire, fireManager, hireManager, managerCandidates } from './managers.ts';
 export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
   if ((state.mode ?? 'manager') === 'manager') return null;
   const m = state.hiredManager;
   return (
     <section className="card manager-card">
       <span className="eyebrow">🧑‍💼 FIRST-TEAM MANAGER</span>
+      {state.mode === 'owner' && <p className="small owner-risk">🗳️ Shareholder vote risk: {voteRisk(state) ? `${voteRisk(state)}% every 4 weeks. Keep the fans happy and investors under 40%.` : 'none (fans OK, investors under 40%).'}</p>}
       {m ? (
         <>
           <h3>{m.name} · {'★'.repeat(m.rating)}{'☆'.repeat(5 - m.rating)}</h3>

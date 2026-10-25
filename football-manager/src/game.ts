@@ -21,7 +21,7 @@ import { induct } from './hof.ts';
 import { fanWeek } from './fans.ts';
 import { noteDerby } from './derby.ts';
 import { judgeScenario } from './scenario.ts';
-import { managerWeek } from './managers.ts';
+import { managerWeek, voteRisk } from './managers.ts';
 import { investorWeek } from './investors.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
@@ -303,7 +303,7 @@ export type GameState = {
   prePress?: { season: number; week: number; tone: number };
   scenario?: import('./scenario.ts').Scenario;
   meeting?: import('./meeting.ts').Meeting;
-  mode?: 'manager' | 'director' | 'chairman';
+  mode?: 'manager' | 'director' | 'chairman' | 'owner';
   hiredManager?: import('./managers.ts').HiredManager;
   hires?: number;
   investor?: import('./investors.ts').Investor;
@@ -1611,6 +1611,7 @@ export function advanceWeek(s: GameState): GameState {
     b.seed = keep;
   }
   boardWeek(b);
+  ownerVoteWeek(b);
   if (b.week === INTAKE_WEEK + 1) youthIntake(b);
   if (b.week === 18) {
     rollSeason(b);
@@ -1891,8 +1892,21 @@ function boardWeek(s: GameState) {
   }
   if (s.trust <= 12 / level(s).patience && s.week >= 4) sack(s, 'The board has lost faith after a run of poor results.');
 }
-function sack(s: GameState, why: string) {
-  if (s.mode === 'chairman') {
+const vhash = (str: string) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
+/** Owner-Director: every 4 weeks, if fans have collapsed or investors hold a big stake, a vote may force a sale. */
+export function ownerVoteWeek(s: GameState) {
+  if (s.mode !== 'owner' || s.sacked || s.week < 6 || s.week % 4) return;
+  const risk = voteRisk(s);
+  if (!risk) return;
+  if (vhash(`${s.seed}|vote|${s.season}|${s.week}`) % 100 < risk) {
+    sack(s, 'Shareholders and fans forced a vote and you were made to sell the club.', true);
+  } else {
+    s.trust = clamp(s.trust - 3);
+    s.headlines = [`🗳️ You survive a shareholder vote (${risk}% risk). Win the fans back fast.`, ...s.headlines].slice(0, 6);
+  }
+}
+function sack(s: GameState, why: string, forced = false) {
+  if (!forced && (s.mode === 'chairman' || s.mode === 'owner')) {
     // An owner can't be sacked: the vote fails, but the pressure lands on the hired manager.
     s.trust = 35;
     const m = s.hiredManager;

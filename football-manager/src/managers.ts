@@ -48,19 +48,26 @@ export function managerWeek(s: GameState) {
 export const validHired = (s: Pick<GameState, 'hiredManager'>) =>
   s.hiredManager === undefined || (!!s.hiredManager && typeof s.hiredManager.id === 'string' && typeof s.hiredManager.name === 'string' && Number.isFinite(s.hiredManager.wage));
 
-export type Mode = 'manager' | 'director' | 'chairman';
-export const MODES: { id: Mode; label: string; blurb: string }[] = [
-  { id: 'manager', label: 'Manager', blurb: 'Pick the team, set tactics, play every match. The board can sack you.' },
-  { id: 'director', label: 'Director', blurb: 'Director of Football: you run transfers and choose the manager, but hiring needs the board’s backing (trust 40+) and they can still sack you.' },
-  { id: 'chairman', label: 'Chairman', blurb: 'You own the club: money, tickets, sponsors and who manages. You can’t be sacked, but the fans can turn.' },
+export type Mode = 'manager' | 'director' | 'chairman' | 'owner';
+export const MODES: { id: Mode; label: string; blurb: string; short?: string }[] = [
+  { id: 'manager', label: 'Manager', short: 'Coach the team', blurb: 'Pick the team, set tactics, play every match. The board can sack you.' },
+  { id: 'director', label: 'Director', short: 'Transfers + hire the boss', blurb: 'Director of Football: you run transfers and choose the manager, but hiring needs the board’s backing (trust 40+) and they can still sack you.' },
+  { id: 'owner', label: 'Owner-Director', short: 'Own it and run it all', blurb: 'Own the club AND run the football: money, stadium, sponsors, transfers, scouting, youth and the manager. Lose the fans or sell too much to investors and they can force you out.' },
+  { id: 'chairman', label: 'Chairman', short: 'Money and the manager', blurb: 'You own the club: money, tickets, sponsors and who manages. You can’t be sacked, but the fans can turn.' },
 ];
 export const isManagerMode = (s: Pick<GameState, 'mode'>) => (s.mode ?? 'manager') === 'manager';
 export function setMode(s: GameState, mode: Mode): GameState {
   if (mode === 'manager') return s;
   const b = copy(s);
   b.mode = mode;
-  b.headlines = [`🏛️ You start as ${mode === 'chairman' ? 'Chairman' : 'Director of Football'}. Hire a manager in Club → Board.`, ...b.headlines].slice(0, 6);
+  b.headlines = [`🏛️ You start as ${mode === 'chairman' ? 'Chairman' : mode === 'owner' ? 'Owner-Director' : 'Director of Football'}. Hire a manager in Club → Board.`, ...b.headlines].slice(0, 6);
   return b;
 }
 /** Directors of Football need the board's backing (trust 40+) to appoint a manager. */
 export const canHire = (s: GameState) => s.mode !== 'director' || s.trust >= 40;
+/** Owner-Director: chance (0–60%) that a shareholder/fan vote forces you out this check. */
+export function voteRisk(s: GameState) {
+  if (s.mode !== 'owner') return 0;
+  const p = (s.fans < 20 ? 1 : 0) + ((s.investor?.stakes ?? 0) >= 40 ? 1 : 0) + (s.trust < 25 ? 1 : 0);
+  return p >= 2 || s.fans < 20 ? p * 20 : 0;
+}

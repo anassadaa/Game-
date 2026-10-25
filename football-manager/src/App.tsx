@@ -554,7 +554,7 @@ export default function App() {
             </select>
             <p className="bg-blurb">{DIFFICULTIES.find((d) => d.id === pickDiff)?.blurb}</p>
             <div className="mode-pick" role="radiogroup" aria-label="Career mode">
-              {MODES.map((m) => (<button key={m.id} role="radio" aria-checked={pickMode === m.id} className={`mode-opt ${pickMode === m.id ? 'active' : ''}`} onClick={() => setPickMode(m.id)}>{m.label}</button>))}
+              {MODES.map((m) => (<button key={m.id} role="radio" aria-checked={pickMode === m.id} className={`mode-opt ${pickMode === m.id ? 'active' : ''}`} onClick={() => setPickMode(m.id)}><b>{m.label}</b><small>{m.short}</small></button>))}
             </div>
             <p className="bg-blurb">{MODES.find((m) => m.id === pickMode)?.blurb}</p>
             <select className="league-select" value={pickScen} onChange={(e) => setPickScen(e.target.value as ScenarioId)} aria-label="Challenge">
@@ -584,7 +584,7 @@ export default function App() {
               disabled={clubLocked(WORLD.find((w) => w.id === chosen) ?? WORLD[0]!, bgRep)}
               onClick={() => setState(setMode(applyScenario(newGame(Date.now() >>> 0, chosen, bgRep, pickDiff), pickScen), pickMode))}
             >
-              {pickMode === 'manager' ? 'Take the manager’s seat' : pickMode === 'chairman' ? 'Take the chair' : 'Take the DoF office'} <ArrowRight size={18} />
+              {pickMode === 'manager' ? 'Take the manager’s seat' : pickMode === 'chairman' ? 'Take the chair' : pickMode === 'owner' ? 'Buy the club' : 'Take the DoF office'} <ArrowRight size={18} />
             </button>
             <button
               className="text-button import-start"
@@ -679,7 +679,7 @@ export default function App() {
           <Crest team={team} />
           <div>
             <b>{team.name}</b>
-            <span>{state.mode === 'chairman' ? 'Chairman' : state.mode === 'director' ? 'Director of Football' : 'Head coach'}</span>
+            <span>{state.mode === 'chairman' ? 'Chairman' : state.mode === 'owner' ? 'Owner-Director' : state.mode === 'director' ? 'Director of Football' : 'Head coach'}</span>
           </div>
         </div>
         <span className="nav-caption">THE MANAGER’S OFFICE</span>

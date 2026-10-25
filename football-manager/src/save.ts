@@ -265,7 +265,7 @@ export function decodeSave(raw: string): GameState | null {
     if (!validMeeting(s)) delete s.meeting;
     if (!validHired(s)) delete s.hiredManager;
     if (!validInvestor(s)) delete s.investor;
-    if (s.mode !== undefined && !['manager', 'director', 'chairman'].includes(s.mode)) delete s.mode;
+    if (s.mode !== undefined && !['manager', 'director', 'chairman', 'owner'].includes(s.mode)) delete s.mode;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {
       if (p.unhappy !== undefined && typeof p.unhappy !== 'string') delete p.unhappy;

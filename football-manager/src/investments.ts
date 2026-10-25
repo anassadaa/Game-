@@ -10,6 +10,7 @@ import type { Facilities } from './facilities.ts';
 import { validFacilities } from './facilities.ts';
 import type { Tickets } from './tickets.ts';
 import { validTickets } from './tickets.ts';
+import { wageLimit } from './budget.ts';
 
 export type Strategy = 'balanced' | 'growth' | 'youth' | 'stability';
 export type Delegation = 'auto' | 'approval' | 'hands-on';
@@ -424,8 +425,10 @@ export function investmentTransferBlock(s: GameState, id: string, fee: number, w
   const b = s.investments?.clubs[id]; if (!b) return null;
   const squad = id === s.clubId ? s.players.filter(p => p.clubId === id) : (s.rivals ?? []).filter(p => p.clubId === id);
   if (!Number.isFinite(fee) || fee < 0 || !Number.isFinite(wage) || wage < 0) return 'Invalid financial commitment.';
-  if (fee > b.transferBudget) return 'The owner transfer budget cannot cover this commitment.';
-  if (squad.reduce((n, p) => n + p.wage, 0) + wage > b.wageLimit) return 'The owner wage limit would be exceeded.';
+  // Main club: the club's own budget (s.budget, checked by callers incl. instalment plans) and the board wage limit shown on screen apply.
+  const main = id === s.clubId;
+  if (!main && fee > b.transferBudget) return 'The owner transfer budget cannot cover this commitment.';
+  if (squad.reduce((n, p) => n + p.wage, 0) + wage > (main ? wageLimit(s) : b.wageLimit)) return main ? 'The board wage limit would be exceeded.' : 'The owner wage limit would be exceeded.';
   if (id !== s.clubId && (b.cash < fee || squad.length >= 25)) return 'The buying club cannot fund or register this player.';
   return null;
 }

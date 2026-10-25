@@ -4,13 +4,14 @@ import type { GameState, Player } from './game.ts';
 import { askingPrice, club, copy, negotiate, renewContract, sellPlayer, standings, windowOpen } from './game.ts';
 import { BENCH } from './lineup.ts';
 import { agentFee } from './finance.ts';
+import { wageLimit } from './budget.ts';
 import { dofDiscount } from './staff.ts';
 import { suitability, slotsFor } from './lineup.ts';
 import { FORMATION_SLOTS, slotPeek, type Slot } from './positions.ts';
 import { canHire as canHireStaff, hireStaff, renewStaff, sackStaff, staff, staffBudget, staffWages, roleLabel, type StaffRole } from './staff.ts';
 
 export type MgrRequest = { playerId: string; name: string; slot: Slot; fee: number; week: number; season: number };
-export type MgrPlan = { transfer: number; wage: number; approveOver: number; spent: number; season: number; log: string[]; request?: MgrRequest; signings: number; sales: number };
+export type MgrPlan = { transfer: number; wage: number; approveOver: number; spent: number; season: number; log: string[]; request?: MgrRequest; signings: number; sales: number; mod?: number; auto?: { transfer: number; wage: number; at: string } };
 const hash = (str: string) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); h ^= h >>> 15; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
 const roll = (s: GameState, tag: string) => hash(`${s.seed}|${s.clubId}|${s.season}|${s.week}|${s.hiredManager?.id}|${tag}`);
 const ours = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId);
@@ -19,17 +20,37 @@ export const delegated = (s: GameState) => (s.mode ?? 'manager') !== 'manager' &
 const money = (k: number) => (k >= 1000 ? `£${(k / 1000).toFixed(1)}m` : `£${k}k`);
 
 /** The manager's budget: defaults from the club's books, editable by you. Resets spending each season. */
+export const MOD_MIN = -50, MOD_MAX = 100;
+const phase = (s: GameState) => `${s.season}:${s.week >= 9 ? 2 : 1}`;
+/** Automatic budgets for the current window: bank, income, board wage limit, expectations and recent results. */
+export function autoBudget(s: GameState) {
+  const r = (s.results ?? []).slice(-6), pts = r.reduce((n, x) => n + (x.us > x.them ? 3 : x.us === x.them ? 1 : 0), 0);
+  const form = r.length ? 0.8 + 0.4 * (pts / (r.length * 3)) : 1; // 0.8 (all lost) … 1.2 (all won)
+  const div = s.clubs.filter((c) => c.division === club(s).division).length || 1;
+  const ambition = 1.1 - 0.2 * ((expectedPos(s) - 1) / Math.max(1, div - 1)); // favourites get more
+  const income = s.ledger?.prev?.income ?? 0;
+  const jitter = 0.95 + 0.1 * hash(`${s.seed}|${s.clubId}|auto|${phase(s)}`);
+  const transfer = Math.max(0, Math.round((Math.max(0, s.budget) * 0.35 + income * 0.08) * form * ambition * jitter));
+  const wage = Math.max(1, Math.round(Math.max(bill(s), wageLimit(s)) * (0.94 + 0.06 * form) * jitter));
+  return { transfer, wage };
+}
+function applyAuto(s: GameState, p: MgrPlan) {
+  const a = autoBudget(s), k = 1 + (p.mod ?? 0) / 100;
+  p.auto = { ...a, at: phase(s) }; p.transfer = Math.round(a.transfer * k); p.wage = Math.round(a.wage * k);
+}
+/** The manager's budget: set automatically each window (and season), times your % modifier. Spending resets each season. */
 export function plan(s: GameState): MgrPlan {
   if (!s.mgr || s.mgr.season !== s.season) {
     const prev = s.mgr;
-    s.mgr = {
-      transfer: prev?.transfer ?? Math.max(0, Math.round(s.budget * 0.4)),
-      wage: prev?.wage ?? Math.max(bill(s) + 10, Math.round((s.wageBudget?.limit ?? bill(s) * 1.1))),
-      approveOver: prev?.approveOver ?? 1000, spent: 0, season: s.season, log: prev?.log ?? [], signings: 0, sales: 0, request: undefined,
-    };
-    delete s.mgr.request;
+    s.mgr = { transfer: 0, wage: 0, approveOver: prev?.approveOver ?? 1000, spent: 0, season: s.season, log: prev?.log ?? [], signings: 0, sales: 0, mod: prev?.mod ?? 0 };
   }
+  if (s.mgr.auto?.at !== phase(s)) applyAuto(s, s.mgr);
   return s.mgr;
+}
+/** Your +/- % on top of the automatic budgets; persists between windows. */
+export function setBudgetMod(s: GameState, pct: number): GameState {
+  if (s.match || !Number.isInteger(pct) || pct < MOD_MIN || pct > MOD_MAX) return s;
+  const b = copy(s), p = plan(b); p.mod = pct; applyAuto(b, p); return b;
 }
 export const budgetLeft = (s: GameState) => { const p = plan(s); return Math.max(0, Math.min(p.transfer - p.spent, s.budget)); };
 function note(s: GameState, line: string) {
@@ -213,4 +234,4 @@ export function delegateWeek(s: GameState): GameState {
 }
 /** Before each match: he picks the side. */
 export function delegateSelect(s: GameState) { if (delegated(s)) pickTeam(s); }
-export const validMgr = (s: GameState) => s.mgr === undefined || (!!s.mgr && [s.mgr.transfer, s.mgr.wage, s.mgr.approveOver, s.mgr.spent, s.mgr.season].every(Number.isFinite) && Array.isArray(s.mgr.log) && s.mgr.log.every((x) => typeof x === 'string'));
+export const validMgr = (s: GameState) => s.mgr === undefined || (!!s.mgr && [s.mgr.transfer, s.mgr.wage, s.mgr.approveOver, s.mgr.spent, s.mgr.season].every(Number.isFinite) && Array.isArray(s.mgr.log) && s.mgr.log.every((x) => typeof x === 'string') && (s.mgr.mod === undefined || (Number.isInteger(s.mgr.mod) && s.mgr.mod >= MOD_MIN && s.mgr.mod <= MOD_MAX)) && (s.mgr.auto === undefined || (!!s.mgr.auto && Number.isFinite(s.mgr.auto.transfer) && Number.isFinite(s.mgr.auto.wage) && typeof s.mgr.auto.at === 'string')));

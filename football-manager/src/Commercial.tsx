@@ -222,7 +222,20 @@ export function MyFinancesCard({ state, onUpdate, onInvest }: { state: GameState
   );
 }
 
-import { answerRequest, budgetLeft, expectedPos, leaguePosition, plan, record, setPlan } from './delegate.ts';
+import { answerRequest, budgetLeft, expectedPos, leaguePosition, plan, record, setPlan, setBudgetMod, MOD_MIN, MOD_MAX } from './delegate.ts';
+export const MOD_CHIPS = [-20, -10, 0, 10, 20, 50];
+export function ModControl({ mod, disabled, onSet }: { mod: number; disabled?: boolean; onSet: (n: number) => void }) {
+  const [custom, setCustom] = useState('');
+  const go = () => { const n = Math.round(Number(custom)); if (custom.trim() !== '' && Number.isInteger(n) && n >= MOD_MIN && n <= MOD_MAX) { onSet(n); setCustom(''); } };
+  return (
+    <div className="mod-ctl" role="group" aria-label="Budget adjustment">
+      {MOD_CHIPS.map((c) => <button key={c} className={`mod-chip${mod === c ? ' on' : ''}`} aria-pressed={mod === c} disabled={disabled} onClick={() => onSet(c)}>{c > 0 ? `+${c}` : c}%</button>)}
+      <input className="mod-custom" inputMode="numeric" aria-label="Custom %" placeholder={MOD_CHIPS.includes(mod) ? '±%' : `${mod}%`} value={custom} disabled={disabled} onChange={(e) => setCustom(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && go()} />
+      <button className="mod-chip" disabled={disabled || custom.trim() === ''} onClick={go}>Set</button>
+    </div>
+  );
+}
+export const autoLine = (auto: number, mod: number, k: (n: number) => string) => `Auto ${k(auto)} ${mod < 0 ? '−' : '+'} ${Math.abs(mod)}% = ${k(Math.round(auto * (1 + mod / 100)))}`;
 function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
   const p = plan({ ...state, mgr: state.mgr && structuredClone(state.mgr) } as GameState), r = record(state);
   const bill = state.players.filter((x) => x.clubId === state.clubId).reduce((a, x) => a + (x.wage || 0), 0);
@@ -240,13 +253,14 @@ function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) 
         <div><b>{leaguePosition(state)}th</b><small>exp. {expectedPos(state)}th</small></div>
         <div><b>{p.signings}/{p.sales}</b><small>in / out</small></div>
       </div>
-      <p className="small">Transfer budget: {k(p.spent)} used · {k(budgetLeft(state))} left of {k(p.transfer)}</p>
-      <div className="mgr-bar"><span style={{ width: `${used}%` }} /></div>
-      <p className="small">Wages: £{bill}k of £{p.wage}k/wk · deals over {k(p.approveOver)} need your OK</p>
-      <div className="pp-list mgr-edit">
-        <button className="secondary pp-btn" disabled={!!state.match} onClick={() => edit('transfer', 'Transfer budget')}>Transfer budget</button>
-        <button className="secondary pp-btn" disabled={!!state.match} onClick={() => edit('wage', 'Wage budget per week')}>Wage budget</button>
-        <button className="secondary pp-btn" disabled={!!state.match} onClick={() => edit('approveOver', 'Approval line')}>Approval line</button>
+      <div className="mgr-budget">
+        <p className="small"><b>Transfer</b> · {autoLine(p.auto?.transfer ?? p.transfer, p.mod ?? 0, k)}</p>
+        <div className="mgr-bar"><span style={{ width: `${used}%` }} /></div>
+        <p className="small">{k(p.spent)} used · {k(budgetLeft(state))} left</p>
+        <p className="small"><b>Wages</b> · {autoLine(p.auto?.wage ?? p.wage, p.mod ?? 0, (n) => `£${n}k`)}/wk · now £{bill}k</p>
+        <ModControl mod={p.mod ?? 0} disabled={!!state.match} onSet={(n) => onUpdate(setBudgetMod(state, n), `Budgets ${n >= 0 ? '+' : ''}${n}% on auto.`)} />
+        <p className="small">Auto budgets reset each window from the bank, income, board limit, expectations and his results. Your % stays.</p>
+        <button className="secondary pp-btn mgr-approve-line" disabled={!!state.match} onClick={() => edit('approveOver', 'Approval line')}>Deals over {k(p.approveOver)} need your OK · change</button>
       </div>
       {p.request && (
         <div className="mgr-request">

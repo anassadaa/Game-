@@ -6,6 +6,7 @@ import { earnedIncome, earnedCosts, sync, book, sellOnReceipt } from './finance.
 import type { Ledger, InKind, OutKind } from './finance.ts';
 import { league } from './world.ts';
 import type { HiredManager } from './managers.ts';
+import { setBudgetMod } from './delegate.ts';
 import { compensation, contractWage, contractEndFor, minYears, contractTick, renewalTerms, finalSeason, endOf, overperformance } from './managers.ts';
 import type { Facilities } from './facilities.ts';
 import { validFacilities } from './facilities.ts';
@@ -19,7 +20,7 @@ export type PricePoint = { season: number; week: number; value: number };
 export type InvestmentEntry = { season: number; week: number; clubId: string; kind: string; amount: number; message: string };
 export type Business = {
   cash: number; debt: number; ledger: Ledger; fans: number; academy: number; scouting: number; stadium: number;
-  manager: HiredManager | null; strategy: Strategy; delegation: Delegation; wageLimit: number; transferBudget: number;
+  manager: HiredManager | null; strategy: Strategy; delegation: Delegation; wageLimit: number; transferBudget: number; budgetMod?: number;
   ticket: number; sponsor: 'fixed' | 'performance' | 'youth'; policy: Policy; saleLimit: number; liquidity: number;
   quality: number; value: number; history: PricePoint[]; reasons: string[]; cost: number; realized: number; dividends: number;
   revision: number; lastDividend: number; lastDivision: number; baselineManager: number;
@@ -211,6 +212,20 @@ export function repayClubLoan(s: GameState, id: string): GameState {
 const lastFour = (c: { form: string[] }) => c.form.slice(-4);
 export const formTrust = (c: { form: string[] }) => (lastFour(c).filter(f => f === 'L').length >= 3 ? 20 : 50);
 export const formEdge = (c: { form: string[] }) => (lastFour(c).filter(f => f === 'W').length >= 3 ? 4 : 0);
+/** Owned boardroom clubs: transfer and wage budgets set automatically each window, times the owner's % modifier. */
+export function clubAuto(s: GameState, id: string) {
+  const rec = s.investments!.clubs[id]!, c = getClub(s, id)!;
+  const ps = [...s.players, ...(s.rivals ?? [])].filter(p => p.clubId === id), bill = ps.reduce((n, p) => n + p.wage, 0);
+  const f = c.form.slice(-6), pts = f.reduce((n, x) => n + (x === 'W' ? 3 : x === 'D' ? 1 : 0), 0), form = f.length ? 0.8 + 0.4 * pts / (f.length * 3) : 1;
+  const div = s.clubs.filter(x => x.division === c.division).sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id)), rank = div.findIndex(x => x.id === id);
+  const ambition = 1.1 - 0.2 * rank / Math.max(1, div.length - 1), income = rec.ledger.prev?.income ?? 0;
+  const jitter = 0.95 + 0.1 * (hash(`${s.seed}|${id}|auto|${s.season}|${s.week >= 9 ? 2 : 1}`) % 1000) / 1000;
+  return { transfer: Math.max(0, Math.round((Math.max(0, rec.cash - 500) * 0.3 + income * 0.08) * form * ambition * jitter)), wage: Math.max(50, Math.round(Math.max(bill * 1.05, income / 18 * 0.85) * (0.94 + 0.06 * form) * jitter)) };
+}
+function applyClubAuto(s: GameState, id: string) {
+  const rec = s.investments!.clubs[id]!, a = clubAuto(s, id), k = 1 + (rec.budgetMod ?? 0) / 100;
+  rec.transferBudget = Math.round(a.transfer * k); rec.wageLimit = Math.round(a.wage * k);
+}
 export function clubCandidates(s: GameState, id: string): HiredManager[] {
   return [0, 1, 2, 3].map(i => { const h = hash(`${id}|candidate|${s.season}|${i}`), rating = 2 + h % 4; return { id: `${id}-${s.season}-${i}`, name: ['Rafael Costa', 'Karim Bennett', 'Luca Weiss', 'Daniel Moreau'][i]!, rating, wage: 6 + rating * rating * 2, since: s.season, style: (['balanced', 'attacking', 'cautious'] as const)[h % 3]!, formation: (['4-4-2', '4-3-3', '4-2-3-1'] as const)[h % 3]! }; });
 }
@@ -226,7 +241,7 @@ export function hireClubManager(s: GameState, id: string, candidateId: string, y
   commitActive(b, id); log(b, id, 'manager', -cost, `${candidate.name} appointed. Compensation £${cost}k; wage £${candidate.wage}k/week.`); return b;
 }
 
-export type ClubAction = 'strategy' | 'dividend' | 'delegation' | 'wages' | 'transfers' | 'ticket' | 'sponsor' | 'academy' | 'stadium' | 'scouting' | 'dismiss' | 'approve' | 'decline' | 'watch' | 'proposal' | 'outside-capital' | 'borrow' | 'repay-bank' | 'take-charge' | 'role' | 'threshold' | 'renew';
+export type ClubAction = 'strategy' | 'dividend' | 'delegation' | 'wages' | 'transfers' | 'ticket' | 'sponsor' | 'academy' | 'stadium' | 'scouting' | 'dismiss' | 'approve' | 'decline' | 'watch' | 'proposal' | 'outside-capital' | 'borrow' | 'repay-bank' | 'take-charge' | 'role' | 'threshold' | 'renew' | 'budget-mod';
 export function clubDecision(s: GameState, id: string, action: ClubAction, value?: string | number): GameState {
   if (!getClub(s, id) || s.match) return s;
   if (action !== 'watch' && action !== 'proposal' && owned(s, id) < 51) return s;
@@ -261,6 +276,10 @@ export function clubDecision(s: GameState, id: string, action: ClubAction, value
     const due = rec.manager ? compensation(b, rec.manager) : 0;
     if (!rec.manager || rec.cash < due) return s;
     post(rec, 'wages', due); rec.manager = null; if (id === b.clubId) delete b.hiredManager;
+  } else if (action === 'budget-mod') {
+    const v = Number(value); if (typeof value !== 'number' || !Number.isInteger(v) || v < -50 || v > 100) return s;
+    if (id === b.clubId) return setBudgetMod(s, v);
+    rec.budgetMod = v; applyClubAuto(b, id);
   } else if (action === 'renew') {
     const m = rec.manager, y = Number(value);
     if (!m || !Number.isInteger(y) || y < 1 || y > 5 || !finalSeason(b, m)) return s;
@@ -344,6 +363,7 @@ export function investmentWeek(s: GameState) {
       post(b, 'gate', gate); post(b, 'tv', tvMoney(s, c.division, groups));
       post(b, 'sponsor', Math.round(15 + c.rating * 0.3 + (b.sponsor === 'performance' && last === 'W' ? 35 : b.sponsor === 'youth' ? b.academy * 5 : 10)));
       post(b, 'wages', Math.round(ps.reduce((n, p) => n + p.wage, 0) + (b.manager?.wage ?? 5)));
+      if (owned(s, c.id) >= 51 && (s.week === 1 || s.week === 9)) applyClubAuto(s, c.id);
       if (b.manager && owned(s, c.id) >= 51) {
         const m = b.manager, ev = contractTick(s, m, c.id, formTrust(c), formEdge(c));
         if (ev.kind === 'expire') { b.manager = null; log(s, c.id, 'manager', 0, `${m.name}'s contract expired; he left on a free. A caretaker is in charge.`); }

@@ -4228,3 +4228,8 @@ button.primary, .primary { font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.08)
 .mgr-log li{overflow-wrap:anywhere}
 .mgr-request .pp-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .mgr-years select,.mgr-actions select{margin-left:6px}.mgr-contract{opacity:.85}
+.mod-ctl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.mod-chip{min-height:44px;border-radius:22px;border:1px solid rgba(127,127,127,.4);background:rgba(127,127,127,.1);color:inherit;font-weight:700;font-size:15px;padding:0 4px;min-width:0}
+.mod-chip.on{background:#3ecf8e;color:#06281a;border-color:#3ecf8e}
+.mod-custom{min-height:44px;border-radius:22px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;text-align:center;font-size:16px;min-width:0;width:100%}
+.mgr-budget{display:grid;gap:6px}.mgr-approve-line{min-height:44px;width:100%}

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Building2, Check, ChevronRight, Landmark, Search, ShieldCheck, TrendingUp, Wallet, X } from 'lucide-react';
 import type { GameState } from './game.ts';
 import { league } from './world.ts';
-import { prepareInvestments, marketClubs, quoteTrade, executeTrade, clubDecision, fundClub, repayClubLoan, clubCandidates, hireClubManager, portfolioSummary, ROLE_LABEL, dividendOutlook, maxSellable } from './investments.ts';
+import { prepareInvestments, marketClubs, quoteTrade, executeTrade, clubDecision, fundClub, repayClubLoan, clubCandidates, hireClubManager, clubAuto, portfolioSummary, ROLE_LABEL, dividendOutlook, maxSellable } from './investments.ts';
 import type { ClubAction, PricePoint } from './investments.ts';
 import './investments.css';
+import { ModControl, autoLine } from './Commercial.tsx';
 import { wageLimit } from './budget.ts';
 import { compensation, contractWage, minYears, endOf, tenure, finalSeason, CONTRACT_YEARS } from './managers.ts';
 import { SelfAppoint, RolesList } from './Jobs.tsx';
@@ -124,7 +125,7 @@ export function Investments({ state, onUpdate }: { state: GameState; onUpdate: U
           </div>
           {c.id === state.clubId
             ? <div className="inv-selects"><BudgetInput key={`${c.id}-w`} label="Weekly wage limit" value={wageLimit(state)} apply={n => decision(c.id, 'wages', n)}/><p className="inv-notice">Transfer budget: <b>{money(state.budget)}</b>. Your main club spends from its own club budget — the same figure shown on the Transfers screen.</p></div>
-            : <div className="inv-selects"><BudgetInput key={`${c.id}-w`} label="Weekly wage limit" value={c.wageLimit} apply={n => decision(c.id, 'wages', n)}/><BudgetInput key={`${c.id}-t`} label="Transfer spending limit" value={c.transferBudget} apply={n => decision(c.id, 'transfers', n)}/></div>}
+            : (() => { const mod = model.investments?.clubs[c.id]?.budgetMod ?? 0, a = clubAuto(model, c.id); return <div className="mgr-budget"><p className="small"><b>Transfer</b> · {autoLine(a.transfer, mod, money)} <small>(left now {money(c.transferBudget)})</small></p><p className="small"><b>Wages</b> · {autoLine(a.wage, mod, money)}/wk</p><ModControl mod={mod} disabled={locked} onSet={n => decision(c.id, 'budget-mod', n)} /><p className="small">Set automatically each window from the club’s bank, income, expectations and results. Your % stays.</p></div>; })()}
           <p className="muted small">Existing contracts must still be paid. Limits govern new approvals. Dividends require actual profit and cash reserves; they are paid at season end to all shareholders proportionately.</p>
           {c.id === state.clubId && <p className="inv-notice">This is your active football job. Squad, Tactics, Transfers and the Board remain available in their usual screens.</p>}{c.id === state.clubId && state.mode !== 'manager' && <button className="secondary" disabled={locked} onClick={() => propose('Take charge of matchdays', ['You will select the team and play the match yourself. Your ownership is unchanged.', `Manager compensation: ${money((c.manager?.wage ?? 0) * 6)} from the club bank.`], s => clubDecision(s, c.id, 'take-charge'))}>Personally manage this team</button>}
         </section>

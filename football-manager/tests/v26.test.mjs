@@ -141,3 +141,16 @@ test('2.6: AI economy: TV money follows league wages and AI clubs roughly break 
   assert.ok(losing > ai.length * 0.1, 'not every club should get rich');
   const c = ai[0], b = s.investments.clubs[c.id]; assert.equal(b.wageLimit, Math.max(50, Math.round(b.ledger.prev.income / 18 * 0.9)), 'wage cap follows income');
 });
+
+import { searchMarket } from '../src/game.ts';
+import { slotPeek } from '../src/positions.ts';
+test('2.6: market filters by detailed position and by line groups without mutating players', () => {
+  const s = structuredClone(fixture), before = JSON.stringify(s.rivals);
+  for (const slot of ['GK', 'LB', 'CB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST']) {
+    const r = searchMarket(s, { position: slot, source: 'all', sort: 'rating' });
+    assert.ok(r.length > 0, slot); assert.ok(r.every(p => slotPeek(p) === slot), slot);
+  }
+  const df = searchMarket(s, { position: 'DF', source: 'all', sort: 'rating' });
+  assert.ok(df.length && df.every(p => ['LB', 'CB', 'RB'].includes(slotPeek(p))));
+  assert.equal(JSON.stringify(s.rivals), before);
+});

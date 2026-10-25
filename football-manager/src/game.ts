@@ -1,6 +1,7 @@
 import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquads.ts';
 import { cornerConv } from './setpieces.ts';
-import { repairSlots } from './positions.ts';
+import { repairSlots, slotPeek } from './positions.ts';
+import type { Slot } from './positions.ts';
 import { passage, reason, segmentStats, shotStat } from './narrate.ts';
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
 import { type Difficulty, isDifficulty, level, adaptive } from './difficulty.ts';
@@ -1696,7 +1697,8 @@ export function askingPrice(p: Player, s?: GameState) {
 }
 export type MarketFilter = {
   q?: string;
-  position?: Position | 'ALL';
+  /** A line (GK/DF/MF/FW = all defenders etc.) or a detailed slot such as LB or AM. */
+  position?: Position | Slot | 'ALL';
   maxAge?: number;
   maxPrice?: number;
   minStars?: number;
@@ -1722,7 +1724,7 @@ export function searchMarket(s: GameState, f: MarketFilter): Player[] {
   const out = pool.filter(
     (p) =>
       (!q || p.name.toLowerCase().includes(q) || clubName(p.clubId).includes(q)) &&
-      (!f.position || f.position === 'ALL' || p.position === f.position) &&
+      (!f.position || f.position === 'ALL' || p.position === f.position || slotPeek(p) === f.position) &&
       (!f.maxAge || p.age <= f.maxAge) &&
       (!f.minRating || abR(p)[1] >= f.minRating) &&
       (!f.minPotential || poR(p)[1] >= f.minPotential) &&

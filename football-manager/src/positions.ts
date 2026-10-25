@@ -36,6 +36,13 @@ const BASE: Record<Slot, Record<ExtKey, number>> = {
   ST: { decisions: 1, heading: 6, tackling: -12, vision: 0, composure: 7 },
 };
 
+/** Same as slotOf but never writes to the player (safe inside filters and renders). */
+export function slotPeek(p: Player): Slot {
+  if (p.slot && LINE_OF[p.slot] === p.position) return p.slot;
+  let r = h(p.id + '|slot'), out: Slot = SPLIT[p.position][0]![0];
+  for (const [sl, w] of SPLIT[p.position]) { if (r < w) { out = sl; break; } r -= w; }
+  return out;
+}
 export function slotOf(p: Player): Slot {
   if (p.slot && LINE_OF[p.slot] === p.position) return p.slot;
   let r = h(p.id + '|slot'), out: Slot = SPLIT[p.position][0]![0];

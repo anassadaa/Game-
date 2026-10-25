@@ -10,8 +10,9 @@ import {
   windowOpen,
 } from './game.ts';
 import { LEAGUES } from './world.ts';
+import { slotPeek } from './positions.ts';
 import { loansOut, toggleLoanListed } from './loans.ts';
-import type { AttrKey, GameState, MarketFilter, Player, Position } from './game.ts';
+import type { AttrKey, GameState, MarketFilter, Player } from './game.ts';
 
 const money = (n: number) => (n >= 1000 ? `£${(n / 1000).toFixed(1)}m` : `£${n}k`);
 
@@ -46,10 +47,12 @@ export function TransferMarket({
         <h3>Search players</h3>
         <div className="tm-filters">
           <input placeholder="Name or club…" value={f.q ?? ''} onChange={(e) => set({ q: e.target.value })} />
-          <select value={f.position} onChange={(e) => set({ position: e.target.value as Position | 'ALL' })}>
-            {['ALL', 'GK', 'DF', 'MF', 'FW'].map((x) => (
-              <option key={x} value={x}>{x === 'ALL' ? 'All positions' : x}</option>
-            ))}
+          <select aria-label="Position" value={f.position} onChange={(e) => set({ position: e.target.value as MarketFilter['position'] })}>
+            <option value="ALL">All positions</option>
+            <option value="GK">GK · Goalkeeper</option>
+            <optgroup label="Defenders"><option value="DF">All defenders</option><option value="LB">LB · Left back</option><option value="CB">CB · Centre back</option><option value="RB">RB · Right back</option></optgroup>
+            <optgroup label="Midfielders"><option value="MF">All midfielders</option><option value="DM">DM · Defensive mid</option><option value="CM">CM · Central mid</option><option value="AM">AM · Attacking mid</option></optgroup>
+            <optgroup label="Attackers"><option value="FW">All attackers</option><option value="LW">LW · Left wing</option><option value="RW">RW · Right wing</option><option value="ST">ST · Striker</option></optgroup>
           </select>
           <select value={f.source} onChange={(e) => set({ source: e.target.value as MarketFilter['source'] })}>
             <option value="all">Everyone</option>
@@ -126,7 +129,7 @@ export function TransferMarket({
         <div className="tm-results">
           {results.slice(0, limit).map((p) => (
             <div className="tm-row" key={p.id}>
-              <span className="position-pill">{p.position}</span>
+              <span className="position-pill" title={p.position}>{slotPeek(p)}</span>
               <div className="tm-name">
                 <b>{p.name}</b>
                 <small>

@@ -39,7 +39,9 @@ export function autoBudget(s: GameState) {
   const free = Math.max(0, s.budget - shortfall);
   const transfer = Math.max(0, Math.round((free * 0.35 + Math.min(free, income * 0.08)) * form * ambition * jitter));
   // Never above the board's wage limit, whatever the current bill is.
-  const wage = Math.max(1, Math.round(wageLimit(s) * (0.94 + 0.06 * form) * jitter));
+  // 3.1 review: the manager's own salary and the staff are paid from the same income, so player wages must leave room for them.
+  const others = (s.hiredManager?.wage ?? 0) + (s.staff ?? []).reduce((a, x) => a + (x.wage || 0), 0);
+  const wage = Math.max(1, Math.min(Math.round(wageLimit(s) * (0.94 + 0.06 * form) * jitter), Math.round(incWk - others)));
   return { transfer, wage, free: Math.round(free) };
 }
 function applyAuto(s: GameState, p: MgrPlan) {

@@ -81,7 +81,7 @@ export function LedgerCard({ state }: { state: GameState }) {
   const peak = Math.max(1, ...l.weeks.map((w) => Math.abs(w.net)));
   return (
     <section className="card ledger-card">
-      <p className="eyebrow">FINANCES · SEASON {l.season + 1}</p>
+      <p className="eyebrow">FINANCES · SEASON {l.season}</p>
       <h3><span className={state.budget < 0 ? 'neg' : ''}>{state.budget < 0 ? cashLabel(state.budget) : `£${state.budget}k cash`}</span> · <span className={net >= 0 ? 'pos' : 'neg'}>{net >= 0 ? '+' : '−'}£{Math.abs(net)}k</span> net cash flow this season</h3>
       <div className="ledger-bars">
         <div><span>Cash in £{inc}k</span><i className="in" style={{ width: `${(inc / max) * 100}%` }} /></div>

@@ -26,6 +26,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          cache: gradle
+          cache-dependency-path: |
+            football-manager/android/**/*.gradle*
+            football-manager/android/**/gradle-wrapper.properties
       - name: Android SDK packages (preinstalled SDK on runner)
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" >/dev/null
       - run: npm ci

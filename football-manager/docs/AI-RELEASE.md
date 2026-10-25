@@ -1,18 +1,21 @@
-# Releasing Touchline (for any AI or human)
+# Releasing Touchline (for any AI assistant: Codex, Claude, ChatGPT, etc.)
 
-Signed Android APKs are built automatically by GitHub Actions (`.github/workflows/touchline-apk.yml`) on every push to `main` that touches `football-manager/**`. You do not need the signing key.
+Releases are fully automated by CI (`.github/workflows/touchline-apk.yml`).
+To ship a new Android version you only:
 
-## To ship a new version
-1. Make your change; run `npm test` and `npm run build` in `football-manager/`.
-2. Bump BOTH:
-   - `android/app/build.gradle`: `versionCode` (+1, integer, must always increase) and `versionName` (e.g. `"2.5"`).
-   - `package.json`: `"version"` (e.g. `"2.5.0"`).
-3. Optional: add release notes at `docs/releases/<versionName>.md`.
+1. Make and test your change (`npm test` in `football-manager/`).
+2. Bump the version in BOTH places:
+   - `football-manager/android/app/build.gradle`: `versionCode` (+1, never reuse) and `versionName` (e.g. `2.5`).
+   - `football-manager/package.json`: `version`.
+3. Optional: add release notes at `football-manager/docs/releases/<versionName>.md`.
 4. Commit and push to `main`.
 
-The workflow runs tests, builds, signs with the original key from repository secrets, checks the signer SHA-256 starts with `f00c3412`, and creates GitHub release `v<versionName>` with `Touchline.apk` attached. If that tag already exists it skips the release (so bump the version), but the APK is still available as a workflow artifact.
+CI then runs tests, builds, signs the APK with the repo secrets, verifies the
+signer certificate, uploads the APK artifact and creates GitHub release
+`v<versionName>` (skipped if that tag already exists).
 
-## Never
-- Never create a new keystore or change `signingConfigs` / `applicationId` (`com.anassadaa.touchline`). A different key means users cannot update.
-- Never ask for, print, or commit the keystore or its passwords. They live only in repository secrets.
-- Never reuse or lower a `versionCode`.
+Rules:
+- Never create a new signing key and never ask for, add or commit a keystore,
+  passwords or `keystore.properties`. Signing exists only in GitHub secrets.
+- Never reuse a `versionCode`; Android rejects updates otherwise.
+- Do not create releases manually; let CI do it.

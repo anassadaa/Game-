@@ -30,12 +30,12 @@ test('boardroom renewal only in final season; expiry leaves the club with a care
 });
 test('boardroom early exit pays a penalty into the club bank (hash-based, deterministic)', () => {
   let found = false;
-  for (let k = 0; k < 40 && !found; k++) {
-    const [s0, id] = own(); const c = clubCandidates(s0, id)[0]; let s = hireClubManager(s0, id, c.id, 5); s = structuredClone(s); s.seed = 1000 + k;
+  for (let k = 0; k < 400 && !found; k++) {
+    const [s0, id] = own(); const c = clubCandidates(s0, id)[0]; let s = hireClubManager(s0, id, c.id, 5); s = structuredClone(s); s.seed = 1000 + k; s.season += 1;
     s.clubs.find(x => x.id === id).form = ['L', 'L', 'L', 'L', 'L'];
-    for (let w = 4; w <= 16 && !found; w += 4) { s.week = w; const t = structuredClone(s); investmentWeek(s); investmentWeek(t);
+    for (const w of [6, 12, 18]) { if (found) break; s.week = w; const t = structuredClone(s); investmentWeek(s); investmentWeek(t);
       assert.equal(s.investments.clubs[id].manager === null, t.investments.clubs[id].manager === null);
-      if (s.investments.clubs[id].manager === null) { found = true; assert.ok(s.investments.log.some(l => /penalty/i.test(l.message) && l.amount > 0)); } }
+      if (s.investments.clubs[id].manager === null) { found = true; assert.ok(s.investments.log.some(l => /penalty|release fee/i.test(l.message) && l.amount > 0)); } }
   }
   assert.ok(found);
 });

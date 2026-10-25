@@ -37,11 +37,11 @@ test('early exit: hash-based, likelier when overperforming or trust low; pays a 
   const s = owner(); assert.ok(leaveChance(s, { rating: 4 }, 4) > leaveChance(s, { rating: 4 }, 0));
   const lo = { ...s, trust: 20 }; assert.ok(leaveChance(lo, { rating: 3 }, 0) > leaveChance({ ...s, trust: 60 }, { rating: 3 }, 0));
   let left = 0, deterministic = true;
-  for (let seed = 1; seed < 60 && !left; seed++) {
-    let g = hireManager(owner(seed), managerCandidates(owner(seed))[0].id, 5); g = structuredClone(g); g.trust = 5;
-    for (let w = 4; w <= 16 && g.hiredManager; w += 4) { g.week = w; const twin = structuredClone(g); const cash = g.budget; managerWeek(g); managerWeek(twin);
+  for (let seed = 1; seed < 400 && !left; seed++) {
+    let g = hireManager(owner(seed), managerCandidates(owner(seed))[0].id, 5); g = structuredClone(g); g.trust = 5; g.season += 1;
+    for (const w of [6, 12, 18]) { if (!g.hiredManager) break; g.week = w; const twin = structuredClone(g); const cash = g.budget; managerWeek(g); managerWeek(twin);
       deterministic &&= (g.hiredManager === undefined) === (twin.hiredManager === undefined);
-      if (!g.hiredManager) { left++; assert.ok(g.budget > cash, 'penalty received'); assert.ok(g.headlines[0].match(/penalty/i)); } }
+      if (!g.hiredManager) { left++; assert.ok(g.budget > cash, 'penalty received'); assert.ok(g.headlines[0].match(/penalty|release fee/i)); } }
   }
   assert.ok(left && deterministic);
 });

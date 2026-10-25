@@ -21,15 +21,21 @@ export const weeksLeft = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager
 /** Sacking pays off the rest of the contract. */
 export const compensation = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager) => weeksLeft(s, m) * m.wage;
 /** Leaving early: he (or his new club) pays ~6 months' wages, more for top managers. */
-export const exitPenalty = (m: HiredManager) => Math.round(m.wage * 26 * (0.8 + m.rating * 0.1));
+/** 3.1 release fee: remaining wages × 1.5, scaled up by rating and form; never below a year's wages (min £250k). */
+export const exitPenalty = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager, overperf = 0) =>
+  Math.round(Math.max(m.wage * 52, 250, weeksLeft(s, m) * m.wage * 1.5 * (1 + 0.1 * Math.max(0, m.rating - 3)) * (1 + 0.05 * Math.min(6, Math.max(0, overperf)))));
 export const tenure = (s: Pick<GameState, 'season'>, m: HiredManager) => s.season - m.since + 1;
-/** % chance per 4-week check that he walks out. overperf = places above expectation. */
+/** % chance per check that he walks out. overperf = places above expectation. */
 export function leaveChance(s: Pick<GameState, 'trust'>, m: Pick<HiredManager, 'rating'>, overperf: number) {
-  let c = 2;
-  if (overperf >= 3 && m.rating >= 3) c += 6 + Math.min(10, (overperf - 2) * 2); // a bigger club comes calling
-  if (s.trust < 30) c += Math.round((30 - s.trust) / 2);
-  return Math.min(35, c);
+  // 3.1: no reason, no exit. Only a clear cause opens the door, and even then rarely.
+  let c = 0;
+  if (overperf >= 3 && m.rating >= 3) c += 2 + Math.min(2, Math.floor((overperf - 3) / 2)); // a bigger club comes calling
+  if (s.trust < 30) c += 1 + Math.round((30 - s.trust) / 10);
+  return Math.min(6, c);
 }
+export const exitReason = (trust: number, m: Pick<HiredManager, 'rating'>, overperf: number): 'poached' | 'quit' => overperf >= 3 && m.rating >= 3 ? 'poached' : trust < 30 ? 'quit' : 'poached';
+/** Early exits are checked at weeks 6, 12 and 18, never in his first season (minimum one year). */
+export const EXIT_WEEKS = [6, 12, 18];
 export const finalSeason = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager) => weeksLeft(s, m) <= SEASON_WEEKS;
 /** Renewal terms: performance (places above expectation) earns a raise of up to 30%. */
 export function renewalTerms(s: Pick<GameState, 'season' | 'week'>, years: number, overperf: number, m?: HiredManager) {
@@ -38,12 +44,17 @@ export function renewalTerms(s: Pick<GameState, 'season' | 'week'>, years: numbe
   return { years, raise: Math.round(raise * 100), wage: contractWage({ wage: Math.round(base.wage * (1 + raise)) }, years) };
 }
 /** Contract events for one manager this week. */
-export function contractTick(s: GameState, m: HiredManager, key: string, trust: number, overperf: number): { kind: 'expire' | 'alert' | 'leave' | null; penalty?: number } {
+export function contractTick(s: GameState, m: HiredManager, key: string, trust: number, overperf: number): { kind: 'expire' | 'alert' | 'leave' | null; penalty?: number; reason?: 'poached' | 'quit' } {
   const end = endOf(s, m);
   if (s.season > end || (s.season === end && s.week >= SEASON_WEEKS)) return { kind: 'expire' };
-  if (s.week % 4 === 0 && hash(`${s.seed}|mgr-exit|${key}|${m.id}|${s.season}|${s.week}`) % 100 < leaveChance({ trust }, m, overperf)) return { kind: 'leave', penalty: exitPenalty(m) };
+  if (s.season > m.since && EXIT_WEEKS.includes(s.week) && hash(`${s.seed}|mgr-exit|${key}|${m.id}|${s.season}|${s.week}`) % 100 < leaveChance({ trust }, m, overperf)) return { kind: 'leave', penalty: exitPenalty(s, m, overperf), reason: exitReason(trust, m, overperf) };
   if (finalSeason(s, m) && !m.alerted) return { kind: 'alert' };
   return { kind: null };
+}
+export function poacher(s: GameState, from: string, key: string) {
+  const here = s.clubs.find((c) => c.id === from), pool = s.clubs.filter((c) => c.id !== from && (!here || c.rating >= here.rating));
+  const list = pool.length ? pool : s.clubs.filter((c) => c.id !== from);
+  return list[hash(`${s.seed}|poach|${key}|${s.season}|${s.week}`) % Math.max(1, list.length)]?.name ?? 'A bigger club';
 }
 export function overperformance(s: GameState) {
   const c = s.clubs.find((x) => x.id === s.clubId); if (!c) return 0;
@@ -108,8 +119,9 @@ export function managerWeek(s: GameState) {
     if (ev.kind === 'expire') { delete s.hiredManager; headline(s, `📄 ${m.name}'s contract has expired. He leaves on a free; a caretaker takes charge.`); mgrNote(s, 'My contract ran out, so I am leaving. Good luck.'); }
     else if (ev.kind === 'leave') {
       const pen = ev.penalty!; s.budget += pen; book(s, 'other', pen); delete s.hiredManager;
-      headline(s, `✈️ ${m.name} quits ${s.trust < 30 ? 'after losing the board\'s backing' : 'for a bigger club'}. £${pen}k exit penalty paid to us.`);
-      mgrNote(s, `Leaving before my contract ends; £${pen}k penalty paid to the club.`);
+      const by = poacher(s, s.clubId, m.id);
+      headline(s, ev.reason === 'poached' ? `✈️ ${by} poach ${m.name} and pay us a £${pen}k release fee. A caretaker takes charge.` : `✈️ ${m.name} quits after losing the board's backing and pays us a £${pen}k exit penalty. A caretaker takes charge.`);
+      mgrNote(s, ev.reason === 'poached' ? `Leaving for ${by}; they paid the club a £${pen}k release fee.` : `Quitting before my contract ends; I paid the club a £${pen}k exit penalty.`);
     } else if (ev.kind === 'alert') { m.alerted = true; headline(s, `📄 ${m.name}'s contract ends after season ${endOf(s, m)}. Offer a renewal in Club → Board or let him go.`); mgrNote(s, 'My contract is in its final season. Waiting on your offer.'); }
   }
   if (d) s.players.forEach((p) => { if (p.clubId === s.clubId) p.morale = clamp(p.morale + d); });

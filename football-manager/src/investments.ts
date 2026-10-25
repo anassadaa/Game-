@@ -7,7 +7,7 @@ import type { Ledger, InKind, OutKind } from './finance.ts';
 import { league } from './world.ts';
 import type { HiredManager } from './managers.ts';
 import { setBudgetMod } from './delegate.ts';
-import { compensation, contractWage, contractEndFor, minYears, contractTick, renewalTerms, finalSeason, endOf, overperformance } from './managers.ts';
+import { compensation, contractWage, contractEndFor, minYears, contractTick, renewalTerms, finalSeason, endOf, overperformance, poacher } from './managers.ts';
 import type { Facilities } from './facilities.ts';
 import { validFacilities } from './facilities.ts';
 import type { Tickets } from './tickets.ts';
@@ -367,7 +367,7 @@ export function investmentWeek(s: GameState) {
       if (b.manager && owned(s, c.id) >= 51) {
         const m = b.manager, ev = contractTick(s, m, c.id, formTrust(c), formEdge(c));
         if (ev.kind === 'expire') { b.manager = null; log(s, c.id, 'manager', 0, `${m.name}'s contract expired; he left on a free. A caretaker is in charge.`); }
-        else if (ev.kind === 'leave') { post(b, 'other', ev.penalty!); b.manager = null; log(s, c.id, 'manager', ev.penalty!, `${m.name} quit ${c.name} early${formTrust(c) < 30 ? ' after a poor run' : ' for a bigger club'}. £${ev.penalty}k exit penalty paid to the club.`); s.headlines = [`✈️ ${m.name} walks out on ${c.name}; £${ev.penalty}k penalty paid.`, ...s.headlines].slice(0, 6); }
+        else if (ev.kind === 'leave') { const by = poacher(s, c.id, m.id), why = ev.reason === 'poached' ? `${by} poached ${m.name} from ${c.name} and paid a £${ev.penalty}k release fee.` : `${m.name} quit ${c.name} after a poor run and paid a £${ev.penalty}k exit penalty.`; post(b, 'other', ev.penalty!); b.manager = null; log(s, c.id, 'manager', ev.penalty!, `${why} A caretaker is in charge.`); s.headlines = [`✈️ ${why}`, ...s.headlines].slice(0, 6); }
         else if (ev.kind === 'alert') { m.alerted = true; log(s, c.id, 'manager', 0, `${m.name}'s contract ends after season ${endOf(s, m)}. Offer a renewal or let him go.`); }
       }
       post(b, 'running', Math.round(12 + (b.academy + b.scouting + b.stadium + b.facilities.training + b.facilities.medical - 5) * 4 + b.debt * 0.003 + Math.max(0, -b.cash) * 0.01));

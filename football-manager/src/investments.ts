@@ -138,7 +138,8 @@ export function quoteTrade(s: GameState, id: string, side: 'buy' | 'sell', pct: 
   if ((side === 'buy' && pct > c.available) || (side === 'sell' && pct > c.stake)) { q.reason = side === 'buy' ? 'The owners are not offering that much equity.' : 'You cannot sell more than you own.'; return q; }
   q.after = c.stake + (side === 'buy' ? pct : -pct);
   const urgency = c.cash < 500 ? 0.90 : 1;
-  q.price = Math.round(c.value * pct / 100 * (side === 'buy' ? urgency * 1.02 : 0.96));
+  // Distress discounts apply to both sides so a buy-then-sell round trip can never print money.
+  q.price = Math.round(c.value * pct / 100 * urgency * (side === 'buy' ? 1.02 : 0.96));
   q.premium = side === 'buy' && c.stake < 51 && q.after >= 51 ? Math.round(c.value * 0.06) : 0;
   q.fee = Math.max(1, Math.round((q.price + q.premium) * 0.01));
   q.total = side === 'buy' ? q.price + q.premium + q.fee : Math.max(0, q.price - q.fee);

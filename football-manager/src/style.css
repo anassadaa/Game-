@@ -4188,3 +4188,28 @@ select, .tm-filters input, .tm-filters select, .league-select, .role-selects sel
 select:focus-visible, input:focus-visible { outline: 2px solid #2f7d4f; outline-offset: 1px; }
 select:disabled, input:disabled { background-color: #eef1ea; color: #6b7a62; }
 .page-heading p, .muted, .small { color: #56684d; }
+
+/* ===== 2.7 design layer: tap targets, readable type, consistent controls ===== */
+:root { --tl-radius: 12px; --tl-ink: #12231d; --tl-muted: #5b6b52; --tl-accent: #c8f169; --tl-line: #dbe3d0; }
+button, select, input, .secondary { min-height: 44px; }
+button { border-radius: 10px; }
+.filter-row { flex-wrap: wrap; }
+.filter-row button { font-size: 13px; min-height: 40px; padding: 8px 14px; border-radius: 999px; color: var(--tl-muted); }
+.subtabs button { min-height: 40px; font-size: 14px; padding: 8px 16px; }
+.card, .inv-card { border-radius: var(--tl-radius); }
+.muted, .muted.small, small.muted { color: var(--tl-muted); }
+.small { font-size: max(12px, 1em); }
+.page-footer small { font-size: 11px; }
+.squad-banner p { font-size: 13px; color: var(--tl-muted); }
+.inv-notice { border-left: 4px solid var(--tl-accent); background: #f3f8e6; padding: 10px 12px; border-radius: 8px; color: var(--tl-ink); font-size: 13px; line-height: 1.45; }
+.hint { display: flex; gap: 8px; align-items: flex-start; background: #f3f8e6; border: 1px solid var(--tl-line); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--tl-ink); line-height: 1.45; }
+button.primary, .primary { font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.08); }
+@media (max-width: 900px) {
+  .mobile-nav button, .mobile-nav a { min-height: 56px; font-size: 11px; }
+  .mobile-nav .active, .mobile-nav [aria-current="page"] { color: var(--tl-ink); font-weight: 700; }
+  label { font-size: 13px; }
+  table td, table th { padding-top: 10px; padding-bottom: 10px; }
+}
+@media (max-height: 450px) and (orientation: landscape) {
+  .mobile-nav button, .mobile-nav a { min-height: 44px; }
+}

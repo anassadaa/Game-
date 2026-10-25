@@ -125,10 +125,16 @@ export function marketClubs(s: GameState): ClubView[] {
     const stored = model.investments!.clubs[c.id]!;
     const b = c.id === model.clubId ? { ...stored, cash: model.budget, ledger: model.ledger ?? stored.ledger, fans: model.fans } : stored;
     const stake = owned(model, c.id), limit = stake >= 51 ? 100 : b.cash < 500 ? 100 : b.saleLimit;
-    return { ...b, id: c.id, name: c.name, color: c.color, division: c.division, stake, investors: investors(model, c.id), loan: claim(model, c.id),
+    return { ...b, id: c.id, name: c.name, color: c.color, division: c.division, stake, investors: ownership(model, c.id).investors, loan: claim(model, c.id),
       value: equityValue(model, c, b), profit: profit(b), available: Math.max(0, Math.min(100 - stake, limit - stake)), controlled: stake >= 51,
       status: stake >= 51 ? 'Controlled' : b.cash < 500 ? 'Seeking funding' : limit === 0 ? 'Not for sale' : limit >= 75 ? 'Takeover available' : 'Minority stake available' };
   });
+}
+
+/** Full cap table: you + outside investors + original owners always equals 100%. */
+export function ownership(s: GameState, id: string) {
+  const mine = cap(Math.round(owned(s, id)), 0, 100), inv = cap(Math.round(investors(s, id)), 0, 100 - mine);
+  return { mine, investors: inv, owners: 100 - mine - inv };
 }
 
 export function quoteTrade(s: GameState, id: string, side: 'buy' | 'sell', pct: number): TradeQuote {

@@ -9,7 +9,7 @@ const ours = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId);
 /** Total weekly wages of everyone registered to us (incl. loanees we pay). */
 export const wageBill = (s: GameState) => ours(s).reduce((a, p) => a + (p.wage || 0), 0);
 /** Stored board decision so the budget is smoothed instead of jumping. */
-export type WageBudget = { limit: number; season: number; week: number };
+export type WageBudget = { limit: number; season: number; week: number; grace?: number; graceSeason?: number };
 const clampN = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 const SEASON_WEEKS = 18;
 /** Projected weekly income with no history yet: TV + average gate + sponsors + share of the season payout. */
@@ -45,9 +45,12 @@ export const wageTarget = (s: GameState) => wageBreakdown(s).target;
 /** Board review (season start, every 4 weeks): move 40% toward target, max ±15% per review. */
 export function refreshWageBudget(s: GameState, weight = 0.4) {
   const t = wageTarget(s), old = s.wageBudget?.limit;
-  const limit = old === undefined ? Math.max(t, Math.round(wageBill(s) * 1.05))
+  let limit = old === undefined ? Math.max(t, Math.round(wageBill(s) * 1.05))
     : Math.round(clampN(old + (t - old) * weight, old * 0.85, old * 1.15));
-  s.wageBudget = { limit, season: s.season, week: s.week };
+  // opening season: the board honours the wage bill you inherited
+  const prev = s.wageBudget, grace = old === undefined ? limit : prev?.graceSeason === s.season ? prev.grace : undefined;
+  if (grace !== undefined) limit = Math.max(limit, grace);
+  s.wageBudget = { limit, season: s.season, week: s.week, ...(grace !== undefined ? { grace, graceSeason: s.season } : {}) };
   return s;
 }
 /** Board's weekly wage budget. Advisory (never blocks a deal). */

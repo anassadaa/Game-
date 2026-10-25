@@ -680,6 +680,8 @@ export function newGame(
   topUpBench(s);
   ledger(s);
   refreshWageBudget(s);
+  const wb = s.wageBudget!.limit, bill = s.players.filter((p) => p.clubId === s.clubId).reduce((a, p) => a + (p.wage || 0), 0);
+  s.headlines = [`📋 Board: your wage budget is £${wb}k/week (current bill £${bill}k). We honour the squad you inherited this season; from next season it follows the club's profit and loss.`, ...s.headlines].slice(0, 6);
   return s;
 }
 export function club(s: GameState) {
@@ -1924,6 +1926,8 @@ export function takeJob(s: GameState, clubId: string): GameState {
   b.resigned = false;
   b.vacancies = (b.vacancies ?? []).filter((v) => v.clubId !== clubId);
   b.board = boardTarget(b);
+  delete b.wageBudget;
+  refreshWageBudget(b);
   b.headlines = [`🤝 You are the new manager of ${target.name}!`, ...b.headlines].slice(0, 6);
   addNews(b, `🎙️ ${target.short} appoint a new manager, who leaves ${old.short}.`);
   return b;

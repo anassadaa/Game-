@@ -297,6 +297,7 @@ export type GameState = {
   hof?: import('./hof.ts').Legend[];
   fanLog?: import('./fans.ts').FanLog;
   derby?: import('./derby.ts').DerbyLog;
+  prePress?: { season: number; week: number; tone: number };
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };

@@ -38,3 +38,8 @@ test('reputation factor is capped at ±40', async () => {
   s.reputation = 0;
   assert.equal(jobChance(s, big.id).factors[0].value, -40);
 });
+test('job rows show the two biggest factors first', async () => {
+  const { topFactors } = await import('../src/jobs.ts');
+  const f = [{ label: 'a', value: 3 }, { label: 'b', value: -20 }, { label: 'c', value: 12 }, { label: 'd', value: 0 }];
+  assert.deepEqual(topFactors(f).map((x) => x.label), ['b', 'c']);
+});

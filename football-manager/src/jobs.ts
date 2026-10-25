@@ -79,6 +79,9 @@ export const validApproaches = (v: unknown) =>
   v === undefined || (Array.isArray(v) && v.length <= 60 && v.every((a) => a && typeof a.clubId === 'string' && Number.isInteger(a.season) && Number.isInteger(a.week)));
 
 export type Factor = { label: string; value: number };
+/** The factors that matter most (largest effect either way), for compact rows. */
+export const topFactors = (f: Factor[], n = 2) => [...f].sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, n);
+export const fmtFactor = (f: Factor) => `${f.label} ${f.value >= 0 ? '+' : ''}${f.value}`;
 export function jobChance(s: GameState, clubId: string): { chance: number; factors: Factor[] } {
   const c = s.clubs.find((x) => x.id === clubId)!;
   const f: Factor[] = [];

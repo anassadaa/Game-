@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { GameState } from './game.ts';
 import { LEAGUES, leagueName } from './world.ts';
-import { APPROACH_LIMIT, APPROACH_WINDOW, applyJob, canApply, jobChance, reputation, resign, stature } from './jobs.ts';
+import { APPROACH_LIMIT, APPROACH_WINDOW, applyJob, canApply, fmtFactor, jobChance, reputation, resign, stature, topFactors } from './jobs.ts';
 import type { Club } from './game.ts';
 import type { JobResult } from './jobs.ts';
 
@@ -13,6 +13,7 @@ export function JobCentre({ state, onUpdate }: { state: GameState; onUpdate: Up 
   const rep = Math.round(reputation(state));
   const [q, setQ] = useState('');
   const [more, setMore] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
   const isVac = (id: string) => (state.vacancies ?? []).some((v) => v.clubId === id);
   const needle = q.trim().toLowerCase();
   const pool = state.clubs
@@ -26,12 +27,15 @@ export function JobCentre({ state, onUpdate }: { state: GameState; onUpdate: Up 
     const c: Club = x.c;
     return (
       <div key={c.id} className={`job-row${x.vac ? ' vacancy' : ''}`}>
-        <span><b>{c.name}</b>{x.vac ? <em className="vac-tag"> 🪑 Vacancy</em> : null} · {leagueName(c.division)}<br />
-          <small>Stature {stature(c)} · chance <b>{x.chance}%</b> · {x.factors.map((f) => `${f.label} ${f.value >= 0 ? '+' : ''}${f.value}`).join(' · ')}</small></span>
-        <span className="job-act">
-          <button className="secondary" disabled={!!x.why} title={x.why ?? undefined} onClick={() => { const [n, r] = applyJob(state, c.id); setRes({ ...r, club: c.name }); onUpdate(n, r.ok ? r.reason : undefined); }}>{x.vac ? 'Apply' : 'Approach'}</button>
-          {x.why && <small className="job-why">{x.why}</small>}
-        </span>
+        <div className="job-main">
+          <span><b>{c.name}</b>{x.vac ? <em className="vac-tag"> 🪑 Vacancy</em> : null}<br />
+            <small>{leagueName(c.division)} · stature {stature(c)} · <b>{x.chance}%</b></small><br />
+            <small className="job-top">{topFactors(x.factors).map(fmtFactor).join(' · ')}</small></span>
+          <button className="secondary job-btn" disabled={!!x.why} onClick={() => { const [n, r] = applyJob(state, c.id); setRes({ ...r, club: c.name }); onUpdate(n, r.ok ? r.reason : undefined); }}>{x.vac ? 'Apply' : 'Approach'}</button>
+        </div>
+        {x.why && <small className="job-why">⏳ {x.why}</small>}
+        <button className="text-button job-more" aria-expanded={open === c.id} onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? 'Hide factors' : `All ${x.factors.length} factors`}</button>
+        {open === c.id && <ul className="job-factors">{x.factors.map((f) => <li key={f.label}><span>{f.label}</span><b className={f.value >= 0 ? 'pos' : 'neg'}>{f.value >= 0 ? '+' : ''}{f.value}</b></li>)}</ul>}
       </div>
     );
   };

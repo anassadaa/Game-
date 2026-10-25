@@ -29,3 +29,12 @@ test('vacancies open, applications decided by weighted chance, resign works', ()
   const old = structuredClone(s); delete old.reputation; delete old.vacancies;
   assert.ok(decodeSave(encodeSave(old)));
 });
+test('reputation factor is capped at ±40', async () => {
+  const { newGame } = await import('../src/game.ts'); const { jobChance } = await import('../src/jobs.ts');
+  const s = newGame(9); s.reputation = 100;
+  const small = [...s.clubs].sort((a, b) => a.rating - b.rating)[0];
+  const big = [...s.clubs].sort((a, b) => b.rating - a.rating)[0];
+  assert.equal(jobChance(s, small.id).factors[0].value, 40);
+  s.reputation = 0;
+  assert.equal(jobChance(s, big.id).factors[0].value, -40);
+});

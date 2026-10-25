@@ -82,7 +82,7 @@ export type Factor = { label: string; value: number };
 export function jobChance(s: GameState, clubId: string): { chance: number; factors: Factor[] } {
   const c = s.clubs.find((x) => x.id === clubId)!;
   const f: Factor[] = [];
-  f.push({ label: 'Reputation vs club stature', value: Math.round((reputation(s) - stature(c)) * 2) });
+  f.push({ label: 'Reputation vs club stature', value: Math.max(-40, Math.min(40, Math.round((reputation(s) - stature(c)) * 2))) });
   const form = s.sacked ? [] : club(s).form.slice(-5);
   const ppg = form.length ? form.reduce((a, r) => a + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0) / form.length : 1;
   f.push({ label: 'Recent form', value: Math.round((ppg - 1.3) * 8) });

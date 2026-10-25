@@ -81,3 +81,29 @@ export function ScenarioCard({ state }: { state: GameState }) {
     </section>
   );
 }
+import { MEETING_ASKS, boardMood, meetingOpen, requestMeeting } from './meeting.ts';
+export function MeetingCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  if (!state.board) return null;
+  const m = state.meeting?.season === state.season ? state.meeting : undefined, open = meetingOpen(state), mood = boardMood(state);
+  return (
+    <section className="card meeting-card">
+      <span className="eyebrow">🏛️ REQUEST A BOARD MEETING</span>
+      {m ? (
+        <p className="small">Met in week {m.week + 1}: {MEETING_ASKS.find((a) => a.id === m.ask)!.label} — {m.ok ? '✅ agreed' : '❌ refused'}. Next meeting next season.</p>
+      ) : open ? (
+        <>
+          <p className="small">Board mood: <b>{mood >= 60 ? 'Receptive' : 'Cold'}</b> ({mood}). One request per season.</p>
+          <div className="pp-list">
+            {MEETING_ASKS.map((a) => (
+              <button key={a.id} className="secondary pp-btn" onClick={() => onUpdate(requestMeeting(state, a.id), 'Board meeting held.')}>
+                <span>{a.label}</span><small>{a.blurb}</small>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="small">The board take meetings between weeks 5 and 15.</p>
+      )}
+    </section>
+  );
+}

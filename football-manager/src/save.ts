@@ -16,6 +16,7 @@ import { validFanLog } from './fans.ts';
 import { validDerby } from './derby.ts';
 import { validPrePress } from './prepress.ts';
 import { validScenario } from './scenario.ts';
+import { validMeeting } from './meeting.ts';
 import { validScouts } from './scouts.ts';
 import { validTrophies } from './stats.ts';
 import { validFacilities } from './facilities.ts';
@@ -259,6 +260,7 @@ export function decodeSave(raw: string): GameState | null {
     if (!validDerby(s)) delete s.derby;
     if (!validPrePress(s)) delete s.prePress;
     if (!validScenario(s)) delete s.scenario;
+    if (!validMeeting(s)) delete s.meeting;
     if (s.harmony !== undefined && !Number.isFinite(s.harmony)) s.harmony = 70;
     for (const p of s.players) {
       if (p.unhappy !== undefined && typeof p.unhappy !== 'string') delete p.unhappy;

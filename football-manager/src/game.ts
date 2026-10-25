@@ -300,6 +300,7 @@ export type GameState = {
   derby?: import('./derby.ts').DerbyLog;
   prePress?: { season: number; week: number; tone: number };
   scenario?: import('./scenario.ts').Scenario;
+  meeting?: import('./meeting.ts').Meeting;
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };

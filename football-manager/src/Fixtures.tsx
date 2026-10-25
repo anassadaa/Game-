@@ -1,3 +1,4 @@
+import { SeasonHighlights } from './Records.tsx';
 import type { GameState } from './game.ts';
 import { dismissReview, fixtureList } from './fixtures.ts';
 import { leagueName } from './world.ts';
@@ -62,6 +63,7 @@ export function ReviewModal({ state, onUpdate }: { state: GameState; onUpdate: (
           {r.best && <span>Best win<b>{r.best}</b></span>}
           {r.worst && <span>Worst defeat<b>{r.worst}</b></span>}
         </div>
+        <SeasonHighlights state={state} season={r.season} />
         <p className="review-verdict">{r.verdict}</p>
         <button className="primary wide" onClick={() => onUpdate(dismissReview(state))}>On to next season</button>
       </section>

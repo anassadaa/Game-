@@ -88,7 +88,7 @@ import { dofDiscount } from './staff.ts';
 import { offerBlock } from './budget.ts';
 import { BudgetLine } from './BudgetLine.tsx';
 import { StatsPanel } from './Stats.tsx';
-import { RecordsCard } from './Records.tsx';
+import { HallCard, RecordsCard } from './Records.tsx';
 import { DressingPanel, PressRoom, TeamTalk } from './Dressing.tsx';
 import { FacilityRows } from './Facilities.tsx';
 import { TrainingPanel } from './Training.tsx';
@@ -1522,6 +1522,7 @@ export default function App() {
                   <JobCentre state={state} onUpdate={update} />
                   <StatsPanel state={state} />
                   <RecordsCard state={state} />
+                  <HallCard state={state} />
                   </>)}
                   {sub === 'board' && (<>
                   <BoardRoom state={state} onUpdate={update} />

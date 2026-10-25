@@ -29,3 +29,29 @@ export function RecordsCard({ state }: { state: GameState }) {
     </section>
   );
 }
+import { legacy, seasonHighlights } from './hof.ts';
+export function HallCard({ state }: { state: GameState }) {
+  const l = legacy(state), hof = state.hof ?? [];
+  return (
+    <section className="card hof-card">
+      <span className="eyebrow">🏛️ HALL OF FAME</span>
+      <h3>{l.tier} · {l.score} legacy pts</h3>
+      {l.next && <div className="hof-bar"><i style={{ width: `${Math.min(100, (l.score / l.next) * 100)}%` }} /></div>}
+      <p className="small">{l.next ? `${l.next - l.score} pts to the next tier. ` : ''}Wins, trophies, achievements and legends all count.</p>
+      {hof.length ? (
+        <ul className="hof-list">{hof.map((h) => (<li key={h.id}><b>{h.name}</b><span>{h.position} · {h.apps} apps · {h.goals} goals · in S{h.season}</span></li>))}</ul>
+      ) : (<p className="small">No legends yet: players join after 80 appearances, or 40 goals.</p>)}
+    </section>
+  );
+}
+export function SeasonHighlights({ state, season }: { state: GameState; season: number }) {
+  const h = seasonHighlights(state, season);
+  const items = [
+    ...h.trophies.map((t) => `🏆 ${t}`),
+    ...h.achievements.map((a) => `${a.icon} ${a.title}`),
+    ...h.legends.map((n) => `🏛️ ${n} joins the Hall of Fame`),
+    ...h.awards.map((a) => `🏅 ${a.award}: ${a.player}`),
+  ];
+  if (!items.length) return null;
+  return <ul className="review-hl">{items.map((x) => <li key={x}>{x}</li>)}</ul>;
+}

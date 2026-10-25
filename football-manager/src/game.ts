@@ -17,6 +17,7 @@ import { refreshWageBudget } from './budget.ts';
 import { fanSwing, homeGate } from './tickets.ts';
 import { paySponsor, settleSponsor } from './sponsors.ts';
 import { checkAchievements, noteMatch, seasonRecords } from './records.ts';
+import { induct } from './hof.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
 import { developRival, retires, spawnRegen } from './regens.ts';
@@ -291,6 +292,7 @@ export type GameState = {
   sponsor?: import('./sponsors.ts').Sponsor;
   records?: import('./records.ts').Records;
   achievements?: import('./records.ts').Unlocked[];
+  hof?: import('./hof.ts').Legend[];
 };
 export type Cup = { season: number; round: number; alive: string[]; log: string[]; winners: { season: number; clubId: string }[]; wins: number };
 export type Board = { target: number; objective: string; warnings: number };
@@ -1379,6 +1381,7 @@ function rollSeason(s: GameState) {
   resetCards(s);
   seasonRecords(s, pos, before);
   seasonAwards(s, outcome, before);
+  induct(s);
   checkAchievements(s);
   repSeason(s, pos, outcome);
   s.applied = [];

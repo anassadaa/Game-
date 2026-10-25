@@ -1,10 +1,10 @@
+import { surname } from './names.ts';
 import { useState } from 'react';
 import type { GameState, Player } from './game.ts';
 import { sharpness } from './training.ts';
 import { BENCH, autoPick, bench, clearSlot, clearXI, fit, layout, moveTo, placeOf, setSlot, slotsFor, suitability, toggleBench, warnings } from './lineup.ts';
 
 type Up = (s: GameState, m?: string) => void;
-const surname = (n: string) => n.split(' ').slice(-1)[0];
 const FIT_LABEL = { natural: 'Natural', awkward: 'Awkward', unsuitable: 'Unsuitable' } as const;
 
 /** FM-mobile-style lineup picker: tap a slot, pick from a bottom sheet sorted by suitability. */

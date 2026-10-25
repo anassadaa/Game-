@@ -423,6 +423,8 @@ export default function App() {
   const [help, setHelp] = useState(false);
   const [saveOk, setSaveOk] = useState(true);
   const [filter, setFilter] = useState('All');
+  const [compact, setCompactRaw] = useState(() => { try { return localStorage.getItem('touchline-compact') !== '0'; } catch { return true; } });
+  const setCompact = (v: boolean) => { setCompactRaw(v); try { localStorage.setItem('touchline-compact', v ? '1' : '0'); } catch { /* ignore */ } };
   const [assign, setAssign] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const openProfile = useCallback((id: string) => {
@@ -1179,9 +1181,11 @@ export default function App() {
                         {({ All: 'All', GK: 'GK', DF: 'DEF', MF: 'MID', FW: 'ATT' } as Record<string, string>)[v]}
                       </button>
                     ))}
+                    <button className={`view-toggle${compact ? '' : ' active'}`} aria-pressed={!compact} onClick={() => setCompact(!compact)}>{compact ? 'Show details' : 'Compact'}</button>
                   </div>
                   {assign && <AssignSheet state={state} playerId={assign} onUpdate={update} onClose={() => setAssign(null)} />}
-                  <div className="squad-grid">
+                  <div className={`squad-grid${compact ? ' compact' : ''}`}>
+                    {roster.filter((p) => filter === 'All' || p.position === filter).length === 0 && <p className="empty-note">No players in this group yet — try another filter or sign one in Transfers.</p>}
                     {roster
                       .filter((p) => filter === 'All' || p.position === filter)
                       .sort(

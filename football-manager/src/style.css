@@ -4172,3 +4172,19 @@ body:has(.modal-backdrop) .toast, body:has(.pp-backdrop) .toast { bottom: auto; 
 .page-heading.one-line { margin-bottom: 14px; }
 .page-heading.one-line h1 { display: flex; align-items: baseline; gap: 10px; font-size: 22px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .page-heading.one-line h1 .eyebrow { margin: 0; font-size: 11px; color: #5d7155; }
+
+/* 2.6 compact squad rows */
+.squad-grid.compact .player-card .attr-grid, .squad-grid.compact .player-card .trait-line { display: none; }
+.squad-grid.compact .player-card { padding-top: 10px; padding-bottom: 10px; }
+.squad-grid.compact .player-card .player-info p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 2px 0; font-size: 13px; }
+.squad-grid.compact .player-card .player-info h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.squad-grid.compact .player-card .player-info { min-width: 0; }
+.filter-row .view-toggle { margin-left: auto; }
+
+/* 2.6 readable form controls (old dark-theme greys removed) */
+select, .tm-filters input, .tm-filters select, .league-select, .role-selects select, .sp-row select, .deal-field select, .mentor-row select {
+  background-color: #fff; color: #17301f; border: 1px solid #b9c7ab; border-radius: 8px;
+}
+select:focus-visible, input:focus-visible { outline: 2px solid #2f7d4f; outline-offset: 1px; }
+select:disabled, input:disabled { background-color: #eef1ea; color: #6b7a62; }
+.page-heading p, .muted, .small { color: #56684d; }

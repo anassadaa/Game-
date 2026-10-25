@@ -96,8 +96,8 @@ export function TransferMarket({
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <select value={f.minStars ?? 0} onChange={(e) => set({ minStars: +e.target.value || undefined })}>
-            <option value={0}>Any potential</option>
+          <select aria-label="Scout star rating" value={f.minStars ?? 0} onChange={(e) => set({ minStars: +e.target.value || undefined })}>
+            <option value={0}>Any star rating</option>
             {[2, 3, 4, 5].map((a) => (
               <option key={a} value={a}>{'★'.repeat(a)}+</option>
             ))}

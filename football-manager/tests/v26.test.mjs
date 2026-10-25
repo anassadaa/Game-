@@ -201,3 +201,9 @@ test('charts: weekly trend and value history recorded, capped, and survive save 
   const back = save.decodeSave(enc(s));
   assert.ok(back && back.trend.length === s.trend.length);
 });
+
+test('short pitch names drop regen suffix and fit', async () => {
+  const { surname } = await import('../src/names.ts');
+  assert.equal(surname('Joe Worral 2'), 'Worral');
+  assert.equal(surname('Nathan Broadhead'), 'Broadhe.');
+});

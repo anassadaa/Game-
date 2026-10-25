@@ -316,9 +316,9 @@ export function investmentWeek(s: GameState) {
       if (b.facilities.building && --b.facilities.building.weeks <= 0) { const type = b.facilities.building.type; b.facilities[type] = Math.min(5, b.facilities[type] + 1); b.stadium = b.facilities.stadium; delete b.facilities.building; }
       for (const i of b.instalments) { const payment = Math.min(i.amount, i.remaining ?? i.amount); post(b, 'signings', payment); if (i.clubId && state.clubs[i.clubId]) { if (i.clubId === s.clubId) { s.budget += payment; s.ledger!.inc.sales += payment; s.ledger!.last += payment; state.clubs[s.clubId]!.cash += payment; state.clubs[s.clubId]!.ledger.inc.sales += payment; state.clubs[s.clubId]!.ledger.last += payment; } else post(state.clubs[i.clubId]!, 'sales', payment); } if (i.remaining !== undefined) i.remaining -= payment; i.weeks--; }
       b.instalments = b.instalments.filter(i => i.weeks > 0);
-      const before = b.cash, last = c.form.at(-1), tier = league(c.division).tier;
+      const before = b.cash, last = c.form.at(-1);
       const gate = Math.round((60 + b.fans + (b.stadium - 1) * 25) * (0.7 + b.ticket * 0.1) * (1 - Math.max(0, b.ticket - 3) * 0.1) * (s.week % 2 ? 1 : 0.35));
-      post(b, 'gate', gate); post(b, 'tv', tier === 1 ? 130 : 90);
+      post(b, 'gate', gate); post(b, 'tv', tvMoney(s, c.division, groups));
       post(b, 'sponsor', Math.round(15 + c.rating * 0.3 + (b.sponsor === 'performance' && last === 'W' ? 35 : b.sponsor === 'youth' ? b.academy * 5 : 10)));
       post(b, 'wages', Math.round(ps.reduce((n, p) => n + p.wage, 0) + (b.manager?.wage ?? 5)));
       post(b, 'running', Math.round(12 + (b.academy + b.scouting + b.stadium + b.facilities.training + b.facilities.medical - 5) * 4 + b.debt * 0.003 + Math.max(0, -b.cash) * 0.01));
@@ -348,6 +348,7 @@ export function investmentWeek(s: GameState) {
           if (mine) { wallet(s).cash += mine; wallet(s).dividends += mine; b.dividends += mine; log(s, c.id, 'dividend', mine, `${c.name} paid you £${mine}k from £${income - costs}k earned profit.`); }
         }
         b.lastDividend = s.season;
+        if (owned(s, c.id) < 51) b.wageLimit = Math.max(50, Math.round(income / 18 * 0.9));
         b.ledger = { ...emptyLedger(s.season + 1, b.cash), prev: { season: s.season, income, costs, transferNet: b.ledger.inc.sales - b.ledger.out.signings } };
       }
     } else {
@@ -482,4 +483,18 @@ export function maxSellable(s: GameState, id: string): number {
   let lo = 0, hi = c.stake;
   while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); if (quoteTrade(s, id, 'sell', mid).ok) lo = mid; else hi = mid - 1; }
   return lo;
+}
+
+/** Weekly TV money scales with the league's wage economy, so rich leagues pay more and clubs can roughly break even. */
+const tvCache = new WeakMap<object, Map<number, number>>();
+export function tvMoney(s: GameState, division: number, groups?: Map<string, Player[]>): number {
+  const memo = groups ? tvCache.get(groups) ?? new Map<number, number>() : undefined; if (groups && memo) tvCache.set(groups, memo);
+  const hit = memo?.get(division); if (hit !== undefined) return hit;
+  const v = tvRaw(s, division, groups); memo?.set(division, v); return v;
+}
+function tvRaw(s: GameState, division: number, groups?: Map<string, Player[]>): number {
+  const clubs = s.clubs.filter(c => c.division === division); if (!clubs.length) return 90;
+  const bill = (id: string) => (groups?.get(id) ?? [...s.players, ...(s.rivals ?? [])].filter(p => p.clubId === id)).reduce((n, p) => n + p.wage, 0);
+  const avg = clubs.reduce((n, c) => n + bill(c.id), 0) / clubs.length;
+  return Math.max(60, Math.min(320, Math.round(avg * 0.88 - 72)));
 }

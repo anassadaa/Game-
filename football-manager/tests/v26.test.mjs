@@ -129,3 +129,15 @@ test('2.6: dividend outlook explains a zero dividend; max sellable respects buye
   s.investments.clubs[id].liquidity = Math.round(rec.value * 0.2); const m = maxSellable(s, id);
   assert.ok(m > 0 && m < 60 && quoteTrade(s, id, 'sell', m).ok && !quoteTrade(s, id, 'sell', m + 1).ok);
 });
+
+import { tvMoney } from '../src/investments.ts';
+test('2.6: AI economy: TV money follows league wages and AI clubs roughly break even over two seasons', () => {
+  let s = prepareInvestments(structuredClone(fixture));
+  const tv = d => tvMoney(s, d); assert.ok(tv(1) > tv(2) && tv(2) > tv(13), 'richer leagues pay more TV');
+  const start = Object.fromEntries(s.clubs.map(c => [c.id, s.investments.clubs[c.id].cash]));
+  for (let i = 0; i < 36; i++) { s.week = i % 18 + 1; s.season = 1 + Math.floor(i / 18); investmentWeek(s); }
+  const ai = s.clubs.filter(c => c.id !== s.clubId), losing = ai.filter(c => s.investments.clubs[c.id].cash < start[c.id]).length;
+  assert.ok(losing < ai.length * 0.7, `${losing}/${ai.length} AI clubs lost money`);
+  assert.ok(losing > ai.length * 0.1, 'not every club should get rich');
+  const c = ai[0], b = s.investments.clubs[c.id]; assert.equal(b.wageLimit, Math.max(50, Math.round(b.ledger.prev.income / 18 * 0.9)), 'wage cap follows income');
+});

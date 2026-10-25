@@ -1,0 +1,76 @@
+name: Touchline signed APK
+on:
+  push:
+    branches: [main]
+    paths: ['football-manager/**', '.github/workflows/touchline-apk.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: touchline-apk
+  cancel-in-progress: false
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: football-manager
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: football-manager/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Restore signing key from secrets
+        env:
+          KS_B64: ${{ secrets.TOUCHLINE_KEYSTORE_B64 }}
+          STORE_PW: ${{ secrets.TOUCHLINE_STORE_PASSWORD }}
+          KEY_PW: ${{ secrets.TOUCHLINE_KEY_PASSWORD }}
+          ALIAS: ${{ secrets.TOUCHLINE_KEY_ALIAS }}
+        run: |
+          test -n "$KS_B64" || { echo "Signing secrets missing"; exit 1; }
+          D="$RUNNER_TEMP/ks"; mkdir -p "$D"
+          echo "$KS_B64" | base64 -d > "$D/touchline.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$D/touchline.jks" "$STORE_PW" "$ALIAS" "$KEY_PW" > "$D/keystore.properties"
+          echo "TOUCHLINE_KEYSTORE_PROPS=$D/keystore.properties" >> "$GITHUB_ENV"
+      - name: Build signed release APK
+        working-directory: football-manager/android
+        run: chmod +x gradlew && ./gradlew -q assembleRelease
+      - name: Verify signature (must be the original Touchline key)
+        id: v
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          SHA=$("$BT/apksigner" verify --print-certs "$APK" | grep -i 'SHA-256 digest' | head -1 | awk '{print $NF}')
+          echo "Signer SHA-256: $SHA"
+          case "$SHA" in f00c3412*) ;; *) echo "Wrong or missing signing key"; exit 1;; esac
+          VN=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
+          VC=$(grep -oP 'versionCode \K[0-9]+' android/app/build.gradle)
+          cp "$APK" "$RUNNER_TEMP/Touchline-$VN.apk"
+          echo "vn=$VN" >> "$GITHUB_OUTPUT"; echo "vc=$VC" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Touchline-${{ steps.v.outputs.vn }}-apk
+          path: ${{ runner.temp }}/Touchline-${{ steps.v.outputs.vn }}.apk
+      - name: Create release if this version is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VN: ${{ steps.v.outputs.vn }}
+          VC: ${{ steps.v.outputs.vc }}
+        run: |
+          if gh release view "v$VN" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "Release v$VN exists, skipping"; exit 0; fi
+          NOTES=docs/releases/$VN.md
+          [ -f "$NOTES" ] || { echo "Touchline $VN (versionCode $VC), built and signed by GitHub Actions from ${GITHUB_SHA::7}." > "$RUNNER_TEMP/notes.md"; NOTES="$RUNNER_TEMP/notes.md"; }
+          cp "$RUNNER_TEMP/Touchline-$VN.apk" "$RUNNER_TEMP/Touchline.apk"
+          gh release create "v$VN" "$RUNNER_TEMP/Touchline.apk" -R "$GITHUB_REPOSITORY" --title "Touchline $VN" --notes-file "$NOTES" --target "$GITHUB_SHA"

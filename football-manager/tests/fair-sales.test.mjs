@@ -14,7 +14,7 @@ test('3.3: board-forced sale books at least full value; otherwise a loan', () =>
     const b = boardRescue(s); const gone = mine(s).find(p => !mine(b).some(q => q.id === p.id)); assert.ok(gone);
     const loaned = (b.loansOut ?? []).some(x => x.id === gone.id);
     if (!loaned) assert.ok(b.budget - before >= minSaleFee(gone) * 0.7, `seed ${seed}: got ${b.budget - before} for value ${gone.price}`); // agent cut aside
-    assert.match(plan(b).log[0], loaned ? /loan/i : /sale|Sold/);
+    assert.match(plan(b).log[0], loaned ? /loan/i : /sold for £/);
   }
 });
 test('3.3: no buyer at full value -> he goes on loan, wages paid by the taker', () => {
@@ -22,4 +22,9 @@ test('3.3: no buyer at full value -> he goes on loan, wages paid by the taker', 
   for (const p of mine(s)) p.boughtAt = { s: 1, w: 1, paid: p.price * 50 }; // nobody pays 50x
   const b = boardRescue(s); assert.equal(mine(b).length, mine(s).length - 1); assert.ok(b.loansOut.length >= 1);
   assert.ok(findBuyer(b, b.loansOut.at(-1), minSaleFee(b.loansOut.at(-1))) === null);
+});
+test('3.3: the headline and log name the fee', () => {
+  for (const seed of [12, 13, 14, 15]) { const s = club(seed); s.week = 9; s.budget = -500; plan(s).approveOver = 1e9; const b = boardRescue(s);
+    if (/sold/.test(plan(b).log[0])) { assert.match(b.headlines[0], /Board-forced sale: .+ sold for £[\d.]+[mk]/); assert.match(plan(b).log[0], /Board-forced sale: .+ sold for £/); return; } }
+  assert.fail('no sale in 4 seeds');
 });

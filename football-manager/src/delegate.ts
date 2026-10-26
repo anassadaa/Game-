@@ -302,8 +302,9 @@ function fairSale(b: GameState, out: Player, by: 'board' | 'manager'): GameState
   if (!buyer) { const n = loanAway(b, out, by === 'board' ? 'Board' : 'No buyer at his value'); return n; }
   const n = sellPlayer(b, out.id, fee); if (n === b) return b;
   plan(n).sales++;
-  note(n, by === 'board' ? `Board-forced sale: ${out.name} (£${out.wage}k/wk) to balance the books.` : `Sold ${out.name} (${slotPeek(out)}, ${out.age}) for ${money(fee)}.`);
-  if (by === 'board') n.headlines = [`🏦 Board-forced sale: ${out.name} leaves to balance the books.`, ...n.headlines].slice(0, 6);
+  const what = `${out.name} sold for ${money(fee)} to ${buyer.name}`;
+  note(n, by === 'board' ? `Board-forced sale: ${what}.` : `Sold ${out.name} (${slotPeek(out)}, ${out.age}) for ${money(fee)} to ${buyer.name}.`);
+  if (by === 'board') n.headlines = [`🏦 Board-forced sale: ${what}.`, ...n.headlines].slice(0, 6);
   return n;
 }
 /** Send him on loan to a hash-picked club until season end; they pay his wages. */

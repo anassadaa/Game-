@@ -1,4 +1,5 @@
 // Personal finances: wallet, salary, dividends, shares and cash injections. Pure arithmetic, no randomness.
+import { clubEV } from './valuation.ts';
 import type { GameState } from './game.ts';
 import { clamp, club, copy } from './game.ts';
 import { book, earnedIncome, earnedCosts } from './finance.ts';
@@ -75,7 +76,9 @@ export function walletWeek(s: GameState) {
 /** Club value: ~1.5x last season's income (or a stature estimate) plus a stature premium; top tier is worth more. */
 export function valuation(s: GameState) {
   if (s.investments) return marketClubs(s).find(c => c.id === s.clubId)!.value;
-  const c = club(s), inc = s.ledger?.prev?.income ?? c.rating * 35;
+  const c = club(s);
+  if (s.ledger) { const f = s.facilities ?? { training: 1, medical: 1, stadium: 1 }; return Math.max(100, Math.round((clubEV(s, c, { ledger: s.ledger, fans: s.fans, stadium: f.stadium, academy: 1, scouting: 1, quality: 50, facilities: f }).ev + s.budget) * level(s).money)); }
+  const inc = c.rating * 35;
   return Math.round((inc * 1.5 + c.rating * 40) * (c.division === 1 ? 1.4 : 1) * level(s).money);
 }
 export const sharePrice = (s: GameState) => Math.max(1, Math.round(valuation(s) / 100));

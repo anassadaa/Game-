@@ -4,7 +4,6 @@ import { wallet, myStake } from './wallet.ts';
 import type { Policy } from './wallet.ts';
 import { earnedIncome, earnedCosts, sync, book, sellOnReceipt } from './finance.ts';
 import type { Ledger, InKind, OutKind } from './finance.ts';
-import { league } from './world.ts';
 import type { HiredManager } from './managers.ts';
 import { setBudgetMod } from './delegate.ts';
 import { compensation, contractWage, contractEndFor, minYears, contractTick, renewalTerms, finalSeason, endOf, overperformance, poacher } from './managers.ts';
@@ -13,6 +12,8 @@ import { validFacilities } from './facilities.ts';
 import type { Tickets } from './tickets.ts';
 import { validTickets } from './tickets.ts';
 import { wageLimit } from './budget.ts';
+import { clubEV, smoothEV } from './valuation.ts';
+import type { Driver } from './valuation.ts';
 
 export type Strategy = 'balanced' | 'growth' | 'youth' | 'stability';
 export type Delegation = 'auto' | 'approval' | 'hands-on';
@@ -29,6 +30,8 @@ export type Business = {
   request?: { type: 'transfer' | 'funding' | 'sale'; playerId?: string; buyerId?: string; cost: number; message: string; season: number; week: number };
   /** 2.6: a board role you hold here alongside your main job (needs 51%+). Deals at or above approveOver come to you. */
   role?: RemoteRole; approveOver?: number;
+  /** 3.7: smoothed enterprise value, its revenue multiple and what drives it. */
+  ev?: number; multiple?: number; drivers?: Driver[];
 };
 export type RemoteRole = 'director' | 'chairman' | 'owner';
 export const ROLE_LABEL: Record<RemoteRole, string> = { director: 'Director of Football', chairman: 'Chairman', owner: 'Owner-Director' };
@@ -60,14 +63,9 @@ function initialBusiness(s: GameState, c: Club, ps: Player[]): Business {
 }
 
 function equityValue(s: GameState, c: Club, b: Business): number {
-  const tier = league(c.division).tier;
-  const annualIncome = b.ledger.prev?.income ?? Math.max(1000, (tier === 1 ? 200 : 140) * 18 + c.rating * 12);
-  const quality = cap((b.quality + c.rating) / 120, 0.55, 1.8);
-  const form = cap(c.form.slice(-5).reduce((n, r) => n + (r === 'W' ? 1 : r === 'L' ? -1 : 0), 0) * 0.012, -0.06, 0.06);
-  const financial = cap(profit(b) / Math.max(3000, annualIncome) * 0.35, -0.25, 0.18);
-  const operations = annualIncome * (tier === 1 ? 1.8 : 1.35) * quality * (1 + form + financial) + (b.stadium + b.academy + b.scouting - 3) * 180;
+  const ev = b.ev ?? clubEV(s, c, b).ev;
   // Cash is added once; borrowing and shareholder loans are liabilities, not earnings.
-  return Math.max(100, Math.round(operations + b.cash - b.debt - claim(s, c.id)));
+  return Math.max(100, Math.round(ev + b.cash - b.debt - claim(s, c.id)));
 }
 
 function ensure(s: GameState) {
@@ -79,7 +77,7 @@ function ensure(s: GameState) {
   for (const c of s.clubs) clubs[c.id] = initialBusiness(s, c, grouped.get(c.id) ?? []);
   s.investments = { version: 1, clubs, lastTick: `${s.season}:${s.week}`, log: [], watch: [] };
   for (const c of s.clubs) {
-    const b = clubs[c.id]!; b.value = equityValue(s, c, b);
+    const b = clubs[c.id]!; const r = clubEV(s, c, b); b.ev = r.ev; b.multiple = r.multiple; b.drivers = r.drivers; b.value = equityValue(s, c, b);
     b.cost = Math.round(b.value * owned(s, c.id) / 100);
     b.history = [{ season: s.season, week: s.week, value: b.value }];
   }
@@ -336,8 +334,10 @@ export function makeTransfer(s: GameState, id: string, playerId: string, fee: nu
 }
 
 function revalue(s: GameState, c: Club, b: Business) {
+  const r = clubEV(s, c, b); b.ev = smoothEV(b.ev, r.ev); b.multiple = r.multiple; b.drivers = r.drivers;
   const next = equityValue(s, c, b), old = b.value;
-  b.reasons = [profit(b) < 0 ? 'Operating losses' : profit(b) > 0 ? 'Positive operating earnings' : 'Stable operating outlook', b.debt > b.cash ? 'Debt pressure' : 'Cash reserves', c.form.slice(-3).filter(x => x === 'W').length >= 2 ? 'Improving results' : 'Squad and league outlook'];
+  const top = [...r.drivers.slice(1)].sort((x, y) => Math.abs(y.value) - Math.abs(x.value)).slice(0, 2).map((d) => d.label);
+  b.reasons = [...top, profit(b) < 0 ? 'Operating losses' : profit(b) > 0 ? 'Positive operating earnings' : 'Stable operating outlook', b.debt > b.cash ? 'Debt pressure' : 'Cash reserves', c.form.slice(-3).filter(x => x === 'W').length >= 2 ? 'Improving results' : 'Squad and league outlook'];
   if (c.division !== b.lastDivision) b.reasons.unshift('League status changed');
   b.value = next; b.lastDivision = c.division; b.revision++;
   b.history = [...b.history, { season: s.season, week: s.week, value: next }].slice(-24);
@@ -463,6 +463,7 @@ export function validInvestments(s: GameState): boolean {
     if (!['balanced', 'growth', 'youth', 'stability'].includes(b.strategy) || !['auto', 'approval', 'hands-on'].includes(b.delegation) || !['none', 'low', 'high'].includes(b.policy) || !['fixed', 'performance', 'youth'].includes(b.sponsor)) return false;
     if (b.manager !== null && (!b.manager || !text(b.manager.id, 150) || !text(b.manager.name, 150) || !integer(b.manager.rating, 1, 5) || !finite(b.manager.wage, 0, 100000) || !['balanced', 'attacking', 'cautious'].includes(b.manager.style) || !text(b.manager.formation, 20) || !integer(b.manager.since, 1, 1000) || (b.manager.contractEnd !== undefined && !integer(b.manager.contractEnd, 1, 1100)))) return false;
     if (!Array.isArray(b.history) || b.history.length > 24 || !b.history.every(h => h && integer(h.season, 1, 1000) && integer(h.week, 0, 18) && finite(h.value, 1))) return false;
+    if ((b.ev !== undefined && !finite(b.ev, 0)) || (b.multiple !== undefined && !finite(b.multiple, 0, 20)) || (b.drivers !== undefined && (!Array.isArray(b.drivers) || b.drivers.length > 20 || !b.drivers.every(d => d && text(d.label, 150) && finite(d.value))))) return false;
     if (!Array.isArray(b.reasons) || b.reasons.length > 6 || !b.reasons.every(r => text(r, 150))) return false;
     if (b.project && (!['academy', 'scouting', 'stadium'].includes(b.project.type) || !integer(b.project.weeks, 1, 2))) return false;
     if (b.role !== undefined && !['director', 'chairman', 'owner'].includes(b.role)) return false;
@@ -556,4 +557,12 @@ function tvRaw(s: GameState, division: number, groups?: Map<string, Player[]>): 
   const bill = (id: string) => (groups?.get(id) ?? [...s.players, ...(s.rivals ?? [])].filter(p => p.clubId === id)).reduce((n, p) => n + p.wage, 0);
   const avg = clubs.reduce((n, c) => n + bill(c.id), 0) / clubs.length;
   return Math.max(60, Math.min(320, Math.round(avg * 0.88 - 72)));
+}
+/** The club card's valuation breakdown; saves from before 3.7 compute it on demand. */
+export function valueDrivers(s: GameState, id: string): { multiple: number; drivers: Driver[] } {
+  const model = s.investments ? s : prepareInvestments(s), b = model.investments!.clubs[id], c = getClub(model, id);
+  if (!b || !c) return { multiple: 0, drivers: [] };
+  if (b.drivers?.length && b.multiple) return { multiple: b.multiple, drivers: b.drivers };
+  const r = clubEV(model, c, c.id === model.clubId ? { ...b, ledger: model.ledger ?? b.ledger, fans: model.fans } : b);
+  return { multiple: r.multiple, drivers: r.drivers };
 }

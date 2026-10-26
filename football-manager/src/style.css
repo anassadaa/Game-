@@ -4317,3 +4317,10 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 .trust-why ul{list-style:none;margin:0;padding:0}
 .trust-why li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-top:1px solid rgba(127,127,127,.12)}
 .trust-why li span{opacity:.8;min-width:0;overflow-wrap:anywhere}
+.inv-drivers{margin:.6rem 0;font-size:.85rem}
+.inv-drivers summary{cursor:pointer;font-weight:600;padding:.3rem 0}
+.inv-drivers ul{list-style:none;margin:.3rem 0;padding:0}
+.inv-drivers li{display:flex;justify-content:space-between;gap:.75rem;padding:.25rem 0;border-bottom:1px solid rgba(127,127,127,.15)}
+.inv-drivers li span{min-width:0;overflow-wrap:anywhere}
+.inv-drivers li b{white-space:nowrap}
+.inv-drivers .inv-drv-sum{font-style:italic;border-bottom:0}

@@ -11,7 +11,7 @@ import { dofDiscount } from './staff.ts';
 import { suitability, slotsFor } from './lineup.ts';
 import { FORMATION_SLOTS, slotPeek, type Slot } from './positions.ts';
 import { isProtected } from './protect.ts';
-import { canHire as canHireStaff, hireStaff, renewStaff, sackStaff, staff, staffBudget, staffWages, roleLabel, type StaffRole } from './staff.ts';
+import { canHire as canHireStaff, hireStaff, renewStaff, staffTerms, sackStaff, staff, staffBudget, staffWages, roleLabel, type StaffRole } from './staff.ts';
 
 export type MgrRequest = { playerId: string; name: string; slot: Slot; fee: number; week: number; season: number };
 export type MgrAsk = { kind: 'renew' | 'sell'; playerId: string; name: string; wage?: number; fee?: number; buyer?: string; by?: 'board' | 'manager'; week: number; season: number };
@@ -136,9 +136,9 @@ export function manageStaff(s: GameState): GameState {
   }
   // Late season: keep good staff whose contracts end.
   if (b.week >= 15) for (const x of staff(b).filter((y) => y.contract <= 1 && y.rating >= bar && !(y as any).renewedBy)) {
-    if (staffWages(b) + Math.round(x.wage * 0.1) + 1 > staffBudget(b)) continue;
+    const tm = staffTerms(b, x); if (staffWages(b) + tm.wage - x.wage > staffBudget(b)) continue;
     { const n = renewStaff(b, x.id); if (n === b) continue; b = n; } const y = staff(b).find((z) => z.id === x.id); if (y) (y as any).renewedBy = b.season;
-    note(b, `Renewed ${roleLabel(x.role).toLowerCase()} ${x.name}'s contract.`);
+    note(b, `Renewed ${roleLabel(x.role).toLowerCase()} ${x.name} at £${tm.wage}k/wk (was £${x.wage}k; ${tm.reasons.filter((r) => r.pct).map((r) => `${r.label} ${r.pct > 0 ? '+' : ''}${r.pct}%`).join(', ')}).`);
   }
   return b;
 }

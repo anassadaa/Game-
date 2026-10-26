@@ -3,6 +3,7 @@ import { club, copy, int, next, opponent, pick } from './game.ts';
 import { facilities } from './facilities.ts';
 import { book, sync } from './finance.ts';
 import { reputation, stature } from './jobs.ts';
+import { overperformance } from './managers.ts';
 import { MAX_SCOUTS, REGIONS } from './scouts.ts';
 
 export type StaffRole = 'assistant' | 'attack' | 'defence' | 'fitness' | 'gk' | 'physio' | 'youth' | 'dof' | 'scout';
@@ -86,11 +87,24 @@ export function staffSeason(s: GameState) {
   s.staff = staff(s).filter((x) => x.contract > 0);
   if (gone.length) s.headlines = [`📄 Staff contracts expired: ${gone.map((x) => x.name).join(', ')}.`, ...s.headlines].slice(0, 6);
 }
+/** 3.8: renewal terms: market rate for his rating, results (places above expectation), demand from bigger clubs. */
+export function staffTerms(s: GameState, x: Staff): { wage: number; raise: number; reasons: { label: string; pct: number }[] } {
+  const r: { label: string; pct: number }[] = [], add = (label: string, pct: number) => r.push({ label, pct: Math.round(pct) });
+  const market = 2 + Math.round(x.rating * x.rating * 0.12);
+  add(`Rating ${x.rating}: market rate £${market}k/wk`, Math.max(-20, Math.min(25, (market / Math.max(1, x.wage) - 1) * 60)));
+  add(x.rating >= 15 ? 'Top-tier coach' : x.rating <= 7 ? 'Limited coach' : 'Solid coach', x.rating >= 15 ? 5 : x.rating <= 7 ? -5 : 0);
+  let over = 0; try { over = overperformance(s); } catch { over = 0; }
+  add(`Results: ${over >= 0 ? '+' : ''}${over} places vs expectation`, Math.max(-8, Math.min(10, over * 2)));
+  const p = pull(s); add(x.rep > p ? 'Wanted by bigger clubs' : 'Little outside interest', x.rep > p ? 8 : x.rep < p - 30 ? -3 : 0);
+  const pct = Math.max(-15, Math.min(40, r.reduce((a, y) => a + y.pct, 0)));
+  return { wage: Math.max(1, Math.round(x.wage * (1 + pct / 100))), raise: Math.round(pct), reasons: r };
+}
 export function renewStaff(s: GameState, id: string): GameState {
   if (s.match || !staff(s).some((x) => x.id === id)) return s;
   const b = copy(s), x = b.staff!.find((y) => y.id === id)!;
+  const t = staffTerms(s, x);
   x.contract = Math.min(4, x.contract + 2);
-  x.wage = Math.round(x.wage * 1.1) + 1;
+  x.wage = t.wage;
   return b;
 }
 /** Training multiplier for a player from the relevant coaches (1 = no coach). */

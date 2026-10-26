@@ -52,11 +52,17 @@ export const exitReason = (trust: number, m: Pick<HiredManager, 'rating'>, overp
 /** Early exits are checked at weeks 6, 12 and 18, never in his first season (minimum one year). */
 export const EXIT_WEEKS = [6, 12, 18];
 export const finalSeason = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager) => weeksLeft(s, m) <= SEASON_WEEKS;
-/** Renewal terms: performance (places above expectation) earns a raise of up to 30%. */
+/** 3.8 renewal terms: results vs expectation, his rating, outside demand and the market rate; can be a cut. */
 export function renewalTerms(s: Pick<GameState, 'season' | 'week'>, years: number, overperf: number, m?: HiredManager) {
-  const base = m ?? (s as GameState).hiredManager!;
-  const raise = Math.min(0.3, Math.max(0, overperf) * 0.06);
-  return { years, raise: Math.round(raise * 100), wage: contractWage({ wage: Math.round(base.wage * (1 + raise)) }, years) };
+  const base = m ?? (s as GameState).hiredManager!, reasons: { label: string; pct: number }[] = [];
+  const add = (label: string, pct: number) => reasons.push({ label, pct: Math.round(pct) });
+  add(`Results: ${overperf >= 0 ? '+' : ''}${overperf} places vs expectation`, Math.max(-12, Math.min(30, overperf * 6)));
+  add(`Rating ${base.rating}★`, (base.rating - 3) * 4);
+  const market = 6 + base.rating * base.rating * 3;
+  add(`Market rate ~£${market}k/wk`, Math.max(-10, Math.min(15, (market / Math.max(1, base.wage) - 1) * 30)));
+  add(overperf >= 3 && base.rating >= 3 ? 'Other clubs are circling' : 'No outside interest', overperf >= 3 && base.rating >= 3 ? 8 : 0);
+  const raise = Math.max(-0.2, Math.min(0.45, reasons.reduce((a, r) => a + r.pct, 0) / 100));
+  return { years, raise: Math.round(raise * 100), reasons, wage: contractWage({ wage: Math.max(1, Math.round(base.wage * (1 + raise))) }, years) };
 }
 /** Contract events for one manager this week. */
 export function contractTick(s: GameState, m: HiredManager, key: string, trust: number, overperf: number): { kind: 'expire' | 'alert' | 'leave' | null; penalty?: number; reason?: 'poached' | 'quit' } {
@@ -121,7 +127,7 @@ export function renewManager(s: GameState, years: number): GameState {
   const b = copy(s), t = renewalTerms(b, years, overperformance(b), m);
   b.hiredManager = { ...m, wage: t.wage, contractEnd: endOf(b, m) + years, alerted: false };
   headline(b, `✍️ ${m.name} signs a ${years}-year extension (£${t.wage}k/wk, to season ${endOf(b, m) + years}).`);
-  mgrNote(b, `Signed a ${years}-year extension at £${t.wage}k/wk${t.raise ? ` (+${t.raise}% raise)` : ''}.`);
+  mgrNote(b, `Signed a ${years}-year extension at £${t.wage}k/wk${t.raise ? ` (${t.raise > 0 ? '+' : ''}${t.raise}%: ${t.reasons.filter((r) => r.pct).map((r) => r.label).join(', ')})` : ''}.`);
   return b;
 }
 /** Weekly: in Director/Chairman careers the hired manager is paid and lifts (or drags) morale. */

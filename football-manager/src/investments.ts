@@ -286,7 +286,7 @@ export function clubDecision(s: GameState, id: string, action: ClubAction, value
     const t = renewalTerms(b, y, id === b.clubId ? overperformance(b) : formEdge(getClub(b, id)!), m), end = endOf(b, m) + y;
     rec.manager = { ...m, wage: t.wage, contractEnd: end, alerted: false };
     if (id === b.clubId) b.hiredManager = { ...rec.manager };
-    log(b, id, 'manager', 0, `${m.name} renewed for ${y} year${y > 1 ? 's' : ''} to season ${end} at £${t.wage}k/week${t.raise ? ` (+${t.raise}% raise)` : ''}.`);
+    log(b, id, 'manager', 0, `${m.name} renewed for ${y} year${y > 1 ? 's' : ''} to season ${end} at £${t.wage}k/week${t.raise ? ` (${t.raise > 0 ? '+' : ''}${t.raise}%: ${t.reasons.filter((r) => r.pct).map((r) => r.label).join(', ')})` : ''}.`);
   } else if (action === 'take-charge') {
     if (id !== b.clubId || b.mode === 'manager') return s;
     const cost = rec.manager ? compensation(b, rec.manager) : 0; if (rec.cash < cost + 200) return s;

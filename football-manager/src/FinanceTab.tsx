@@ -1,11 +1,11 @@
 import type { GameState } from './game.ts';
 import { cashLabel } from './BudgetLine.tsx';
 import { FinancePanel, IN_LABEL, LedgerCard, OUT_LABEL } from './Finance.tsx';
-import { wageBill, wageLimit } from './budget.ts';
+import { rescueNeed, wageBill, wageLimit, weeksUntilBroke } from './budget.ts';
 import { autoBudget, delegated, inRed, plan } from './delegate.ts';
 import { compensation, endOf } from './managers.ts';
 import { ledger } from './finance.ts';
-import { myStake, weeklySalary } from './wallet.ts';
+import { injectCash, myStake, weeklySalary } from './wallet.ts';
 
 type Up = (s: GameState, m?: string) => void;
 const m = (n: number) => (Math.abs(n) >= 1000 ? `£${(n / 1000).toFixed(1)}m` : `£${Math.round(n)}k`);
@@ -36,7 +36,7 @@ export function FinanceTab({ state, onUpdate }: { state: GameState; onUpdate: Up
   const view = { ...state, mgr: state.mgr && { ...state.mgr, auto: state.mgr.auto && { ...state.mgr.auto } } } as GameState;
   const p = hired ? plan(view) : null, a = hired ? autoBudget(view) : null;
   const mb = state.mgrBook?.season === state.season ? state.mgrBook : undefined;
-  const w = state.wallet;
+  const w = state.wallet, broke = weeksUntilBroke(state), need = rescueNeed(state), mine = (state.mode ?? 'manager') !== 'manager' && !!w;
   return (
     <div className="finance-tab">
       <section className="card fin-kpis">
@@ -47,6 +47,12 @@ export function FinanceTab({ state, onUpdate }: { state: GameState; onUpdate: Up
           {p && <div><span>Manager transfer budget</span><b>{m(Math.max(0, p.transfer - p.spent))} left</b></div>}
         </div>
         {inRed(state) && <p className="neg small">In the red: the board has frozen signings and will sell players until the bank and wage bill recover.</p>}
+        <p className={`small fin-runway ${broke < 8 ? 'neg' : 'muted'}`}>{broke === 0 ? '⚠️ Overdrawn now.' : broke === Infinity ? 'Cash flow positive: not burning cash.' : `⏳ ${broke} week${broke === 1 ? '' : 's'} until broke at the current burn.`}</p>
+        {mine && broke < 8 && (
+          <button className="primary big-btn fin-rescue" disabled={!!state.match || need > (w?.cash ?? 0)} onClick={() => onUpdate(injectCash(state, need, 'loan'), `Rescue loan: £${need}k from your wallet.`)}>
+            {need > (w?.cash ?? 0) ? `Rescue loan needs ${m(need)} (wallet ${m(w?.cash ?? 0)})` : `🛟 Rescue loan ${m(need)} from wallet`}
+          </button>
+        )}
       </section>
       {hired && p && a && (
         <section className="card fin-mgr">

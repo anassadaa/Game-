@@ -87,3 +87,8 @@ export function weeksUntilBroke(s: GameState) {
   const burn = weeklyCosts(s).total - wageBreakdown(s).incomeWk;
   return burn <= 0 ? Infinity : Math.floor(s.budget / burn);
 }
+/** Cash that clears any overdraft and buys 4 more weeks at the current burn (min £100k), rounded up to £50k. */
+export function rescueNeed(s: GameState) {
+  const burn = Math.max(0, weeklyCosts(s).total - wageBreakdown(s).incomeWk);
+  return Math.ceil(Math.max(100, Math.max(0, -s.budget) + burn * 4) / 50) * 50;
+}

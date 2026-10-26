@@ -35,3 +35,10 @@ test('overdrawn outside a window: emergency loan of an unprotected high earner, 
   assert.ok(b.players.some((p) => p.id === star.id), 'protected stays'); assert.ok(!b.players.some((p) => p.id === next.id), 'earner goes');
   assert.equal(b.loansOut.at(-1).id, next.id); assert.ok(isProtected(star));
 });
+import { rescueNeed } from '../src/budget.ts';
+import { injectCash } from '../src/wallet.ts';
+test('rescue loan clears the overdraft from the wallet in one tap', () => {
+  const s = own(); s.budget = -730; const need = rescueNeed(s); assert.ok(need >= 730 && need % 50 === 0);
+  wallet(s).cash = need + 10; const b = injectCash(s, need, 'loan');
+  assert.ok(b.budget > 0); assert.equal(wallet(b).loan, need); assert.equal(wallet(b).cash, 10);
+});

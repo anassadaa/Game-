@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import { commercialWeekly, sponsorDeal, sponsorValue, yearsLeft } from './sponsors.ts';
 import { cashLabel } from './BudgetLine.tsx';
 import type { GameState } from './game.ts';
-import { renewContract } from './game.ts';
+import { RenewTalks } from './RenewTalks.tsx';
 import { salaryList, wageBill, wageBreakdown, wageLimit, wageRoom } from './budget.ts';
 import { ffpLimit, ffpNet, ledger, totalIn, totalOut } from './finance.ts';
 
 type Up = (s: GameState, m?: string) => void;
 export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
+  const [talks, setTalks] = useState<string | null>(null);
   const net = ffpNet(state), limit = ffpLimit(state);
   const pct = Math.max(0, Math.min(100, Math.round((net / limit) * 100)));
   const own = state.players.filter((p) => p.clubId === state.clubId && !p.loan);
@@ -58,13 +60,14 @@ export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: 
       {!!clauses.length && (<><p className="eyebrow">RELEASE CLAUSES</p><div className="row-list">{clauses.map((p) => <div key={p.id}><span>{p.name} · <b>£{p.clause}k</b>{p.clause! <= p.price * 1.6 ? ' · ⚠️ at risk' : ''}</span></div>)}</div></>)}
       {!!expiring.length && (
         <><p className="eyebrow">RENEW WITH A CLAUSE</p>
-          <p className="muted small">A release clause makes players accept a smaller raise (+8% instead of +15%), but clubs can trigger it in a window.</p>
+          <p className="muted small">A release clause takes 5% off his demand, but clubs can trigger it in a window. Open talks to see his ask and why.</p>
           <div className="row-list">{expiring.map((p) => (
             <div key={p.id}><span>{p.name} ({p.rating}) · {p.contract ?? 0}y left</span>
               <span className="row-btns">
-                <button className="ghost" disabled={!!state.match} onClick={() => onUpdate(renewContract(state, p.id, 3, Math.round(p.price * 2)), `${p.name} renews with a £${Math.round(p.price * 2)}k clause.`)}>3y · 2x clause</button>
+                <button className="ghost" disabled={!!state.match} onClick={() => setTalks(p.id)}>Talks · 2x clause</button>
               </span></div>))}</div></>
       )}
+      {talks && (() => { const tp = state.players.find((x) => x.id === talks); return tp ? <RenewTalks state={state} playerId={talks} clause={Math.round(tp.price * 2)} onUpdate={onUpdate} onClose={() => setTalks(null)} /> : null; })()}
       {(!!owed.length || !!state.sellOns?.length) && (
         <><p className="eyebrow">SELL-ON CLAUSES</p><div className="row-list">
           {owed.map((p) => <div key={p.id}><span>We owe {p.sellOn!.pct}% of {p.name}'s next sale to {state.clubs.find((c) => c.id === p.sellOn!.clubId)?.short}</span></div>)}

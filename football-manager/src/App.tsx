@@ -1,3 +1,4 @@
+import { RenewTalks } from './RenewTalks.tsx';
 import { cashLabel } from './BudgetLine.tsx';
 import { windowOpen } from './game';
 import { slotPeek } from './positions';
@@ -57,7 +58,6 @@ import {
   homeFixture,
   negotiate,
   newGame,
-  renewContract,
   opponent,
   setTactics,
   setTraining,
@@ -502,6 +502,7 @@ export default function App() {
   });
   const [confirmReset, setConfirmReset] = useState(false);
   const [squadClub, setSquadClub] = useState<string | null>(null);
+  const [talks, setTalks] = useState<string | null>(null);
   const [deal, setDeal] = useState<{
     id: string;
     fee: number;
@@ -1238,6 +1239,7 @@ export default function App() {
                     ))}
                     <button className={`view-toggle${compact ? '' : ' active'}`} aria-pressed={!compact} onClick={() => setCompact(!compact)}>{compact ? 'Show details' : 'Compact'}</button>
                   </div>
+                  {talks && <RenewTalks state={state} playerId={talks} onUpdate={update} onClose={() => setTalks(null)} />}
                   {assign && <AssignSheet state={state} playerId={assign} onUpdate={update} onClose={() => setAssign(null)} />}
                   <div className={`squad-grid${compact ? ' compact' : ''}`}>
                     {roster.filter((p) => filter === 'All' || p.position === filter).length === 0 && <p className="empty-note">No players in this group yet — try another filter or sign one in Transfers.</p>}
@@ -1255,12 +1257,7 @@ export default function App() {
                           locked={locked}
                           place={placeOf(state, p.id)}
                           onAssign={() => setAssign(p.id)}
-                          onRenew={() =>
-                            update(
-                              renewContract(state, p.id, 3),
-                              `${p.name} signs a new deal.`,
-                            )
-                          }
+                          onRenew={() => setTalks(p.id)}
                         />
                       ))}
                   </div>

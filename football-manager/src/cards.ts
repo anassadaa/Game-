@@ -100,6 +100,14 @@ export function dropSuspended(s: GameState) {
     if (out && own.filter((x) => x.starting).length >= 11) out.starting = false;
     gk.starting = true;
   }
+  oneKeeper(s);
+}
+/** Exactly one starting keeper: if two are marked (e.g. an injured stand-in plus the returning No.1), keep the fittest best. */
+export function oneKeeper(s: GameState) {
+  const st = s.players.filter((x) => x.clubId === s.clubId && x.starting && x.position === 'GK');
+  if (st.length < 2) return;
+  const keep = [...st].sort((a, b) => Number(!!(a.injury || a.injured || a.suspended)) - Number(!!(b.injury || b.injured || b.suspended)) || b.rating - a.rating)[0];
+  st.forEach((x) => { if (x !== keep) x.starting = false; });
 }
 export const suspended = (p: Player) => !!p.suspended;
 export function resetCards(s: GameState) {

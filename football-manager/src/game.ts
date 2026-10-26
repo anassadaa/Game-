@@ -1,3 +1,4 @@
+import { oneKeeper } from './cards.ts';
 import { LOCK_WEEKS, ROLE_RANK, loanStance, type LoanOffer, buyerStance, dealLocked, dealOf, nextRound, nowWeek, sellerStance, setDeal, termsStance, towards } from './negotiation.ts';
 import { offerRenewal, renewalPlan, wageDemand } from './contracts.ts';
 import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquads.ts';
@@ -1164,7 +1165,7 @@ export function startMatch(s: GameState): GameState {
   const ourPlan = delegated(b) ? clubPlan(b, b.clubId, opp.id, home, avgFit(b.players.filter((p) => p.clubId === b.clubId && !p.injured))) : undefined;
   if (ourPlan) b.tactics = { ...b.tactics, formation: ourPlan.formation, mentality: ourPlan.mentality, press: ourPlan.press, tempo: ourPlan.tempo, width: ourPlan.width, line: ourPlan.line, passing: ourPlan.passing, counter: ourPlan.counter };
   delegateSelect(b);
-  if (b.players.filter((p) => p.clubId === b.clubId && p.starting).length < 11) fillXI(b);
+  if (b.players.filter((p) => p.clubId === b.clubId && p.starting).length < 11) { fillXI(b); oneKeeper(b); if (b.players.filter((p) => p.clubId === b.clubId && p.starting).length < 11) fillXI(b); oneKeeper(b); }
   topUpBench(b);
   b.match = {
     minute: 0,
@@ -1434,6 +1435,7 @@ function train(s: GameState) {
     if (p.personality === 'Professional' && p.age < 27 && p.rating < p.potential && next(s) < 0.04) p.rating++;
   }
   injuryWeek(s);
+  oneKeeper(s);
 }
 /** Reserve sides can never go up. */
 const RESERVE_SIDES = new Set(['sociedadb', 'benficab', 'portob', 'sportingb']);

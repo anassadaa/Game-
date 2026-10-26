@@ -30,3 +30,9 @@ test('only keeper banned with no cover: an emergency keeper is signed and starts
   const st = s.players.filter((p) => p.clubId === s.clubId && p.starting);
   assert.equal(st.filter((p) => p.position === 'GK').length, 1); assert.ok(!st.includes(first)); assert.ok(st.length <= 11);
 });
+test('two starting keepers are reduced to one, preferring the fit one', async () => {
+  const { newGame } = await import('../src/game.ts'); const { oneKeeper } = await import('../src/cards.ts');
+  const s = newGame(1); const gks = s.players.filter((p) => p.clubId === s.clubId && p.position === 'GK');
+  gks.forEach((p) => (p.starting = true)); gks[0].injury = { type: 'ankle', total: 3 }; oneKeeper(s);
+  const st = gks.filter((p) => p.starting); assert.equal(st.length, 1); assert.notEqual(st[0], gks[0]);
+});

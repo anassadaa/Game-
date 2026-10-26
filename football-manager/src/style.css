@@ -4343,3 +4343,4 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 .renew-reply { padding: 8px 10px; border-radius: 8px; font-size: 14px; background: rgba(255,255,255,.06); }
 .renew-reply.countered { border-left: 3px solid #e0a33a; } .renew-reply.refused { border-left: 3px solid #e5484d; }
 .renew-talks .row-btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
+.text-button.renew-quick { font-size: 12px; font-weight: 700; color: #2f6f4e; }

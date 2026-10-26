@@ -1,4 +1,6 @@
 import { RenewTalks } from './RenewTalks.tsx';
+import { renewYears, wageDemand } from './contracts.ts';
+import { renewContract } from './game.ts';
 import { cashLabel } from './BudgetLine.tsx';
 import { windowOpen } from './game';
 import { slotPeek } from './positions';
@@ -333,6 +335,8 @@ function PlayerCard({
   onSell,
   sellFee,
   onRenew,
+  onNegotiate,
+  renewLabel,
   locked,
 }: {
   player: Player;
@@ -342,6 +346,8 @@ function PlayerCard({
   onSell?: () => void;
   sellFee?: number;
   onRenew?: () => void;
+  onNegotiate?: () => void;
+  renewLabel?: string;
   locked: boolean;
 }) {
   return (
@@ -414,9 +420,12 @@ function PlayerCard({
           </button>
         ) : null}
         {onRenew && !player.loan && (player.contract ?? 9) <= 1 && (
-          <button className="text-button" disabled={locked} onClick={onRenew}>
-            Renew 3y
-          </button>
+          <>
+            <button className="text-button renew-quick" disabled={locked} onClick={onRenew}>
+              {renewLabel ?? 'Renew'}
+            </button>
+            {onNegotiate && <button className="text-button" disabled={locked} onClick={onNegotiate}>Talks</button>}
+          </>
         )}
         {onSell && !player.starting && !player.loan && (
           <button className="text-button" disabled={locked} onClick={onSell}>
@@ -1257,7 +1266,9 @@ export default function App() {
                           locked={locked}
                           place={placeOf(state, p.id)}
                           onAssign={() => setAssign(p.id)}
-                          onRenew={() => setTalks(p.id)}
+                          renewLabel={(() => { const y = renewYears(p); return `Renew ${y}y · £${wageDemand(state, p, y).ask}k`; })()}
+                          onRenew={() => { const y = renewYears(p), n = renewContract(state, p.id, y); update(n, n === state ? undefined : `${p.name} signs for ${y} year${y > 1 ? 's' : ''} at £${n.players.find((x) => x.id === p.id)?.wage}k/wk.`); }}
+                          onNegotiate={() => setTalks(p.id)}
                         />
                       ))}
                   </div>

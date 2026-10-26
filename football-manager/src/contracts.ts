@@ -79,7 +79,7 @@ export function offerRenewal(s: GameState, id: string, years: number, wage: numb
 }
 
 /** Contract length a club offers: long for the young, short for veterans. */
-export const renewYears = (p: Pick<Player, 'age'>) => p.age <= 24 ? 5 : p.age <= 28 ? 4 : p.age <= 30 ? 3 : p.age <= 32 ? 2 : 1;
+export const renewYears = (p: Pick<Player, 'age'>) => p.age <= 24 ? 5 : p.age <= 28 ? 4 : p.age <= 30 ? 3 : 2; // 1 would not extend a deal that ends this season
 export type RenewPlan = { renew: boolean; years: number; ask: number; why: string };
 /**
  * 3.8: should the club (a delegated manager or an AI club) keep him, for how long and at what wage?

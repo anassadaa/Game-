@@ -1,4 +1,7 @@
 import { cashLabel } from './BudgetLine.tsx';
+import { windowOpen } from './game';
+import { slotPeek } from './positions';
+import { clubSquad, offerBlocked, WINDOW_MSG } from './clubSquad';
 import { TacticSets } from './TacticSets.tsx';
 import { abilityRange, rangeText } from './scoutrange.ts';
 import { EXT_LABEL, FOOT_LABEL, ext, footOf, slotOf } from './positions.ts';
@@ -186,7 +189,42 @@ function SectionTitle({
   );
 }
 
-function Table({ state, full = false, division }: { state: GameState; full?: boolean; division?: number }) {
+function ClubSquadModal({ state, clubId, onClose, onOffer }: { state: GameState; clubId: string; onClose: () => void; onOffer: (p: Player) => void }) {
+  const c = state.clubs.find((x) => x.id === clubId); const [pick, setPick] = useState<string | null>(null);
+  if (!c) return null;
+  const squad = clubSquad(state, clubId), mine = clubId === state.clubId;
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <section className="help-modal club-squad" role="dialog" aria-label={`${c.name} squad`} onClick={(e) => e.stopPropagation()}>
+        <button className="close-button" aria-label="Close" onClick={onClose}><X /></button>
+        <span className="eyebrow">SQUAD · {squad.length} PLAYERS</span>
+        <h2><Crest team={c} small /> {c.name}</h2>
+        {!mine && !windowOpen(state) && <p className="muted small">{WINDOW_MSG}</p>}
+        <ul className="squad-list">
+          {squad.map((p) => {
+            const why = offerBlocked(state, p), open = pick === p.id;
+            return (
+              <li key={p.id} className={open ? 'open' : ''}>
+                <button className="squad-row" onClick={() => setPick(open ? null : p.id)}>
+                  <b className="sq-pos">{slotPeek(p)}</b><span className="sq-name">{p.name}</span><small>{p.age}y</small><b className="sq-rt">{p.rating}</b><small className="sq-val">{money(p.price)}</small>
+                </button>
+                {open && !mine && (
+                  <div className="squad-act">
+                    <small>Wage {money(p.wage)}/wk · contract {p.contract}y · potential {p.potential}</small>
+                    <button className="primary" disabled={!!why} onClick={() => onOffer(p)}>Make transfer offer</button>
+                    {why && <small className="neg">{why}</small>}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+function Table({ state, full = false, division, onClub }: { state: GameState; full?: boolean; division?: number; onClub?: (id: string) => void }) {
   const own = club(state);
   const teams = standings(state).filter((c) => c.division === (division ?? own.division));
   return (
@@ -211,7 +249,7 @@ function Table({ state, full = false, division }: { state: GameState; full?: boo
         </thead>
         <tbody>
           {teams.slice(0, full ? teams.length : 5).map((c, i) => (
-            <tr className={c.id === state.clubId ? 'your-club' : ''} key={c.id}>
+            <tr className={`${c.id === state.clubId ? 'your-club' : ''}${onClub ? ' tappable' : ''}`} key={c.id} onClick={onClub ? () => onClub(c.id) : undefined}>
               <td>
                 <span
                   className={i < 2 ? 'promotion' : full && i >= teams.length - 3 ? 'relegation' : ''}
@@ -459,6 +497,7 @@ export default function App() {
     });
   });
   const [confirmReset, setConfirmReset] = useState(false);
+  const [squadClub, setSquadClub] = useState<string | null>(null);
   const [deal, setDeal] = useState<{
     id: string;
     fee: number;
@@ -1652,7 +1691,8 @@ export default function App() {
                         <option key={l.division} value={l.division}>{l.flag} {l.name} ({l.country})</option>
                       ))}
                     </select>
-                    <Table state={state} full division={tableDiv ?? team.division} />
+                    <Table state={state} full division={tableDiv ?? team.division} onClub={setSquadClub} />
+                    <p className="muted small">Tap a club to view its squad.</p>
                     <p className="table-note">
                       England: top three of the Championship go up, bottom three of the Premier Division go down. Top finishers in the big leagues qualify for the Champions Cup; the next-best finishers, the national cup winner and second-tier champions enter the Continental Trophy. Points: 3 for a win, 1 for a draw.
                     </p>
@@ -1819,6 +1859,7 @@ export default function App() {
       )}
       <SackedModal state={state} onUpdate={update} onNewCareer={() => setConfirmReset(true)} />
       <ReviewModal state={state} onUpdate={update} />
+      {squadClub && <ClubSquadModal state={state} clubId={squadClub} onClose={() => setSquadClub(null)} onOffer={(p) => { setSquadClub(null); setDeal({ id: p.id, fee: p.counter ?? Math.round(askingPrice(p, state) * 0.85), wage: p.wage, years: 3, instalments: false, swapId: '' }); }} />}
       {deal && (() => {
         const t = state.market.find((p) => p.id === deal.id) ?? state.rivals?.find((p) => p.id === deal.id);
         if (!t) return null;

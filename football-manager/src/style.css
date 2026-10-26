@@ -4256,3 +4256,16 @@ button.primary, .primary { font-weight: 700; box-shadow: 0 2px 0 rgba(0,0,0,.08)
   .mobile-nav button span:not(.nav-badge) { font-size: 8.5px; letter-spacing: -0.1px; }
 }
 .finance-tab .pos{color:#2f8a3e}.finance-tab .neg{color:#d23a3f}
+
+/* 3.2 club squad view */
+tr.tappable { cursor: pointer; }
+tr.tappable:active td { background: rgba(255,255,255,.06); }
+.club-squad h2 { display: flex; align-items: center; gap: 8px; }
+.squad-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 60vh; overflow-y: auto; }
+.squad-list li { border-bottom: 1px solid rgba(255,255,255,.08); }
+.squad-row { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 38px 1fr 34px 30px 58px; gap: 6px; align-items: center; padding: 9px 4px; cursor: pointer; min-height: 44px; }
+.squad-row .sq-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squad-row .sq-pos { font-size: 12px; opacity: .8; }
+.squad-row .sq-val { text-align: right; opacity: .8; }
+.squad-act { display: flex; flex-direction: column; gap: 6px; padding: 4px 4px 12px; }
+.squad-act .neg { color: #ff8a80; }

@@ -2,6 +2,7 @@ import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquad
 import { cornerConv } from './setpieces.ts';
 import { repairSlots, slotPeek } from './positions.ts';
 import { initValues, targetValue, valuesWeek } from './value.ts';
+import { fixNames, genName, regionFor } from './names.ts';
 import { aiLeagueMatch, archiveStats, ensureStats, ourLeagueMatch, squadsByClub } from './leaguestats.ts';
 import type { LeagueStats, StatArchive } from './leaguestats.ts';
 import type { Slot } from './positions.ts';
@@ -338,62 +339,6 @@ export type Cup = { season: number; round: number; alive: string[]; log: string[
 export type Board = { target: number; objective: string; warnings: number };
 export type Bid = { id: string; playerId: string; clubId: string; fee: number };
 
-const FIRST = [
-  'Leo',
-  'Amir',
-  'Theo',
-  'Jude',
-  'Milan',
-  'Owen',
-  'Rafi',
-  'Elias',
-  'Noah',
-  'Ruben',
-  'Felix',
-  'Samir',
-  'Ivo',
-  'Nico',
-  'Kian',
-  'Ari',
-  'Luca',
-  'Adil',
-  'Remy',
-  'Tariq',
-  'Soren',
-  'Hugo',
-  'Mika',
-  'Zayd',
-  'Finn',
-  'Benji',
-];
-const LAST = [
-  'Mercer',
-  'Rahman',
-  'Vale',
-  'Costa',
-  'Khan',
-  'Silva',
-  'Cole',
-  'Marin',
-  'Hale',
-  'Dawson',
-  'Ferri',
-  'Nadir',
-  'Quinn',
-  'Archer',
-  'Aziz',
-  'Rowe',
-  'Lennox',
-  'Bennett',
-  'Voss',
-  'Farouk',
-  'Ivers',
-  'Santos',
-  'Ward',
-  'Rivers',
-  'Moss',
-  'Kerr',
-];
 const POSITIONS: Position[] = [
   'GK',
   'DF',
@@ -545,7 +490,7 @@ export function makePlayer(
     age = academyGraduate ? 17 + int(s, 0, 2) : 18 + int(s, 0, 15);
   const player: Player = {
     id: `p${s.season}-${s.week}-${i}-${s.seed}`,
-    name: uniqueName(s),
+    name: uniqueName(s, clubId, `p${s.season}-${s.week}-${i}-${s.seed}-${clubId}-${s.players.length + s.market.length + (s.rivals?.length ?? 0)}`),
     age,
     position,
     rating,
@@ -563,16 +508,11 @@ export function makePlayer(
   ensureProfile(player);
   return player;
 }
-function uniqueName(s: GameState): string {
-  const used = new Set([...s.players, ...s.market, ...(s.rivals ?? [])].map((p) => p.name));
-  for (let t = 0; t < 40; t++) {
-    const n = `${pick(s, FIRST)} ${pick(s, LAST)}`;
-    if (!used.has(n)) return n;
-  }
-  let n = `${pick(s, FIRST)} ${pick(s, LAST)}`,
-    k = 2;
-  while (used.has(`${n} ${k}`)) k++;
-  return `${n} ${k}`;
+function uniqueName(s: GameState, clubId: string, key: string): string {
+  // 3.6: big, region-flavoured pools (names.ts); hash-based, globally unique, no numeric suffixes.
+  const used = new Set([...s.players, ...s.market, ...(s.rivals ?? []), ...(s.youth ?? []), ...(s.loansOut ?? [])].map((p) => p.name));
+  const div = s.clubs?.find((c) => c.id === clubId)?.division;
+  return genName(s.seed, key, regionFor(LEAGUES.find((l) => l.division === div)?.country, key), used);
 }
 export function migrate(s: GameState): GameState {
   const v = s as unknown as { version: number };
@@ -609,6 +549,7 @@ export function migrate(s: GameState): GameState {
   facilities(s);
   if (!s.bench) topUpBench(s);
   ensureStats(s);
+  fixNames(s, (id) => { const d = s.clubs.find((c) => c.id === id)?.division; return LEAGUES.find((l) => l.division === d)?.country; }); // 3.6: no more "Theo Kerr 6"
   if (!s.valueModel) initValues(s); // 3.4: old saves move onto the dynamic value model once
   return s;
 }
@@ -734,6 +675,7 @@ export function newGame(
   refreshWageBudget(s);
   initValues(s);
   ensureStats(s);
+  fixNames(s, (id) => { const d = s.clubs.find((c) => c.id === id)?.division; return LEAGUES.find((l) => l.division === d)?.country; }); // curated squads list a few stars twice
   const wb = s.wageBudget!.limit, bill = s.players.filter((p) => p.clubId === s.clubId).reduce((a, p) => a + (p.wage || 0), 0);
   s.headlines = [`📋 Board: your wage budget is £${wb}k/week (current bill £${bill}k). We honour the squad you inherited this season; from next season it follows the club's profit and loss.`, ...s.headlines].slice(0, 6);
   return s;

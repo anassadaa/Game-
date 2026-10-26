@@ -149,3 +149,17 @@ export function renewalPlan(s: GameState, p: Player, protectedPlayer = false): R
   if (d.ask > worth * 1.6 && p.rating < mean + 5) return out(false, `asks £${d.ask}k/wk, worth about £${Math.round(worth)}k`);
   return out(true, `ask £${d.ask}k/wk vs worth about £${Math.round(worth)}k`);
 }
+
+/** 3.9: years for a one-tap renewal at any time — always longer than what's left, max 5 (0 = already maxed). */
+export const earlyRenewYears = (p: Pick<Player, 'age' | 'contract'>) => {
+  const left = p.contract ?? 0;
+  return left >= 5 ? 0 : Math.min(5, Math.max(renewYears(p), left + 1));
+};
+
+/** 3.9: the Squad › Contracts list: every player, soonest expiry first. */
+export function contractRows(s: GameState) {
+  return s.players.filter((p) => p.clubId === s.clubId).map((p) => {
+    const years = earlyRenewYears(p);
+    return { id: p.id, name: p.name, position: p.position, age: p.age, left: p.contract ?? 0, wage: p.wage, mv: p.price, years, ask: wageDemand(s, p, years || 5).ask };
+  }).sort((a, b) => a.left - b.left || b.wage - a.wage);
+}

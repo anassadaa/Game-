@@ -4345,3 +4345,15 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 .renew-talks .row-btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
 .text-button.renew-quick { font-size: 12px; font-weight: 700; color: #2f6f4e; }
 .renew-counter { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: rgba(224,163,58,.12); font-size: 14px; }
+
+/* 3.9 Squad › Contracts */
+.contract-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.contract-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,.04); border-left: 4px solid transparent; }
+.contract-list li.expiring { border-left-color: #c0392b; }
+.contract-list li.soon { border-left-color: #d68910; }
+.contract-who { min-width: 0; display: flex; flex-direction: column; }
+.contract-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contract-terms { text-align: right; display: flex; flex-direction: column; }
+.contract-left { font-weight: 700; }
+.contract-actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+@media (min-width: 700px) { .contract-list li { grid-template-columns: minmax(0, 1fr) auto auto; } .contract-actions { grid-column: auto; } }

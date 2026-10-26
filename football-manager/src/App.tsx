@@ -17,6 +17,7 @@ import { SubTabs } from './SubTabs.tsx';
 import { setMode, MODES, isManagerMode, type Mode } from './managers.ts';
 import { FanCard, InvestorCard, MyFinancesCard, ManagerCard, MeetingCard, ScenarioCard, SponsorCard, TicketsCard } from './Commercial.tsx';
 import { pickSub } from './subtabs.ts';
+import { ContractsPanel } from './ContractsPanel.tsx';
 import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PlayerModal, usePlayerTaps } from './PlayerModal.tsx';
@@ -1212,6 +1213,7 @@ export default function App() {
 {sub === 'depth' && (<>
                   <DepthPanel state={state} onUpdate={update} />
 </>)}
+{sub === 'contracts' && <ContractsPanel state={state} onUpdate={update} />}
 {sub === 'medical' && (<>
                   <MedicalPanel state={state} onUpdate={update} />
 </>)}

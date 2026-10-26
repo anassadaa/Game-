@@ -5,6 +5,7 @@ export const SUBTABS: Record<string, { id: string; label: string }[]> = {
     { id: 'depth', label: 'Depth' },
     { id: 'dressing', label: 'Dressing room' },
     { id: 'medical', label: 'Medical' },
+    { id: 'contracts', label: 'Contracts' },
   ],
   tactics: [
     { id: 'lineup', label: 'Lineup' },

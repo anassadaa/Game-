@@ -3,7 +3,8 @@ import { setPieceProfile } from './setpieces.ts';
 import { slotProfile } from './positions.ts';
 // Deeper tactics: formations, roles, individual instructions, team instructions, set pieces and scouting.
 import type { Club, GameState, Player, Position, Tactics } from './game.ts';
-import { attributes } from './game.ts';
+import { attributes, homeFixture } from './game.ts';
+import { clubPlan } from './aitactics.ts';
 
 export const FORMATIONS = ['4-3-3', '4-2-3-1', '4-4-2', '3-5-2', '5-3-2', '4-1-4-1', '3-4-3'] as const;
 /** Shape of each formation as DF-MF-FW counts (plus one GK). */
@@ -151,7 +152,7 @@ export function setPieceTaker(s: GameState, kind: 'pens' | 'corners' | 'freekick
 
 /** Pre-match opposition report with a suggested counter. */
 export function scoutReport(s: GameState, opp: Club) {
-  const formation = opp.style === 'attacking' ? '4-3-3' : opp.style === 'cautious' ? '5-3-2' : '4-2-3-1';
+  const formation = s.clubs.some((c) => c.id === opp.id) && opp.id !== s.clubId ? clubPlan(s, opp.id, s.clubId, !homeFixture(s)).formation : opp.style === 'attacking' ? '4-3-3' : opp.style === 'cautious' ? '5-3-2' : '4-2-3-1';
   const counterForm = Object.entries(FORM_BIAS).filter(([, f]) => f.beats === opp.style).map(([k]) => k)[0] ?? '4-4-2';
   const our = club(s);
   const gap = opp.rating - our.rating;

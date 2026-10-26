@@ -1,8 +1,10 @@
+import { clubPlan, planLine } from './aitactics.ts';
+import { delegated } from './delegate.ts';
 import { TacticSets } from './TacticSets.tsx';
 import { familiarity, pressReadiness } from './familiarity.ts';
 import { squadNote } from './aisquads.ts';
 import { CORNER, MARKING } from './setpieces.ts';
-import { applyScoutSuggestion, club, opponent, setPlayerTactic, setTactics } from './game.ts';
+import { applyScoutSuggestion, club, homeFixture, opponent, setPlayerTactic, setTactics } from './game.ts';
 import type { GameState } from './game.ts';
 import { autoAssign } from './autoroles.ts';
 import { FORMATIONS, INSTRUCTIONS, LINES, OOP_MODES, PASSING, ROLES, WIDTHS, roleFit, roleOf, scoutReport, setPieceTaker, tacticProfile } from './tactics.ts';
@@ -27,6 +29,9 @@ export function DeepTacticsPanel({ state, onUpdate }: { state: GameState; onUpda
   const t = state.tactics;
   const opp = opponent(state);
   const rep = scoutReport(state, opp);
+  const live = state.match && !state.match.complete;
+  const oppPlan = (live && state.match!.oppPlan) || clubPlan(state, opp.id, state.clubId, !homeFixture(state));
+  const ourPlan = delegated(state) ? (live && state.match!.ourPlan) || clubPlan(state, state.clubId, opp.id, homeFixture(state)) : undefined;
   const prof = tacticProfile(state, opp.style);
   const xi = state.players.filter((p) => p.clubId === state.clubId && p.starting);
   const pct = (n: number) => `${n >= 0 ? '+' : ''}${Math.round(n * 100)}%`;
@@ -38,6 +43,18 @@ export function DeepTacticsPanel({ state, onUpdate }: { state: GameState; onUpda
           {rep.danger} · likely {rep.formation}, {rep.style}
         </h3>
         <p className="muted small">Their squad: {squadNote(state, opp)}</p>
+        <div className="ai-plan">
+          <strong>Their manager's plan ({oppPlan.philosophy})</strong>
+          <span className="plan-line">{planLine(oppPlan)}</span>
+          <ul>{oppPlan.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+        </div>
+        {ourPlan && (
+          <div className="ai-plan ours">
+            <strong>{state.hiredManager!.name}'s plan ({ourPlan.philosophy})</strong>
+            <span className="plan-line">{planLine(ourPlan)}</span>
+            <ul>{ourPlan.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+          </div>
+        )}
         <p className="muted small familiar">
           Familiarity: {FORMATIONS.map((f) => `${f} ${familiarity(state, f)}%`).join(' · ')} · press readiness {Math.round(pressReadiness(state) * 100)}%. Shape and video drills speed learning; counters work at once.
         </p>

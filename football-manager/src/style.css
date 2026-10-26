@@ -4307,3 +4307,8 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 .sp-left{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(48,164,108,.15);color:#1d7a4d;vertical-align:middle;white-space:nowrap}
 .sp-clauses{opacity:.85}.sp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.sp-actions button{flex:1 1 140px}
 .sp-years{display:flex;gap:6px;margin:6px 0}.sp-years button{flex:1;padding:8px 0;border-radius:8px;border:1px solid rgba(0,0,0,.15);background:transparent;font-weight:600}.sp-years button.on{background:#c6f36b;border-color:#9bd13a}
+.ai-plan{margin:8px 0;padding:8px 10px;border-radius:10px;background:rgba(127,127,127,.08);border-left:3px solid #f59e0b;font-size:13px;line-height:1.35}
+.ai-plan.ours{border-left-color:#22c55e}
+.ai-plan strong{display:block;font-size:12px;letter-spacing:.02em;margin-bottom:2px}
+.ai-plan .plan-line{display:block;color:inherit;font-weight:600;word-break:break-word}
+.ai-plan ul{margin:4px 0 0;padding-left:16px;opacity:.75;font-size:12px}

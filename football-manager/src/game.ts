@@ -27,7 +27,7 @@ import { fanWeek } from './fans.ts';
 import { noteDerby } from './derby.ts';
 import { judgeScenario } from './scenario.ts';
 import { managerWeek, voteRisk } from './managers.ts';
-import { delegateSelect, delegateWeek } from './delegate.ts';
+import { delegateSelect, delegateWeek, delegated } from './delegate.ts';
 import { investorWeek } from './investors.ts';
 import { walletWeek, dividendSeason, salaryReview, moveWallet, myStake, sharePrice, wallet } from './wallet.ts';
 import { investmentWeek, leaveInvestmentJob, joinInvestmentJob, investmentStrength, investmentTransferBlock, investmentTransferPayment, makeTransfer } from './investments.ts';
@@ -50,6 +50,7 @@ import { midweekLoad } from './calendar.ts';
 import { roomWeek } from './room.ts';
 import { familiarityWeek, rememberShape } from './familiarity.ts';
 import { abilityRange, askWeek, potentialRange } from './scoutrange.ts';
+import { adjustPlan, clubPlan, philosophyOf, planLine, planMatch } from './aitactics.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
 import { dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
@@ -223,6 +224,8 @@ export type Match = {
   redThem?: number;
   yellowThem?: number;
   stats?: import('./narrate.ts').MatchStats;
+  oppPlan?: import('./aitactics.ts').Plan;
+  ourPlan?: import('./aitactics.ts').Plan;
 };
 export type CareerRecord = {
   season: number;
@@ -1102,6 +1105,9 @@ export function startMatch(s: GameState): GameState {
   const b = copy(s),
     opp = opponent(b);
   dropSuspended(b);
+  const home = homeFixture(b), avgFit = (ps: Player[]) => ps.length ? ps.reduce((a, p) => a + p.fitness, 0) / ps.length : 90;
+  const ourPlan = delegated(b) ? clubPlan(b, b.clubId, opp.id, home, avgFit(b.players.filter((p) => p.clubId === b.clubId && !p.injured))) : undefined;
+  if (ourPlan) b.tactics = { ...b.tactics, formation: ourPlan.formation, mentality: ourPlan.mentality, press: ourPlan.press, tempo: ourPlan.tempo, width: ourPlan.width, line: ourPlan.line, passing: ourPlan.passing, counter: ourPlan.counter };
   delegateSelect(b);
   if (b.players.filter((p) => p.clubId === b.clubId && p.starting).length < 11) fillXI(b);
   topUpBench(b);
@@ -1123,6 +1129,10 @@ export function startMatch(s: GameState): GameState {
       },
     ],
   };
+  const oppPlan = clubPlan(b, opp.id, b.clubId, !home);
+  b.match.oppPlan = oppPlan;
+  b.match.timeline.push({ minute: 0, text: `${opp.name} set up in ${planLine(oppPlan)} — ${oppPlan.reasons[0]}.`, side: 'them', kind: 'note' });
+  if (ourPlan) { b.match.ourPlan = ourPlan; b.match.timeline.push({ minute: 0, text: `${b.hiredManager!.name} lines up in ${planLine(ourPlan)} — ${ourPlan.reasons[0]}.`, side: 'us', kind: 'note' }); }
   kickOff(b);
   return b;
 }
@@ -1132,6 +1142,12 @@ export function advanceMatch(s: GameState): GameState {
     m = b.match!,
     prev = m.minute;
   m.minute = Math.min(90, m.minute + 15);
+  if (m.oppPlan) { const r = adjustPlan(m.oppPlan, { us: m.them, them: m.us, minute: prev, fatigue: 90 - oppFatigue(b) * 4 }); if (r.note) { m.oppPlan = r.plan; m.timeline.push({ minute: prev, text: `${opponent(b).name} change it: ${r.note}.`, side: 'them', kind: 'note' }); } }
+  if (m.ourPlan && delegated(b)) {
+    const xi = b.players.filter((p) => p.clubId === b.clubId && p.starting);
+    const r = adjustPlan(m.ourPlan, { us: m.us, them: m.them, minute: prev, fatigue: xi.reduce((a, p) => a + p.fitness, 0) / Math.max(1, xi.length) });
+    if (r.note) { m.ourPlan = r.plan; b.tactics = { ...b.tactics, mentality: r.plan.mentality, press: r.plan.press, tempo: r.plan.tempo, width: r.plan.width, line: r.plan.line, passing: r.plan.passing, counter: r.plan.counter }; m.timeline.push({ minute: prev, text: `${b.hiredManager!.name} reacts: ${r.note}.`, side: 'us', kind: 'note' }); }
+  }
   const energyCost =
     (b.tactics.press === 'high' ? 3 : b.tactics.press === 'normal' ? 2 : 1) +
     (b.tactics.tempo === 'quick' ? 1 : 0) + shoutEffect(b).energy +
@@ -1177,6 +1193,11 @@ export function advanceMatch(s: GameState): GameState {
             : 0;
       if (b.tactics.tempo === 'patient') edge -= 0.03;
       if (b.tactics.press === 'low') edge -= 0.03;
+    }
+    const op = m.oppPlan;
+    if (op) {
+      if (us) edge += op.mentality === 'attacking' ? 0.02 : op.mentality === 'cautious' ? -0.04 : 0;
+      else edge += (op.mentality === 'attacking' ? 0.03 : op.mentality === 'cautious' ? -0.04 : 0) + (op.counter && b.tactics.line === 'high' ? 0.03 : 0) + (op.press === 'high' && b.tactics.passing === 'short' ? 0.02 : 0);
     }
     const prof = tacticProfile(b, opponent(b).style);
     edge += us ? prof.att : -prof.def;
@@ -1304,18 +1325,24 @@ function result(a: Club, b: Club, ga: number, gb: number) {
   a.form = [...a.form, fa].slice(-5);
   b.form = [...b.form, fb].slice(-5);
 }
+/** AI vs AI: each side's hash-based plan opens up or tightens the game. */
+function aiOpenness(s: GameState, a: Club, b: Club, home: boolean) {
+  const p = planMatch({ seed: `${s.seed}|${s.season}|${s.week}|${a.id}|${b.id}`, strength: a.rating, oppStrength: b.rating, oppStyle: b.style, home, squad: [], injured: 0, fatigue: 90, rank: 0, size: 0, week: s.week, personality: a.style, philosophy: philosophyOf(a.id) });
+  return p.mentality === 'attacking' ? 0.015 : p.mentality === 'cautious' ? -0.02 : 0;
+}
 function simulateScore(s: GameState, a: Club, b: Club): [number, number] {
+  const open = aiOpenness(s, a, b, true) + aiOpenness(s, b, a, false);
   let x = 0,
     y = 0;
   for (let i = 0; i < 6; i++) {
     if (
       next(s) <
-      Math.max(0.12, Math.min(0.72, 0.39 + (a.rating - b.rating) * 0.011))
+      Math.max(0.12, Math.min(0.72, 0.39 + open + (a.rating - b.rating) * 0.011))
     )
       if (next(s) < 0.56) x++;
     if (
       next(s) <
-      Math.max(0.12, Math.min(0.72, 0.38 + (b.rating - a.rating) * 0.011))
+      Math.max(0.12, Math.min(0.72, 0.38 + open + (b.rating - a.rating) * 0.011))
     )
       if (next(s) < 0.56) y++;
   }

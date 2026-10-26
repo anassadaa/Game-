@@ -3,7 +3,7 @@ import { newGame, startMatch, advanceMatch, migrate } from '../src/game.ts';
 import { decodeSave } from '../src/save.ts';
 const play = (s) => { let m = startMatch(s); while (!m.match.complete) m = advanceMatch(m); return m; };
 test('bookings average a realistic rate and reds are rare', () => {
-  let y = 0, r = 0, n = 25;
+  let y = 0, r = 0, n = 60; // 60 games: 25 was too small a sample for a ~0.2/game red rate
   for (let i = 0; i < n; i++) { const m = play(newGame(500 + i)); for (const c of m.match.cards ?? []) { y += c.y; if (c.red) r++; } }
   assert.ok(y / n > 1 && y / n < 3, `yellows ${y / n}`); assert.ok(r / n < 0.25, `reds ${r / n}`);
 });

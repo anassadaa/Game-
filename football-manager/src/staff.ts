@@ -1,6 +1,7 @@
 import type { GameState, Player } from './game.ts';
 import { club, copy, int, next, opponent, pick } from './game.ts';
 import { facilities } from './facilities.ts';
+import { book, sync } from './finance.ts';
 import { reputation, stature } from './jobs.ts';
 import { MAX_SCOUTS, REGIONS } from './scouts.ts';
 
@@ -70,7 +71,8 @@ export function sackStaff(s: GameState, id: string): GameState {
 }
 /** Weekly: wages, fitness coach and physio work. Season roll handled by staffSeason. */
 export function staffWeek(s: GameState) {
-  s.budget -= staff(s).reduce((a, x) => a + x.wage, 0);
+  const pay = staff(s).reduce((a, x) => a + x.wage, 0);
+  sync(s, 'running'); s.budget -= pay; book(s, 'wages', pay); // 3.2: staff wages show as wages, not running costs
   const fit = best(s, 'fitness'), phy = best(s, 'physio');
   for (const p of s.players.filter((x) => x.clubId === s.clubId)) {
     if (fit) p.fitness = Math.min(100, p.fitness + Math.round(fit / 5));

@@ -1069,7 +1069,8 @@ export function sellPlayer(s: GameState, id: string): GameState {
   if (!p || team.length <= 14) return s;
   const b = copy(s);
   const fee = saleFee(s, p);
-  b.budget += saleIncome(b, b.players.find((x) => x.id === id)!, fee);
+  // 3.2: book the sale explicitly (it used to fall into 'other' via the weekly sync).
+  sync(b, 'running'); const got = saleIncome(b, b.players.find((x) => x.id === id)!, fee); b.budget += got; book(b, 'sales', got);
   b.players = b.players.filter((x) => x.id !== id);
   b.fans = clamp(b.fans - 1);
   b.headlines = [`${p.name} departs for £${fee}k.`, ...b.headlines].slice(0, 6);

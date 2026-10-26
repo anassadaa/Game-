@@ -1,6 +1,7 @@
 import type { GameState, Player } from './game.ts';
 import { attributes, copy, int, next, pick } from './game.ts';
 import { LEAGUES, league } from './world.ts';
+import { book, sync } from './finance.ts';
 
 export type Scout = { id: string; name: string; region: string; skill: number };
 export type ScoutReport = { playerId: string; name: string; clubId: string; region: string; week: number; season: number; knowledge: number; xg90: number; xa90: number; est: [number, number]; verdict: string };
@@ -43,7 +44,7 @@ export function fireScout(s: GameState, id: string): GameState {
 export function scoutsWeek(s: GameState) {
   const reports = s.scoutReports ?? [];
   for (const sc of s.scouts ?? []) {
-    s.budget -= scoutWage(sc.skill);
+    sync(s, 'running'); s.budget -= scoutWage(sc.skill); book(s, 'wages', scoutWage(sc.skill));
     const pool = (s.rivals ?? []).filter((p) => { const c = s.clubs.find((x) => x.id === p.clubId); return c && league(c.division).country === sc.region; });
     for (let k = 0; k < 2 && pool.length; k++) {
       const p = pick(s, pool), t = trueXg(p);

@@ -3,3 +3,4 @@
 import type { Player } from './game.ts';
 export const isProtected = (p: Pick<Player, 'age' | 'rating' | 'potential'> & { wonderkid?: boolean }) =>
   !!p.wonderkid || (p.age < 23 && p.potential >= 65 && p.potential - p.rating >= 10);
+export const PROTECTED_BADGE = '🛡️ Protected';

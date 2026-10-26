@@ -1,6 +1,7 @@
 import { cashLabel } from './BudgetLine.tsx';
 import { windowOpen } from './game';
 import { slotPeek } from './positions';
+import { isProtected, PROTECTED_BADGE } from './protect';
 import { clubSquad, offerBlocked, WINDOW_MSG } from './clubSquad';
 import { TacticSets } from './TacticSets.tsx';
 import { abilityRange, rangeText } from './scoutrange.ts';
@@ -357,6 +358,7 @@ function PlayerCard({
         <h3>
           {player.name}
           {player.academyGraduate && <Sprout size={14} />}
+          {isProtected(player) && <span className="prot-badge" title="Protected: never sold or let go without your approval">{PROTECTED_BADGE}</span>}
         </h3>
         <p>
           {player.age} years · {slotOf(player)} · {FOOT_LABEL[footOf(player)]} · {money(player.wage)}/wk

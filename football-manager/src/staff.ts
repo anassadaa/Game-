@@ -5,6 +5,7 @@ import { book, sync } from './finance.ts';
 import { reputation, stature } from './jobs.ts';
 import { overperformance } from './managers.ts';
 import { MAX_SCOUTS, REGIONS } from './scouts.ts';
+import { LOCK_WEEKS, dealLocked, dealOf, nextRound, nowWeek, setDeal, towards } from './negotiation.ts';
 
 export type StaffRole = 'assistant' | 'attack' | 'defence' | 'fitness' | 'gk' | 'physio' | 'youth' | 'dof' | 'scout';
 export type Staff = { id: string; name: string; role: StaffRole; rating: number; wage: number; contract: number; rep: number };
@@ -131,3 +132,29 @@ const ok = (x: Staff) => x && typeof x.id === 'string' && typeof x.name === 'str
 export const validStaff = (s: GameState) =>
   (s.staff === undefined || (Array.isArray(s.staff) && s.staff.length <= 20 && s.staff.every(ok))) &&
   (s.staffMarket === undefined || (Array.isArray(s.staffMarket) && s.staffMarket.length <= 20 && s.staffMarket.every(ok)));
+
+/** 3.9: staff contract talks. The coach's own stance: rating sets his floor, outside offers stiffen it and cut his
+ *  patience; poor results soften him. Stored counter only falls; a few rounds then he stops talking for a few weeks. */
+export function staffStance(s: GameState, x: Staff) {
+  const t = staffTerms(s, x), wanted = x.rep > pull(s), top = x.rating >= 15;
+  let over = 0; try { over = overperformance(s); } catch { over = 0; }
+  const give = (wanted ? 0.02 : 0.08) + (over < 0 ? 0.04 : 0) + (top ? 0 : 0.03);
+  const rounds = Math.max(2, Math.min(4, 3 + (wanted ? -1 : 0) + (x.rating <= 7 ? 1 : 0)));
+  const reasons = [wanted ? 'Has offers from bigger clubs: little room to move' : 'No rival offers: open to a compromise', top ? 'Top-tier coach knows his value' : `Rating ${x.rating}: flexible on terms`, over < 0 ? 'Recent results weaken his hand' : 'Results back his demands'];
+  return { ask: t.wage, floor: Math.max(1, Math.round(t.wage * (1 - give))), rounds, reasons };
+}
+export function staffOffer(s: GameState, id: string, wage: number): [GameState, string] {
+  const x = staff(s).find((y) => y.id === id);
+  if (!x || s.match || !(wage > 0)) return [s, 'No talks available.'];
+  const st = staffStance(s, x), key = `staff:${id}`, d = dealOf(s, key), lock = dealLocked(s, key), want = d?.counter ?? st.ask, why = `(${st.reasons.join(' · ')})`;
+  if (wage >= want || (lock && wage >= st.ask)) {
+    const b = copy(s), y = b.staff!.find((z) => z.id === id)!; y.contract = Math.min(4, y.contract + 2); y.wage = Math.round(wage); setDeal(b, key, undefined);
+    return [b, `${x.name} signs a new deal at £${y.wage}k/wk.`];
+  }
+  if (lock) return [s, `${x.name} won't reopen talks for ${lock} week${lock > 1 ? 's' : ''} — only his full ask (£${st.ask}k) will do.`];
+  const b = copy(s), r = nextRound(d, st.rounds, wage < st.floor * 0.7);
+  if (r.out) { setDeal(b, key, { rounds: r.used, lockUntil: nowWeek(b) + LOCK_WEEKS }); return [b, `${x.name} breaks off talks. ${why}`]; }
+  const c = Math.round(towards(d?.counter, Math.max(st.floor, Math.round(want - (want - st.floor) * 0.5)), 'down'));
+  setDeal(b, key, { rounds: r.used, counter: c, insults: r.insults });
+  return [b, `${x.name} would take £${c}k/wk. ${r.left} round${r.left === 1 ? '' : 's'} left. ${why}`];
+}

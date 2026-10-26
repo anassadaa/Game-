@@ -180,3 +180,31 @@ export function voteRisk(s: GameState) {
   const p = (s.fans < 20 ? 1 : 0) + ((s.investor?.stakes ?? 0) >= 40 ? 1 : 0) + (s.trust < 25 ? 1 : 0) + ((s.investor?.stakes ?? 0) > 0 && (s.wallet?.investorMood ?? 50) < 30 ? 1 : 0);
   return p >= 2 || s.fans < 20 ? p * 20 : 0;
 }
+
+/** 3.9: manager contract talks. His stance: trophies with you, reputation (rating) and the job market (other clubs
+ *  circling, open jobs) set how far he'll come down and how long he'll talk. Separate from staff and player talks. */
+export function managerStance(s: GameState, years: number) {
+  const m = s.hiredManager!, over = overperformance(s), t = renewalTerms(s, years, over, m);
+  const cups = (s.trophies ?? []).filter((x) => x.season >= m.since && x.club === s.clubs.find((c) => c.id === s.clubId)?.name).length;
+  const circling = over >= 3 && m.rating >= 3, market = hash(`${s.seed}|mgr-market|${s.season}|${s.week}`) % 3; // 0 quiet … 2 busy
+  const give = Math.max(0, 0.12 - cups * 0.04 - (circling ? 0.05 : 0) - market * 0.02 - (m.rating >= 4 ? 0.02 : 0));
+  const rounds = Math.max(2, Math.min(5, 3 + (cups ? -1 : 0) + (market === 0 ? 1 : 0) + (m.rating <= 2 ? 1 : 0)));
+  const reasons = [cups ? `${cups} trophy${cups > 1 ? 'ies' : ''} here: he expects to be rewarded` : 'No trophies yet: limited leverage', `Reputation ${m.rating}★`, market === 2 ? 'Several jobs open elsewhere' : market === 0 ? 'Quiet managerial market' : 'A few jobs going', ...(circling ? ['Other clubs are circling'] : [])];
+  return { ask: t.wage, floor: Math.max(1, Math.round(t.wage * (1 - give))), rounds, reasons };
+}
+export function managerOffer(s: GameState, years: number, wage: number): [GameState, string] {
+  const m = s.hiredManager;
+  if (!m || s.match || !Number.isInteger(years) || years < 1 || years > 5 || !finalSeason(s, m) || !(wage > 0)) return [s, 'No talks available.'];
+  const st = managerStance(s, years), key = 'mgr', d = s.deals?.[key], lock = d?.lockUntil ? Math.max(0, d.lockUntil - (s.season * 18 + s.week)) : 0;
+  const want = d?.counter ?? st.ask, why = `(${st.reasons.join(' · ')})`, set = (b: GameState, v?: typeof d) => { const all = { ...(b.deals ?? {}) }; if (v) all[key] = v; else delete all[key]; b.deals = all; };
+  if (wage >= want || (lock && wage >= st.ask)) {
+    const b = copy(s); b.hiredManager = { ...m, wage: Math.round(wage), contractEnd: endOf(b, m) + years, alerted: false }; set(b);
+    headline(b, `✍️ ${m.name} signs a ${years}-year extension (£${Math.round(wage)}k/wk).`); return [b, `${m.name} agrees £${Math.round(wage)}k/wk for ${years} years.`];
+  }
+  if (lock) return [s, `${m.name} won't talk for ${lock} more week${lock > 1 ? 's' : ''} — only £${st.ask}k/wk will do.`];
+  const b = copy(s), used = (d?.rounds ?? 0) + 1, insults = (d?.insults ?? 0) + (wage < st.floor * 0.7 ? 1 : 0), cap = Math.max(1, st.rounds - Math.max(0, insults - 1));
+  if (used >= cap) { set(b, { rounds: used, lockUntil: b.season * 18 + b.week + 3 }); return [b, `${m.name} ends talks. ${why}`]; }
+  const c = Math.min(want, Math.max(st.floor, Math.round(want - (want - st.floor) * 0.4)));
+  set(b, { rounds: used, counter: c, insults });
+  return [b, `${m.name} would sign for £${c}k/wk. ${cap - used} round${cap - used === 1 ? '' : 's'} left. ${why}`];
+}

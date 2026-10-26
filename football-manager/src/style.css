@@ -4272,3 +4272,30 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 /* 3.3 protected badge */
 .prot-badge { display: inline-block; margin: 2px 0 4px; align-self: flex-start; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .02em; background: #e8f0ff; color: #1f4fbf; border: 1px solid #b9cdf5; vertical-align: middle; white-space: nowrap; }
 .player-card .pc-money b { font-weight: 700; color: var(--accent, inherit); }
+
+/* 3.5 League stats */
+.lstats .ls-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.lstats .ls-head h3{margin:2px 0 0;font-family:var(--display);font-size:26px;letter-spacing:.3px}
+.lstats .ls-head select{max-width:160px}
+.ls-scope{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 8px}
+.ls-scope button,.ls-cats button{border:1px solid var(--tl-line);background:#fff;color:var(--tl-ink);border-radius:999px;padding:6px 14px;font-weight:600;font-size:13px;min-height:38px}
+.ls-scope button.on,.ls-cats button.on{background:var(--tl-ink);color:var(--tl-accent);border-color:var(--tl-ink)}
+.ls-scope select{flex:1 1 150px;min-width:0;border-radius:999px;padding:0 12px;border:1px solid var(--tl-line)}
+.ls-cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px;scrollbar-width:none}
+.ls-cats button{flex:0 0 auto}
+.ls-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.ls-list li{border-radius:12px;background:#fff;border:1px solid var(--tl-line)}
+.ls-list li.me{border-color:#9cc93a;background:#f6fbe6}
+.ls-list li:not(:has(.ls-row)),.ls-row{display:flex;align-items:center;gap:10px;padding:8px 12px;width:100%;background:none;border:0;text-align:left;color:inherit;min-height:52px;font:inherit}
+.ls-row:disabled{opacity:.75;cursor:default}
+.ls-rank{width:24px;flex:0 0 24px;text-align:center;font-family:var(--display);font-size:20px;color:var(--tl-muted)}
+.ls-list li:nth-child(-n+3) .ls-rank{color:var(--tl-ink)}
+.ls-list li:first-child .ls-rank{background:var(--tl-accent);border-radius:8px}
+.ls-who{flex:1;min-width:0;display:flex;flex-direction:column}
+.ls-who b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.ls-who small{color:var(--tl-muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ls-who .mv{color:#3d7a1d;font-weight:600}
+.ls-val{font-family:var(--display);font-size:24px;font-weight:700;display:flex;flex-direction:column;align-items:flex-end;line-height:1}
+.ls-val small{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;color:var(--tl-muted)}
+.ls-shortcut{font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px;border:1px dashed #9cc93a;background:#f6fbe6;color:var(--tl-ink);font-weight:600}
+.pp-offer{width:100%;margin:6px 0 10px}

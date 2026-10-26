@@ -17,6 +17,7 @@ import { pickSub } from './subtabs.ts';
 import { DIFFICULTIES, setDifficulty, type Difficulty } from './difficulty.ts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PlayerModal, usePlayerTaps } from './PlayerModal.tsx';
+import { LeagueStats } from './LeagueStats.tsx';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -1167,6 +1168,13 @@ export default function App() {
                         }
                       />
                       <Table state={state} />
+                      <button
+                        type="button"
+                        className="ls-shortcut"
+                        onClick={() => { const n = { ...subs, club: 'stats' }; setSubs(n); localStorage.setItem('touchline-subtabs', JSON.stringify(n)); setTab('club'); }}
+                      >
+                        📊 League stats &amp; top scorers <ArrowRight size={14} />
+                      </button>
                       <p className="table-note">
                         <span className="live-dot" /> Top two go up · Bottom two
                         go down in the Premier League
@@ -1680,6 +1688,7 @@ export default function App() {
                     </section>
                   </div>
                   </>)}
+                  {sub === 'stats' && <LeagueStats state={state} onOpen={(id) => setProfileId(id)} />}
                   {sub === 'fixtures' && (<>
                   <section className="card full-table">
                     <SectionTitle
@@ -1795,7 +1804,7 @@ export default function App() {
           ))}
         </nav>
       </div>
-      {profileId && <PlayerModal state={state} id={profileId} onClose={closeProfile} />}
+      {profileId && <PlayerModal state={state} id={profileId} onClose={closeProfile} onOffer={state.rivals?.some((p) => p.id === profileId) || state.market.some((p) => p.id === profileId) ? () => { const p = state.rivals?.find((x) => x.id === profileId) ?? state.market.find((x) => x.id === profileId)!; closeProfile(); setDeal({ id: p.id, fee: p.counter ?? Math.round(askingPrice(p, state) * 0.85), wage: p.wage, years: 3, instalments: false, swapId: '' }); } : undefined} />}
       {cel.length > 0 && !state.match && <Celebrate items={cel} onDone={() => setCel((c) => c.slice(1))} />}
       {toast && (
         <div className="toast" role="status">

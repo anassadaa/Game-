@@ -17,6 +17,7 @@ export const SUBTABS: Record<string, { id: string; label: string }[]> = {
     { id: 'career', label: 'Career' },
     { id: 'cups', label: 'Cups' },
     { id: 'fixtures', label: 'Fixtures' },
+    { id: 'stats', label: 'Stats' },
   ],
   transfers: [
     { id: 'market', label: 'Market' },

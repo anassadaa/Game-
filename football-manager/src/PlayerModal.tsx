@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { GameState } from './game.ts';
-import { pidFromTexts, playerProfile } from './profile.ts';
+import { allPlayers, pidFromTexts, playerProfile } from './profile.ts';
+import { statRow } from './leaguestats.ts';
 import { valueTrend } from './trends.ts';
 import { Spark } from './Career.tsx';
 
@@ -56,7 +57,7 @@ export function usePlayerTaps(state: GameState | null, open: (id: string) => voi
   }, [open]);
 }
 
-export function PlayerModal({ state, id, onClose }: { state: GameState; id: string; onClose: () => void }) {
+export function PlayerModal({ state, id, onClose, onOffer }: { state: GameState; id: string; onClose: () => void; onOffer?: () => void }) {
   const pr = playerProfile(state, id);
   const close = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -84,6 +85,7 @@ export function PlayerModal({ state, id, onClose }: { state: GameState; id: stri
             {pr.fitness !== null && <span><small>Fitness</small><b>{pr.fitness}%</b></span>}
             {pr.morale !== null && <span><small>Morale</small><b>{pr.morale}</b></span>}
           </div>
+          {onOffer && !pr.ours && <button type="button" className="primary pp-offer" onClick={onOffer}>Make an offer</button>}
           {!pr.ours && !pr.scouted && <p className="pp-note">Not scouted — values are estimates. Scout him to narrow the ranges and reveal hidden attributes.</p>}
           {pr.status.length > 0 && <p className="pp-tags">{pr.status.map((t) => <span key={t}>{t}</span>)}</p>}
           <h3>Attributes</h3>
@@ -100,6 +102,7 @@ export function PlayerModal({ state, id, onClose }: { state: GameState; id: stri
           <p>{pr.injury ? `🚑 ${pr.injury}` : 'Fit to play'}</p>
           <h3>Stats</h3>
           <div className="pp-grid">{pr.stats.map((a) => <span key={a.label}><small>{a.label}</small><b>{a.value}</b></span>)}</div>
+          {(() => { const p = allPlayers(state).find((x) => x.id === id); const l = p && statRow(state, p); return l && l.apps > 0 ? <><h3>League season {state.season}</h3><div className="pp-grid">{([['Apps', l.apps], ['Goals', l.goals], ['Assists', l.assists], ['Avg rating', l.rating.toFixed(1)], ['MOTM', l.motm], ...(p.position === 'GK' ? [['Clean sheets', l.cleanSheets]] : []), ['Yellows', l.yellows], ['Reds', l.reds]] as [string, string | number][]).map(([k, v]) => <span key={k}><small>{k}</small><b>{v}</b></span>)}</div></> : null; })()}
         </div>
       </section>
     </div>

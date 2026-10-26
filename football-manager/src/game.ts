@@ -50,6 +50,7 @@ import { midweekLoad } from './calendar.ts';
 import { roomWeek } from './room.ts';
 import { familiarityWeek, rememberShape } from './familiarity.ts';
 import { abilityRange, askWeek, potentialRange } from './scoutrange.ts';
+import { migrateTrust, trustWeek } from './trust.ts';
 import { adjustPlan, clubPlan, philosophyOf, planLine, planMatch } from './aitactics.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
@@ -247,6 +248,9 @@ export type GameState = {
   training: Training;
   budget: number;
   trust: number;
+  trustLog?: import('./trust.ts').TrustLog;
+  trustV?: number;
+  wasOverdrawn?: boolean;
   /** 3.2: absolute week of the last failed no-confidence motion (owner/chairman); motions cool down for 6 weeks. */
   noConfAt?: number;
   fans: number;
@@ -526,6 +530,7 @@ export function migrate(s: GameState): GameState {
   s.news ??= [];
   if (!s.rivals) makeRivals(s);
   s.board ??= boardTarget(s);
+  migrateTrust(s);
   s.offers ??= [];
   s.sacked ??= false;
   if (!isDifficulty(s.difficulty)) s.difficulty = 'medium';
@@ -636,6 +641,7 @@ export function newGame(
     training: 'balanced',
     budget: 2800,
     trust: 65,
+    trustV: 1,
     fans: 62,
     academy: 1,
     scouting: 1,
@@ -1595,7 +1601,7 @@ export function advanceWeek(s: GameState): GameState {
   }
   b.instalments = (b.instalments ?? []).filter((i) => i.weeks > 0);
   if (b.budget < 0) {
-    b.trust = clamp(b.trust - 5);
+    b.trust = clamp(b.trust - 1);
     b.players.forEach((p) => (p.morale = clamp(p.morale - 3)));
   }
   b.trust = clamp(b.trust + (m.us > m.them ? 3 : m.us < m.them ? -3 : 0));
@@ -1643,6 +1649,7 @@ export function advanceWeek(s: GameState): GameState {
     runCup(b, b.euro2, EURO2_WEEKS, EURO2_PRIZE, 'Continental Trophy');
     b.seed = keep;
   }
+  trustWeek(b);
   boardWeek(b);
   ownerVoteWeek(b);
   if (b.week === INTAKE_WEEK + 1) youthIntake(b);
@@ -1931,7 +1938,7 @@ export function boardWeek(s: GameState) {
     s.trust = clamp(s.trust - 4);
     s.headlines = [`📉 Board warning ${b.warnings}/2: results must improve (${b.objective.toLowerCase()}).`, ...s.headlines].slice(0, 6);
   }
-  if (s.trust <= 12 / level(s).patience && s.week >= 4) sack(s, 'The board has lost faith after a run of poor results.');
+  if (s.trust <= 12 / level(s).patience && s.week >= 4 && (pos > b.target || s.budget < 0)) sack(s, 'The board has lost faith after a run of poor results.');
 }
 const vhash = (str: string) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
 /** Owner-Director: every 4 weeks, if fans have collapsed or investors hold a big stake, a vote may force a sale. */

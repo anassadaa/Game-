@@ -1,3 +1,4 @@
+import { trustEquilibrium } from './trust.ts';
 import { leagueName } from './world.ts';
 import { declineOffers, standings, takeJob } from './game.ts';
 import type { GameState } from './game.ts';
@@ -47,6 +48,11 @@ export function BoardRoom({ state, onUpdate }: { state: GameState; onUpdate: (s:
       <div className="trust-bar">
         <i style={{ width: `${state.trust}%`, background: state.trust < 25 ? '#ef4444' : state.trust < 50 ? '#f59e0b' : '#a3e635' }} />
       </div>
+      {(() => { const t = state.trustLog ?? { ...trustEquilibrium(state), delta: 0 }; return (
+        <div className="trust-why">
+          <div className="trust-why-head">Heading toward <b>{t.eq}%</b>{t.delta ? <span className={t.delta > 0 ? 'good' : 'bad'}> · {t.delta > 0 ? '+' : ''}{t.delta} last week</span> : null}</div>
+          <ul>{t.reasons.map((r) => <li key={r.label}><span>{r.label}</span><b className={r.value > 0 ? 'good' : 'bad'}>{r.value > 0 ? '+' : ''}{r.value}</b></li>)}</ul>
+        </div>); })()}
       <small className="muted">Miss the target badly or let confidence drop near zero and you will be sacked. Beat it comfortably and bigger clubs come calling.</small>
       {!state.sacked && !!state.offers?.length && (
         <>

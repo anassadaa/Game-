@@ -20,7 +20,7 @@ import { agentFee, ffpSeason, ffpSpend, releaseClause, saleIncome, sellOnReceipt
 import type { Ffp, SellOn, Ledger } from './finance.ts';
 import { refreshWageBudget } from './budget.ts';
 import { fanSwing, homeGate } from './tickets.ts';
-import { paySponsor, settleSponsor } from './sponsors.ts';
+import { commercialWeekly, paySponsor, settleSponsor, sponsorSeasonTurn } from './sponsors.ts';
 import { checkAchievements, noteMatch, seasonRecords } from './records.ts';
 import { induct } from './hof.ts';
 import { fanWeek } from './fans.ts';
@@ -1404,6 +1404,7 @@ function rollSeason(s: GameState) {
     d1.slice(-p.k).forEach((c) => (c.division = p.second));
     d2.slice(0, p.k).forEach((c) => (c.division = p.top));
   }
+  sponsorSeasonTurn(s, pos, outcome);
   const pay = seasonPayout(league(before).tier, pos, size, outcome === 'Promoted' || outcome === 'Champions');
   s.budget += pay.tv + pay.prize;
   book(s, 'tv', pay.tv); book(s, 'prize', pay.prize);
@@ -1554,7 +1555,7 @@ export function advanceWeek(s: GameState): GameState {
   const mult = level(b).money,
     tv = Math.round((league(club(b).division).tier === 1 ? 130 : 90) * mult),
     gate = (m.home ? homeGate(b) : Math.round(35 * mult)) + stadiumBonus(b, m.home),
-    sponsor = Math.round(Math.round(b.fans * 0.2) * mult),
+    sponsor = commercialWeekly(b),
     income = tv + gate + sponsor;
   b.budget += income - wages;
   book(b, 'tv', tv); book(b, 'gate', gate); book(b, 'sponsor', sponsor); book(b, 'wages', wages);

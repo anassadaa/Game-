@@ -32,26 +32,49 @@ export function TicketsCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
-import { SPONSOR_TERMS, signSponsor, sponsorDeal, sponsorOffers } from './sponsors.ts';
+import { SPONSOR_TERMS, canRenegotiate, exitFee, renegotiateSponsor, signSponsor, sponsorDeal, sponsorOffers, sponsorValue, terminateSponsor, yearsLeft } from './sponsors.ts';
+export function SponsorFactors({ state }: { state: GameState }) {
+  const v = sponsorValue(state);
+  return (
+    <details className="sp-factors">
+      <summary>Shirt value £{v.weekly}k/wk · why?</summary>
+      <ul>{v.factors.map((f) => <li key={f.id} className={f.mult > 1.005 ? 'up' : f.mult < 0.995 ? 'down' : ''}><span>{f.label}</span><small>{f.note}</small><b>×{f.mult.toFixed(2)}</b></li>)}</ul>
+    </details>
+  );
+}
 export function SponsorCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
-  const d = sponsorDeal(state);
+  const d = sponsorDeal(state), left = yearsLeft(state);
+  const [years, setYears] = useState(3);
   return (
     <section className="card sponsor-card">
       <span className="eyebrow">🤝 SHIRT SPONSOR · SEASON {state.season}</span>
       {d ? (
-        <><h3>{d.name}</h3><p className="small">£{d.weekly}k a week{d.bonus ? ` · £${d.bonus}k bonus: ${SPONSOR_TERMS[d.kind].replace(/^.*?if /, 'if ')}` : ''}. New offers next season.</p></>
+        <>
+          <h3>{d.name} <span className="sp-left">{left} season{left === 1 ? '' : 's'} left</span></h3>
+          <p className="small">£{d.weekly}k a week{d.bonus ? ` · £${d.bonus}k bonus: ${SPONSOR_TERMS[d.kind].replace(/^.*?if /, 'if ')}` : ''}.</p>
+          {d.clauses && <p className="small sp-clauses">Clauses: finish {state.board?.target ?? '?'}th or better £{d.clauses.position}k · promotion £{d.clauses.promotion}k · Europe £{d.clauses.europe}k · relegation −{Math.round(d.clauses.relegationCut * 100)}% fee</p>}
+          <div className="sp-actions">
+            {canRenegotiate(state) && <button className="primary" disabled={!!state.match} onClick={() => onUpdate(renegotiateSponsor(state), 'Deal renegotiated.')}>📈 Renegotiate (outgrown)</button>}
+            <button className="secondary" disabled={!!state.match} onClick={() => { if (confirm(`End the deal early for £${exitFee(state)}k?`)) onUpdate(terminateSponsor(state), 'Deal ended.'); }}>End early · £{exitFee(state)}k</button>
+          </div>
+        </>
       ) : (
         <>
-          <h3>Pick a deal for this season</h3>
+          <h3>Pick a shirt deal</h3>
+          <div className="sp-years" role="group" aria-label="Deal length">
+            {[1, 2, 3, 4, 5].map((y) => <button key={y} className={y === years ? 'on' : ''} onClick={() => setYears(y)}>{y} yr{y > 1 ? 's' : ''}</button>)}
+          </div>
+          <p className="small">Longer deals pay a little more every week but smaller bonuses and a softer relegation cut.</p>
           <div className="sp-list">
-            {sponsorOffers(state).map((o) => (
-              <button key={o.id} className="secondary sp-btn" disabled={!!state.match} onClick={() => onUpdate(signSponsor(state, o.id), `${o.name} signed.`)}>
-                <b>{o.name}</b><small>{SPONSOR_TERMS[o.kind]}</small><span>£{o.weekly}k/wk{o.bonus ? ` + £${o.bonus}k bonus` : ''}</span>
+            {sponsorOffers(state, years).map((o) => (
+              <button key={o.id} className="secondary sp-btn" disabled={!!state.match} onClick={() => onUpdate(signSponsor(state, o.id, years), `${o.name} signed.`)}>
+                <b>{o.name}</b><small>{SPONSOR_TERMS[o.kind]} · {o.years} season{o.years === 1 ? '' : 's'}</small><span>£{o.weekly}k/wk{o.bonus ? ` + £${o.bonus}k bonus` : ''}</span>
               </button>
             ))}
           </div>
         </>
       )}
+      <SponsorFactors state={state} />
     </section>
   );
 }

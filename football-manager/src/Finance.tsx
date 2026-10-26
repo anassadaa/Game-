@@ -1,3 +1,4 @@
+import { commercialWeekly, sponsorDeal, sponsorValue, yearsLeft } from './sponsors.ts';
 import { cashLabel } from './BudgetLine.tsx';
 import type { GameState } from './game.ts';
 import { renewContract } from './game.ts';
@@ -20,6 +21,7 @@ export function FinancePanel({ state, onUpdate }: { state: GameState; onUpdate: 
       <h3>Transfer budget {state.budget < 0 ? <span className="neg">£0 · {cashLabel(state.budget)}</span> : `£${state.budget}k`}</h3>
       <div className="wage-budget">
         <p><b>Wage bill £{bill}k / £{wl}k a week</b> · <span className={room < 0 ? 'neg' : 'pos'}>{room >= 0 ? `£${room}k left` : `£${-room}k over budget`}</span></p>
+        {(() => { const d = sponsorDeal(state), y = yearsLeft(state); return <p className="small sp-fin">👕 Shirt sponsor: {d ? <><b>{d.name}</b> · £{d.weekly}k/wk · {y} season{y === 1 ? '' : 's'} left</> : <>none signed (market value £{sponsorValue(state).weekly}k/wk)</>} · commercial £{commercialWeekly(state)}k/wk</p>; })()}
         <div className="ffp-bar"><i style={{ width: `${wpct}%`, background: room < 0 ? '#e5484d' : wpct >= 85 ? '#f5a524' : '#30a46c' }} /></div>
         {(() => { const w = wageBreakdown(state); const sign = (n: number) => (n >= 0 ? `+£${n}k` : `−£${-n}k`); return (
         <div className="wage-why">

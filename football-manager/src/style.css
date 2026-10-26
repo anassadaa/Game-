@@ -4299,3 +4299,11 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 .ls-val small{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:400;color:var(--tl-muted)}
 .ls-shortcut{font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px;border:1px dashed #9cc93a;background:#f6fbe6;color:var(--tl-ink);font-weight:600}
 .pp-offer{width:100%;margin:6px 0 10px}
+.sp-factors{margin-top:10px;font-size:.82rem}.sp-factors summary{cursor:pointer;font-weight:700;padding:6px 0}
+.sp-factors ul{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:2px}
+.sp-factors li{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:4px 6px;border-radius:6px;background:rgba(0,0,0,.03)}
+.sp-factors li small{opacity:.7;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sp-factors li b{font-variant-numeric:tabular-nums;min-width:3.2em;text-align:right}
+.sp-factors li.up b{color:#2e7d32}.sp-factors li.down b{color:#c62828}
+.sp-left{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(48,164,108,.15);color:#1d7a4d;vertical-align:middle;white-space:nowrap}
+.sp-clauses{opacity:.85}.sp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.sp-actions button{flex:1 1 140px}
+.sp-years{display:flex;gap:6px;margin:6px 0}.sp-years button{flex:1;padding:8px 0;border-radius:8px;border:1px solid rgba(0,0,0,.15);background:transparent;font-weight:600}.sp-years button.on{background:#c6f36b;border-color:#9bd13a}

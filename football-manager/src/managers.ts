@@ -27,10 +27,17 @@ export function mgrBook(s: GameState) {
 export const compensation = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager) => weeksLeft(s, m) * m.wage;
 /** 3.1 release fee when he leaves early: about a quarter of his remaining wages, scaled by rating and form,
  *  at least 8 weeks' wages, but never more than half a season of wages or what the club still owed him. */
+/**
+ * 3.2: leaving early is expensive. Exit penalty = every week of wages he is still owed PLUS a premium that grows
+ * with his rating (and form), paid by the poaching club or by him if he quits, into your club.
+ * Anti-exploit: nothing is due until he has served 6 months (half an 18-week season).
+ */
+export const EXIT_MIN_WEEKS = 9;
 export const exitPenalty = (s: Pick<GameState, 'season' | 'week'>, m: HiredManager, overperf = 0) => {
+  if ((s.season - m.since) * SEASON_WEEKS + s.week < EXIT_MIN_WEEKS) return 0;
   const rem = weeksLeft(s, m) * m.wage;
-  const fee = rem * 0.25 * (1 + 0.15 * Math.max(0, m.rating - 3)) * (1 + 0.05 * Math.min(6, Math.max(0, overperf)));
-  return Math.round(Math.min(rem, m.wage * 26, Math.max(m.wage * 8, fee)));
+  const premium = m.wage * SEASON_WEEKS * (0.5 + 0.5 * Math.max(1, m.rating)) * (1 + 0.1 * Math.min(6, Math.max(0, overperf)));
+  return Math.round(rem + premium);
 };
 export const tenure = (s: Pick<GameState, 'season'>, m: HiredManager) => s.season - m.since + 1;
 /** % chance per check that he walks out. overperf = places above expectation. */

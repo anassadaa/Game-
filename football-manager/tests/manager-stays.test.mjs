@@ -38,13 +38,13 @@ test('3.0 save with the manager wrongly removed loads with a caretaker notice', 
   assert.equal(decodeSave(encodeSave(d)).headlines.filter(h => h.startsWith('🧢')).length, 1);
 });
 
-test('release fee: scales with rating and form, but never more than half a season of his wages or what he was still owed', () => {
+test('3.2 release fee: all remaining wages plus a rating-scaled premium; nothing inside 6 months', () => {
   const s = { season: 2, week: 6 }, m = { wage: 40, rating: 3, since: 1, contractEnd: 4 };
   const rem = weeksLeft(s, m) * m.wage;
-  assert.ok(exitPenalty(s, m) <= Math.min(rem, m.wage * 26) && exitPenalty(s, m) >= m.wage * 8);
+  assert.ok(exitPenalty(s, m) >= rem + m.wage * 18, 'remaining wages plus at least a season of premium');
   assert.ok(exitPenalty(s, { ...m, rating: 5 }) > exitPenalty(s, m)); assert.ok(exitPenalty(s, m, 4) > exitPenalty(s, m));
-  assert.ok(exitPenalty(s, { ...m, rating: 5 }, 6) <= m.wage * 26, 'capped');
-  assert.ok(exitPenalty({ season: 4, week: 17 }, m) <= m.wage, 'one week left: at most that week');
+  assert.ok(exitPenalty({ season: 4, week: 17 }, m) > m.wage, 'premium even with one week left');
+  assert.equal(exitPenalty({ season: 1, week: 5 }, m), 0, 'anti-exploit: under 6 months, nothing due');
 });
 test('poached or quitting: fee booked as income into the bank, headline + log show amount and reason', () => {
   for (const [trust, over, re] of [[60, 'poach', /poach .* release fee/], [5, 'quit', /quits .* exit penalty/]]) {
@@ -55,7 +55,7 @@ test('poached or quitting: fee booked as income into the bank, headline + log sh
       const ov = over === 'poach' ? 5 : 0, ev = contractTick(t, t.hiredManager, 'main', trust, ov); if (ev.kind !== 'leave') continue;
       const bank = t.budget, inc = t.ledger?.inc?.other ?? 0; managerWeek(t);
       if (t.hiredManager) continue; found = true;
-      assert.ok(t.budget > bank && t.budget - bank <= 26 * s.hiredManager.wage, `fee ${t.budget - bank}`);
+      assert.ok(t.budget - bank >= 9 * s.hiredManager.wage, `fee ${t.budget - bank}`);
       assert.match(t.headlines[0], re); assert.match(t.headlines[0], /£\d+k/); assert.match(t.mgr?.log?.[0] ?? t.headlines[0], /£\d+k/);
     }
     if (over === 'quit') assert.ok(found, 'a low-trust quit exists');

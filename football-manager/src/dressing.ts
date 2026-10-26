@@ -1,3 +1,4 @@
+import { fanNote } from './fans.ts';
 import type { GameState, Player } from './game.ts';
 import { clamp, copy, next, pick } from './game.ts';
 
@@ -95,6 +96,7 @@ export function dressingWeek(s: GameState, played: Set<string>) {
         p.morale = clamp(p.morale + (ok ? 12 : -18));
         s.harmony = clamp(harmony(s) + (ok ? 3 : -8));
         if (!ok) p.unhappy = 'broken promise';
+        fanNote(s, ok ? `Kept promise to ${p.name}` : `Broke promise to ${p.name}`, ok ? 2 : -4);
         s.headlines = [ok ? `🤝 ${p.name} is happy you kept your word.` : `💢 ${p.name} says you broke your promise of playing time.`, ...s.headlines].slice(0, 6);
         delete p.promise;
       }

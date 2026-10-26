@@ -25,7 +25,7 @@ import { fanSwing, homeGate } from './tickets.ts';
 import { commercialWeekly, paySponsor, settleSponsor, sponsorSeasonTurn } from './sponsors.ts';
 import { checkAchievements, noteMatch, seasonRecords } from './records.ts';
 import { induct } from './hof.ts';
-import { fanWeek } from './fans.ts';
+import { fanEffects, fanNote, fanWeek } from './fans.ts';
 import { noteDerby } from './derby.ts';
 import { judgeScenario } from './scenario.ts';
 import { managerWeek, voteRisk } from './managers.ts';
@@ -1262,7 +1262,7 @@ export function advanceMatch(s: GameState): GameState {
     edge += us ? pe.att + leaderEdge(b) : -pe.def;
     const chance = Math.max(
       0.2,
-      Math.min(0.88, 0.52 + edge + (m.home && us ? 0.04 : 0)),
+      Math.min(0.88, 0.52 + edge + (m.home && us ? fanEffects(s).homeEdge : 0)),
     );
     rates.push(chance);
     if (next(b) < chance) {
@@ -1847,6 +1847,7 @@ export function acceptBid(s: GameState, bidId: string): [GameState, string] {
     t = b.players.find((x) => x.id === p.id)!,
     buyer = b.clubs.find((c) => c.id === bid.clubId)!;
   b.players = b.players.filter((x) => x.id !== t.id);
+  if (t.rating >= club(b).rating + 4 || (t.goals ?? 0) >= 8) fanNote(b, `Sold fan favourite ${t.name}`, -10);
   if (t.starting) {
     const own = b.players.filter((x) => x.clubId === b.clubId && !x.starting && !x.injured);
     const sub = own.filter((x) => x.position === t.position).sort((x, y) => y.rating - x.rating)[0] ??

@@ -86,16 +86,31 @@ export function SponsorCard({ state, onUpdate }: { state: GameState; onUpdate: U
     </section>
   );
 }
-import { fanMood } from './fans.ts';
+import { fanEffects, fanMood, fanTarget } from './fans.ts';
 export function FanCard({ state }: { state: GameState }) {
-  const m = fanMood(state), l = state.fanLog?.last;
+  const m = fanMood(state), l = state.fanLog?.last, t = fanTarget(state), fx = fanEffects(state);
+  const dir = t.target > state.fans + 1 ? `↗ rising toward ${t.target}` : t.target < state.fans - 1 ? `↘ falling toward ${t.target}` : `→ settled around ${t.target}`;
+  const sg = (n: number, u = '%') => `${n > 0 ? '+' : ''}${n}${u}`;
+  const effects: [string, string, number][] = [
+    ['🎟️ Ticket demand', sg(fx.demand), fx.demand],
+    ['👕 Merchandise', `£${fx.merch}k/wk`, fx.merch - 16],
+    ['🤝 Sponsor value', sg(fx.sponsor), fx.sponsor],
+    ['🏟️ Home advantage', `${(fx.homeEdge * 100).toFixed(1)}% edge`, fx.homeEdge - 0.04],
+    ['🏛️ Board confidence', fx.trust > 0 ? 'Growing' : fx.trust < 0 ? 'Slipping' : 'Steady', fx.trust],
+    ['💷 Club valuation', sg(fx.valuation), fx.valuation],
+    ['🏃 Squad morale', fx.morale > 0 ? 'Lifted' : fx.morale < 0 ? 'Weighed down' : 'Neutral', fx.morale],
+    ['📣 Protest risk', `${Math.min(100, fx.protest)}%/wk`, -fx.protest],
+  ];
   return (
     <section className="card fan-card">
       <span className="eyebrow">📣 SUPPORTERS</span>
       <h3><span className="fan-i">{m.icon}</span> {m.label} · {state.fans}/100</h3>
-      <div className="hof-bar"><i style={{ width: `${state.fans}%`, background: m.color }} /></div>
-      <p className="small">Wins, cheap tickets and keeping promises lift the mood. Below 25 the fans protest and the board lose trust; above 88 they sing your name.</p>
-      {l && <p className="small">Last: {l.kind === 'protest' ? '📣 protest' : '🎶 chant'} in season {l.season}, week {l.week + 1}{state.fanLog!.protests ? ` · ${state.fanLog!.protests} protest(s) so far` : ''}.</p>}
+      <div className="hof-bar fan-bar"><i style={{ width: `${state.fans}%`, background: m.color }} /><b className="fan-target" style={{ left: `${t.target}%` }} title="Where the mood is heading" /></div>
+      <p className="small fan-dir">{dir}{state.fanLog?.delta ? ` · ${sg(state.fanLog.delta, '')} last week` : ''}</p>
+      <div className="fan-why">{[...t.reasons].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).map((r) => <span key={r.label} className={`chip ${r.pct > 0 ? 'good' : 'bad'}`}>{r.label} {sg(r.pct, '')}</span>)}</div>
+      <div className="fan-fx">{effects.map(([k, v, g]) => <div key={k}><span>{k}</span><b className={g > 0 ? 'good' : g < 0 ? 'bad' : ''}>{v}</b></div>)}</div>
+      {fx.appeal && <p className="small">{fx.appeal}.</p>}
+      {l && <p className="small">Last: {l.kind === 'protest' ? '📣 protest' : '🎶 chant'} in season {l.season}, week {l.week + 1}{state.fanLog!.protests ? ` · ${state.fanLog!.protests} protest(s) in total` : ''}.</p>}
     </section>
   );
 }

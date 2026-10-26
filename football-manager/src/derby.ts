@@ -1,6 +1,7 @@
 // Derbies and rival managers: one local rival per league, named managers for every club.
 import type { GameState } from './game.ts';
 import { club } from './game.ts';
+import { fanNote } from './fans.ts';
 
 export type DerbyLog = { w: number; d: number; l: number };
 const hash = (str: string) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
@@ -21,8 +22,8 @@ export const isDerby = (s: GameState, oppId: string) => derbyRival(s)?.id === op
 export function noteDerby(s: GameState, oppId: string, us: number, them: number) {
   if (!isDerby(s, oppId)) return false;
   const d = (s.derby ??= { w: 0, d: 0, l: 0 }), name = derbyRival(s)!.name;
-  if (us > them) { d.w++; s.fans = Math.min(100, s.fans + 4); }
-  else if (us < them) { d.l++; s.fans = Math.max(0, s.fans - 4); }
+  if (us > them) { d.w++; s.fans = Math.min(100, s.fans + 4); fanNote(s, 'Derby win', 8); }
+  else if (us < them) { d.l++; s.fans = Math.max(0, s.fans - 4); fanNote(s, 'Derby defeat', -8); }
   else d.d++;
   s.headlines = [`🔥 Derby: ${us}–${them} against ${name}. ${us > them ? 'Bragging rights are ours!' : us < them ? 'The fans won’t forget this one.' : 'Honours even.'}`, ...s.headlines].slice(0, 6);
   return true;

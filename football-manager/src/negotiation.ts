@@ -84,6 +84,7 @@ export function termsStance(s: GameState, p: Player, ours: Club, from: Club | un
   const agent = hash(`${s.seed}|agent|${p.id}`);
   if (agent < 0.3) { k += 0.05; soften -= 0.01; reasons.push('Tough agent'); } else if (agent > 0.8) { soften += 0.01; reasons.push('Reasonable agent'); }
   if (p.age >= 30) { k -= 0.04; reasons.push('Late career: values security'); }
+  if (ours.id === s.clubId && s.fans >= 75) { k -= 0.04; reasons.push('Loves the atmosphere here'); } else if (ours.id === s.clubId && s.fans < 30) { k += 0.06; reasons.push('Toxic atmosphere: wants more'); }
   const ask = Math.max(1, Math.round(p.wage * k));
   return { ask, floor: Math.max(1, Math.round(ask * 0.9)), rounds: clamp(rounds, 2, 4), soften: clamp(soften, 0.01, 0.08), reasons };
 }

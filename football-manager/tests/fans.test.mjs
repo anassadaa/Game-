@@ -9,7 +9,7 @@ test('furious fans protest, hitting board trust, with a cooldown', () => {
   const s = newGame(1); s.fans = 15; const t = s.trust;
   assert.equal(fanWeek(s), 'protest'); assert.ok(s.trust < t); assert.ok(s.headlines[0].includes('protest'));
   s.week += 1; assert.equal(fanWeek(s), undefined);
-  s.week += 4; assert.equal(fanWeek(s), 'protest');
+  s.week += 4; s.fans = 15; assert.equal(fanWeek(s), 'protest');
 });
 test('ecstatic fans chant, small trust boost', () => {
   const s = newGame(1); s.fans = 92; s.trust = 50; assert.equal(fanWeek(s), 'chant'); assert.ok(s.trust > 50);

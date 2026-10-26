@@ -4364,3 +4364,16 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 .demand-reasons li{font-size:.75rem;padding:.15rem .45rem;border-radius:999px;background:rgba(127,127,127,.12)}
 .demand-reasons li.up b{color:#15803d}.demand-reasons li.down b{color:#b91c1c}
 .st-btn small.muted{display:block;opacity:.7;font-size:.68rem}
+
+.fan-bar{position:relative}
+.fan-target{position:absolute;top:-3px;bottom:-3px;width:3px;margin-left:-1px;background:#1d2b22;border-radius:2px;box-shadow:0 0 0 1px #fff}
+.fan-dir{margin:6px 0 4px;font-weight:600}
+.fan-why{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+.fan-why .chip{font-size:11px;padding:2px 7px;border-radius:10px;background:#00000009;border:1px solid #0000001a}
+.fan-why .chip.good{color:#1b7a43}.fan-why .chip.bad{color:#b8322a}
+.fan-fx{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin:8px 0;font-size:12px}
+.fan-fx div{display:flex;justify-content:space-between;gap:6px;padding:4px 6px;background:#00000007;border-radius:6px;min-width:0}
+.fan-fx b{white-space:nowrap}
+.fan-fx span{opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fan-fx b.good{color:#1b7a43}.fan-fx b.bad{color:#b8322a}
+@media (max-width:440px){.fan-fx{grid-template-columns:1fr}}

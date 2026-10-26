@@ -1,3 +1,4 @@
+import { offerRenewal, wageDemand } from './contracts.ts';
 import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquads.ts';
 import { cornerConv } from './setpieces.ts';
 import { repairSlots, slotPeek } from './positions.ts';
@@ -1010,18 +1011,13 @@ export function loanIn(s: GameState, id: string): GameState {
   b.headlines = [`${t.name} arrives on a season-long loan.`, ...b.headlines].slice(0, 6);
   return b;
 }
+/** 3.8: renew at his dynamic demand (see contracts.ts); used by quick-renew buttons and the delegated manager. */
 export function renewContract(s: GameState, id: string, years: number, clause?: number): GameState {
   const p = s.players.find((x) => x.id === id && x.clubId === s.clubId && !x.loan);
   if (s.match || !p || !(years >= 1 && years <= 5)) return s;
-  const b = copy(s),
-    t = b.players.find((x) => x.id === id)!;
   const withClause = clause !== undefined && Number.isFinite(clause) && clause > 0;
-  t.wage = Math.round(t.wage * (withClause ? 1.08 : 1.15) + 1);
-  t.contract = years;
-  if (withClause) t.clause = Math.max(Math.round(t.price * 1.2), Math.round(clause));
-  t.morale = clamp(t.morale + 6);
-  b.headlines = [`${t.name} commits his future for ${years} more years.`, ...b.headlines].slice(0, 6);
-  return b;
+  const d = wageDemand(s, p, years), ask = withClause ? Math.max(1, Math.round(d.ask * 0.95)) : d.ask;
+  return offerRenewal(s, id, years, ask, clause).state;
 }
 /** Quick-sale fee. 3.1: within a season of signing it never returns more than we paid (no free-agent flipping). */
 export function saleFee(s: Pick<GameState, 'season' | 'week'>, p: Player) {

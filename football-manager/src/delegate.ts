@@ -1,3 +1,4 @@
+import { wageDemand } from './contracts.ts';
 // 2.9: the hired manager runs the football (Director / Owner-Director / Chairman careers).
 // Everything is deterministic (hash-based), scaled by his rating and style.
 import type { GameState, Player } from './game.ts';
@@ -153,7 +154,7 @@ export function manageContracts(s: GameState): GameState {
       if (b.week === 16 && !(p as any).letGo) { (p as any).letGo = b.season; note(b, `Will let ${p.name} (${slotPeek(p)}, ${p.age}) leave when his contract ends.`); }
       continue;
     }
-    const rise = Math.round(p.wage * 0.15) + 1;
+    const rise = wageDemand(b, p, 3).ask - p.wage;
     if (prot && bill(b) + rise > Math.min(p0.wage, wageLimit(b))) { ask(b, { kind: 'renew', playerId: p.id, name: p.name, wage: p.wage + rise }); continue; }
     if (bill(b) + rise > Math.min(p0.wage, wageLimit(b))) { if (!(p as any).letGo) { (p as any).letGo = b.season; note(b, `Couldn't fit ${p.name}'s new deal in the £${p0.wage}k/wk wage budget.`); } continue; }
     { const n = renewContract(b, p.id, 3); if (n === b) continue; b = n; } note(b, `Renewed ${p.name} (${slotPeek(p)}) for 3 years.`);

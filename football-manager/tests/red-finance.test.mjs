@@ -7,7 +7,7 @@ test('owner pay is deferred while the bank is negative and paid back after recov
   const s = own(); const pay = weeklySalary(s); assert.ok(pay > 0);
   s.budget = -100; const cash = wallet(s).cash;
   walletWeek(s); assert.equal(s.budget, -100, 'club not charged'); assert.equal(wallet(s).cash, cash); assert.equal(wallet(s).owed, pay);
-  s.budget = 10000; walletWeek(s); assert.equal(wallet(s).owed, undefined); assert.equal(wallet(s).cash, cash + 2 * pay); assert.equal(s.budget, 10000 - 2 * pay);
+  s.budget = 10000; const pay2 = weeklySalary(s); walletWeek(s); assert.equal(wallet(s).owed, undefined); assert.equal(wallet(s).cash, cash + pay + pay2); assert.equal(s.budget, 10000 - pay - pay2);
 });
 test('pay that would push the bank negative is deferred, not drawn', () => {
   const s = own(); const pay = weeklySalary(s); s.budget = pay - 1; walletWeek(s); assert.equal(s.budget, pay - 1); assert.equal(wallet(s).owed, pay);

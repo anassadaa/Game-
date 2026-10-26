@@ -237,6 +237,8 @@ export type CareerRecord = {
   outcome: string;
 };
 export type GameState = {
+  /** 3.9: open contract renewal talks by player id. */
+  renewTalks?: Record<string, import('./contracts.ts').Talks>;
   version: 2;
   seed: number;
   season: number;

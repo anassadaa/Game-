@@ -46,7 +46,7 @@ export function wageDemand(s: GameState, p: Player, years: number): Demand {
   const [pp, flex] = PERS[p.personality ?? 'Professional'] ?? [0, 0.09];
   add(`Personality: ${p.personality ?? 'Professional'}`, pp);
   const left = p.contract ?? 2;
-  add(`Contract left: ${left} year${left === 1 ? '' : 's'}`, left <= 0 ? 10 : left === 1 ? 5 : 0);
+  add(`Contract left: ${left} year${left === 1 ? '' : 's'}`, left <= 0 ? 10 : left === 1 ? 5 : left === 2 ? 0 : -3 * (left - 2));
   add(`Length asked: ${years} year${years === 1 ? '' : 's'}`, p.age <= 26 ? (years - 3) * 3 : p.age >= 30 ? -(years - 1) * 4 : 0);
   const n = rivals(s, p); add(n ? `Rival interest: ${n} club${n > 1 ? 's' : ''}` : 'Rival interest: none', n * 5);
   const ag = agentOf(s, p); add(`Represented by ${ag[0]}`, ag[1]);
@@ -54,28 +54,77 @@ export function wageDemand(s: GameState, p: Player, years: number): Demand {
   const total = clamp(r.reduce((a, x) => a + x.pct, 0), -45, 90);
   return { ask: Math.max(1, Math.round(cur * (1 + total / 100))), reasons: r, flex };
 }
-export type Offer = { state: GameState; result: 'accepted' | 'countered' | 'refused'; counter?: number; message: string; demand: Demand };
-/** Make an offer; he accepts within his flexibility, counters on a moderate gap, refuses a lowball (and sulks). */
+export type Offer = { state: GameState; result: 'accepted' | 'countered' | 'refused'; counter?: number; message: string; demand: Demand; why: string[]; walkedOut?: boolean };
+/** 3.9: one renewal negotiation per player: rounds used, his fixed counter, and a lock after he walks out. */
+export type Talks = { years: number; rounds: number; counter?: number; lockUntil?: number; insults?: number };
+export const MAX_ROUNDS = 3, LOCK_WEEKS = 4;
+const now = (s: Pick<GameState, 'season' | 'week'>) => s.season * 18 + s.week;
+export const talksOf = (s: GameState, id: string): Talks | undefined => s.renewTalks?.[id];
+export const talksLocked = (s: GameState, id: string) => { const t = talksOf(s, id); return !!t?.lockUntil && t.lockUntil > now(s) ? t.lockUntil - now(s) : 0; };
+const setTalks = (b: GameState, id: string, t?: Talks) => { const all = { ...(b.renewTalks ?? {}) }; if (t) all[id] = t; else delete all[id]; b.renewTalks = all; };
+/** 3.9: how he negotiates — rounds of patience, how much his counter softens per round, how wide a gap he'll still counter. */
+export type Temper = { rounds: number; soften: number; zone: number; reasons: string[] };
+export function temperament(s: GameState, p: Player, insults = 0): Temper {
+  const why: string[] = []; let rounds = 3, soften = 0.02, zone = 0.2;
+  const pers = p.personality ?? 'Professional';
+  const P: Record<string, [number, number, number, string]> = {
+    Loyal: [1, 0.03, 0.08, 'Loyal: patient, eases his demand'], 'Easy-going': [1, 0.02, 0.06, 'Easy-going: relaxed about talks'],
+    Ambitious: [0, -0.02, -0.06, 'Ambitious: holds firm'], Temperamental: [-1, 0, -0.04, 'Temperamental: short fuse'],
+    Leader: [0, 0.01, 0, 'Leader: reasonable but proud'], Professional: [0, 0, 0, 'Professional: businesslike'] };
+  const [r0, s0, z0, l0] = P[pers] ?? P.Professional; rounds += r0; soften += s0; zone += z0; why.push(l0);
+  if (p.age >= 31) { soften += 0.02; zone += 0.04; why.push(`Age ${p.age}: values security`); } else if (p.age <= 23) { soften -= 0.01; why.push(`Age ${p.age}: knows his future value`); }
+  if (p.starting) { soften -= 0.01; why.push('Key starter: knows his worth'); } else { soften += 0.01; why.push('Not a regular: keen to stay'); }
+  const n = rivals(s, p); if (n >= 2) { rounds -= 1; soften -= 0.01; why.push(`${n} rival clubs interested: little patience`); } else if (n === 1) why.push('One rival club interested');
+  if (p.morale >= 75) { soften += 0.02; rounds += 0; why.push('Happy here'); } else if (p.morale <= 35) { rounds -= 1; why.push('Unhappy: quick to walk'); }
+  const ag = agentOf(s, p); if (ag[1] > 0) { soften -= 0.01; why.push('Tough agent: slow to budge'); } else if (ag[1] < 0) { soften += 0.01; why.push('Friendly agent: eases talks'); }
+  if (insults) { rounds -= insults; zone -= 0.05 * insults; why.push(`Insulted by ${insults} lowball offer${insults > 1 ? 's' : ''}`); }
+  return { rounds: Math.max(pers === 'Temperamental' ? 1 : 2, Math.min(5, rounds)), soften: Math.max(0, Math.min(0.08, soften)), zone: Math.max(0.05, zone), reasons: why };
+}
+/**
+ * Make an offer. He accepts within his flexibility or at/above his standing counter; counters on a moderate gap
+ * (a fixed figure that never rises; it softens by his temperament); refuses a lowball. When his patience runs out
+ * he walks out and will not talk for a few weeks. Offering his full ask always works (one-tap renew).
+ */
 export function offerRenewal(s: GameState, id: string, years: number, wage: number, clause?: number): Offer {
   const p = s.players.find((x) => x.id === id && x.clubId === s.clubId && !x.loan);
   const d = p ? wageDemand(s, p, years) : { ask: 0, reasons: [], flex: 0 };
-  if (!p || s.match || !(years >= 1 && years <= 5) || !(wage >= 1)) return { state: s, result: 'refused', message: 'No talks possible right now.', demand: d };
+  if (!p || s.match || !(years >= 1 && years <= 5) || !(wage >= 1)) return { state: s, result: 'refused', message: 'No talks possible right now.', demand: d, why: [] };
   const withClause = clause !== undefined && Number.isFinite(clause) && clause > 0;
   const ask = withClause ? Math.max(1, Math.round(d.ask * 0.95)) : d.ask, floor = ask * (1 - d.flex);
-  if (wage >= floor) {
+  const old = talksOf(s, id), locked = talksLocked(s, id);
+  const live = old && !old.lockUntil ? old : undefined;
+  const standing = live && live.years === years ? live.counter : undefined;
+  const tm = temperament(s, p, live?.insults ?? 0), why = tm.reasons;
+  if (wage >= ask || (!locked && (wage >= floor || (standing !== undefined && wage >= standing)))) {
     const b = copy(s), t = b.players.find((x) => x.id === id)!;
     t.wage = Math.round(wage); t.contract = years;
     if (withClause) t.clause = Math.max(Math.round(t.price * 1.2), Math.round(clause!));
-    t.morale = clamp(t.morale + (wage >= ask ? 6 : 3));
+    t.morale = clamp(t.morale + (wage >= ask ? 6 : 3)); setTalks(b, id);
     b.headlines = [`${t.name} commits his future for ${years} more year${years > 1 ? 's' : ''} (£${t.wage}k/wk).`, ...b.headlines].slice(0, 6);
-    return { state: b, result: 'accepted', message: `${p.name} accepts £${t.wage}k/wk for ${years} year${years > 1 ? 's' : ''}.`, demand: d };
+    return { state: b, result: 'accepted', message: `${p.name} accepts £${t.wage}k/wk for ${years} year${years > 1 ? 's' : ''}.`, demand: d, why };
   }
-  if (wage >= floor - ask * 0.2) {
-    const counter = Math.max(Math.ceil(floor), Math.round((wage + ask) / 2));
-    return { state: s, result: 'countered', counter, message: `${p.name}'s agent counters at £${counter}k/wk.`, demand: d };
+  if (locked) return { state: s, result: 'refused', message: `${p.name} won't talk for another ${locked} week${locked > 1 ? 's' : ''} (only his full ask of £${ask}k/wk would do).`, demand: d, why };
+  const b = copy(s), t = b.players.find((x) => x.id === id)!, rounds = (live?.rounds ?? 0) + 1;
+  const pers = p.personality ?? 'Professional', lowball = wage < floor - ask * tm.zone;
+  const insults = (live?.insults ?? 0) + (lowball ? 1 : 0);
+  const walk = rounds >= tm.rounds || (lowball && pers === 'Temperamental' && insults >= 2);
+  if (walk) {
+    t.morale = clamp(t.morale - (pers === 'Temperamental' ? 12 : pers === 'Ambitious' ? 9 : pers === 'Loyal' || pers === 'Easy-going' ? 4 : 6));
+    setTalks(b, id, { years, rounds, insults, lockUntil: now(b) + LOCK_WEEKS });
+    return { state: b, result: 'refused', walkedOut: true, message: `${p.name} walks out after ${rounds} round${rounds > 1 ? 's' : ''}. No talks for ${LOCK_WEEKS} weeks.`, demand: d, why };
   }
-  const b = copy(s), t = b.players.find((x) => x.id === id)!; t.morale = clamp(t.morale - (p.personality === 'Temperamental' ? 8 : 4));
-  return { state: b, result: 'refused', message: `${p.name} is insulted by £${wage}k/wk and walks out of talks.`, demand: d };
+  if (!lowball) {
+    // Fixed counter between floor and ask; never rises, eases by his temperament each further round.
+    const fresh = Math.max(Math.ceil(floor), Math.round(ask - (ask - floor) * 0.5));
+    const prev = live?.counter;
+    const counter = prev !== undefined ? Math.max(Math.ceil(floor), Math.min(prev - (tm.soften > 0 ? 1 : 0), Math.round(prev * (1 - tm.soften)))) : fresh;
+    setTalks(b, id, { years, rounds, counter, insults });
+    const left = tm.rounds - rounds;
+    return { state: b, result: 'countered', counter, message: `${p.name}'s agent counters at £${counter}k/wk${prev !== undefined ? (counter < prev ? ' (softened)' : ' (holding firm)') : ''}. ${left} round${left === 1 ? '' : 's'} of patience left.`, demand: d, why };
+  }
+  t.morale = clamp(t.morale - (pers === 'Temperamental' ? 8 : 4));
+  setTalks(b, id, { years, rounds, counter: live?.counter, insults });
+  return { state: b, result: 'refused', message: `${p.name} is insulted by £${wage}k/wk and rejects it. His patience is wearing thin.`, demand: d, why };
 }
 
 /** Contract length a club offers: long for the young, short for veterans. */

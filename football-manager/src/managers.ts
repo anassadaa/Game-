@@ -125,6 +125,8 @@ export function renewManager(s: GameState, years: number): GameState {
   return b;
 }
 /** Weekly: in Director/Chairman careers the hired manager is paid and lifts (or drags) morale. */
+/** 3.2: board trust low enough that results could cost the job (sacking happens at ~12). */
+export const jobAtRisk = (s: Pick<GameState, 'trust'>) => s.trust < 30;
 export function managerWeek(s: GameState) {
   if ((s.mode ?? 'manager') === 'manager') return;
   const m = s.hiredManager, d = m ? m.rating - 3 : -2;
@@ -138,6 +140,11 @@ export function managerWeek(s: GameState) {
       headline(s, ev.reason === 'poached' ? `✈️ ${by} poach ${m.name} and pay us a £${pen}k release fee. A caretaker takes charge.` : `✈️ ${m.name} quits after losing the board's backing and pays us a £${pen}k exit penalty. A caretaker takes charge.`);
       mgrNote(s, ev.reason === 'poached' ? `Leaving for ${by}; they paid the club a £${pen}k release fee.` : `Quitting before my contract ends; I paid the club a £${pen}k exit penalty.`);
     } else if (ev.kind === 'alert') { m.alerted = true; headline(s, `📄 ${m.name}'s contract ends after season ${endOf(s, m)}. Offer a renewal in Club → Board or let him go.`); mgrNote(s, 'My contract is in its final season. Waiting on your offer.'); }
+    // 3.2: Director of Football: you answer for his results. Warn when they put the job at risk.
+    if (s.mode === 'director' && s.hiredManager && jobAtRisk(s) && s.week % 3 === 0) {
+      headline(s, `⚠️ ${m.name}'s results are putting your job at risk (board trust ${Math.round(s.trust)}). Review tactics or change manager in Club → Board.`);
+      mgrNote(s, `The board is losing patience with our results (trust ${Math.round(s.trust)}).`);
+    }
   }
   if (d) s.players.forEach((p) => { if (p.clubId === s.clubId) p.morale = clamp(p.morale + d); });
 }

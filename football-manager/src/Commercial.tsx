@@ -108,7 +108,7 @@ export function MeetingCard({ state, onUpdate }: { state: GameState; onUpdate: U
   );
 }
 import { useState } from 'react';
-import { voteRisk, canHire, fireManager, hireManager, managerCandidates, compensation, contractWage, minYears, endOf, tenure, finalSeason, renewalTerms, renewManager, overperformance, CONTRACT_YEARS } from './managers.ts';
+import { voteRisk, canHire, fireManager, hireManager, managerCandidates, compensation, contractWage, minYears, endOf, tenure, finalSeason, renewalTerms, renewManager, overperformance, CONTRACT_YEARS, jobAtRisk } from './managers.ts';
 export function ManagerCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
   const [offer, setOffer] = useState<{ id: string | null; years: number } | null>(null);
   if ((state.mode ?? 'manager') === 'manager') return null;
@@ -269,6 +269,7 @@ function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) 
   const used = Math.min(100, Math.round((p.spent / Math.max(1, p.transfer)) * 100));
   return (
     <div className="mgr-office">
+      {state.mode === 'director' && state.hiredManager && jobAtRisk(state) && <p className="neg small mgr-risk">⚠️ His results are putting <b>your</b> job at risk (board trust {Math.round(state.trust)}). Change tactics or the manager before the board acts.</p>}
       <div className="mgr-stats">
         <div><b>{r.w}-{r.d}-{r.l}</b><small>W-D-L</small></div>
         <div><b>{ord(leaguePosition(state))}</b><small>exp. {ord(expectedPos(state))}</small></div>

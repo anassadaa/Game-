@@ -295,10 +295,11 @@ function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) 
       )}
       {(p.asks ?? []).map((a) => (
         <div className="mgr-request mgr-ask" key={a.kind + a.playerId}>
-          <p className="small">🛡️ {a.kind === 'renew' ? <>New deal for protected <b>{a.name}</b>: £{a.wage}k/wk (over his wage budget)</> : <>Sell protected <b>{a.name}</b>{a.fee ? <> for {k(a.fee)}</> : null}</>}</p>
+          <p className="small">{a.kind === 'renew' ? '🛡️ ' : '🏦 '}{a.kind === 'renew' ? <>New deal for protected <b>{a.name}</b>: £{a.wage}k/wk (over his wage budget)</> : <>{a.by === 'board' ? 'Board-forced sale' : 'He wants to sell'}: <b>{a.name}</b>{a.fee ? <> for {k(a.fee)}</> : null}{a.buyer ? <> to {state.clubs.find((c) => c.id === a.buyer)?.name}</> : null} (over your {k(p.approveOver)} line)</>}</p>
           <div className="pp-list">
             <button className="primary big-btn" disabled={!!state.match} onClick={() => onUpdate(answerAsk(state, a.playerId, a.kind, true), a.kind === 'renew' ? 'Renewal approved.' : 'Sale approved.')}>Approve</button>
             <button className="secondary big-btn" disabled={!!state.match} onClick={() => onUpdate(answerAsk(state, a.playerId, a.kind, false), a.kind === 'renew' ? 'Renewal refused.' : 'Sale blocked.')}>{a.kind === 'renew' ? 'Refuse' : 'Block'}</button>
+            {a.kind === 'sell' && <button className="secondary big-btn" disabled={!!state.match} onClick={() => onUpdate(answerAsk(state, a.playerId, a.kind, 'other'), 'Picking another player.')}>Pick another player</button>}
           </div>
         </div>
       ))}

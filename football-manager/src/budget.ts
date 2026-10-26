@@ -2,7 +2,9 @@ import type { GameState, Player } from './game.ts';
 import { club, windowOpen } from './game.ts';
 import { agentFee, ledger, seasonPayout, earnedIncome, earnedCosts } from './finance.ts';
 import { level } from './difficulty.ts';
-import { dofDiscount } from './staff.ts';
+import { dofDiscount, staffWages } from './staff.ts';
+import { maintenance } from './facilities.ts';
+import { weeklySalary } from './wallet.ts';
 import { investmentTransferBlock } from './investments.ts';
 import { league } from './world.ts';
 
@@ -72,4 +74,16 @@ export function offerBlock(s: GameState, p: Player, fee: number, instalments = f
   const upfront = (instalments ? Math.round(fee * 0.4) : fee) + Math.round(agentFee(p, fee) * dofDiscount(s));
   if (s.budget < upfront) return `Over budget by £${upfront - s.budget}k`;
   return null;
+}
+
+/** 3.2: everything the club pays each week: players, staff and scouts, the hired manager, upkeep and your own salary. */
+export function weeklyCosts(s: GameState) {
+  const players = wageBill(s), staff = staffWages(s), manager = s.hiredManager?.wage ?? 0, upkeep = maintenance(s), owner = (s.mode ?? 'manager') === 'manager' ? 0 : weeklySalary(s);
+  return { players, staff, manager, upkeep, owner, total: players + staff + manager + upkeep + owner };
+}
+/** Weeks of cash left at the current burn (income minus all weekly costs). Infinity when the club isn't losing money; 0 when already overdrawn. */
+export function weeksUntilBroke(s: GameState) {
+  if (s.budget < 0) return 0;
+  const burn = weeklyCosts(s).total - wageBreakdown(s).incomeWk;
+  return burn <= 0 ? Infinity : Math.floor(s.budget / burn);
 }

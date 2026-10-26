@@ -4,7 +4,8 @@ import type { GameState, Player } from './game.ts';
 import { askingPrice, club, copy, negotiate, renewContract, saleFee, sellPlayer, standings, windowOpen } from './game.ts';
 import { BENCH } from './lineup.ts';
 import { agentFee } from './finance.ts';
-import { wageLimit } from './budget.ts';
+import { wageLimit, weeksUntilBroke } from './budget.ts';
+import { loansOut } from './loans.ts';
 import { dofDiscount } from './staff.ts';
 import { suitability, slotsFor } from './lineup.ts';
 import { FORMATION_SLOTS, slotPeek, type Slot } from './positions.ts';
@@ -68,7 +69,8 @@ export const budgetLeft = (s: GameState) => { const p = plan(s); return inRed(s)
 /** Wage room for his deals: his plan and the board limit, whichever is tighter. */
 export const wageSpace = (s: GameState) => Math.min(plan(s).wage, wageLimit(s)) - bill(s);
 /** In the red: bank below zero or wages over the board limit. Signings freeze and the board forces sales. */
-export const inRed = (s: GameState) => s.budget < 0 || bill(s) > wageLimit(s);
+/** In the red: overdrawn, player wages over the limit, or (counting staff, manager and upkeep too) under 4 weeks from broke. */
+export const inRed = (s: GameState) => s.budget < 0 || bill(s) > wageLimit(s) || weeksUntilBroke(s) < 4;
 function note(s: GameState, line: string) {
   const p = plan(s);
   p.log = [`S${s.season} W${s.week}: ${line}`, ...p.log].slice(0, 30);
@@ -288,12 +290,27 @@ export function boardRescue(s: GameState): GameState {
   if (!inRed(s)) { if (s.mgr?.frozen) { delete s.mgr.frozen; note(s, 'Back in the black: the board lifts the signing freeze.'); } return s; }
   let b = s; const p = plan(b);
   if (!p.frozen) { p.frozen = true; note(b, `Board freeze: no signings while ${b.budget < 0 ? `the bank is overspent by £${-b.budget}k` : `wages are £${bill(b) - wageLimit(b)}k/wk over the limit`}.`); b.headlines = [`🧊 The board freezes signings: ${b.budget < 0 ? `overspent £${-b.budget}k` : 'wages over the limit'}. Sales will be forced until the books balance.`, ...b.headlines].slice(0, 6); }
-  if (!windowOpen(b) || ours(b).length <= 16) return b;
+  if (!windowOpen(b)) return s.budget < 0 ? emergencyLoan(b) : b;
+  if (ours(b).length <= 16) return b;
   const xi = new Set(ours(b).filter((x) => x.starting).map((x) => x.id));
   const out = ours(b).filter((x) => !xi.has(x.id) && !(x as any).loan && !isProtected(x)).sort((x, y) => y.wage - x.wage || x.id.localeCompare(y.id))[0];
   if (!out) return b;
   const n = sellPlayer(b, out.id);
   if (n !== b) { b = n; plan(b).sales++; note(b, `Board-forced sale: ${out.name} (£${out.wage}k/wk) to balance the books.`); b.headlines = [`🏦 Board-forced sale: ${out.name} leaves to balance the books.`, ...b.headlines].slice(0, 6); }
+  return b;
+}
+/** 3.2: overdrawn outside a window: send the top unprotected earner off the first team on loan (the taker pays his wages). */
+function emergencyLoan(b: GameState): GameState {
+  if (ours(b).length <= 16 || loansOut(b).length >= 10) return b;
+  const xi = new Set(ours(b).filter((x) => x.starting).map((x) => x.id)), top = [...ours(b)].sort((x, y) => y.wage - x.wage).slice(0, 6).map((x) => x.id);
+  const out = ours(b).filter((x) => top.includes(x.id) && !xi.has(x.id) && !(x as any).loan && !isProtected(x)).sort((x, y) => y.wage - x.wage || x.id.localeCompare(y.id))[0];
+  if (!out) return b;
+  const takers = b.clubs.filter((c) => c.id !== b.clubId).sort((x, y) => hash(`${b.seed}|eloan|${out.id}|${x.id}`) - hash(`${b.seed}|eloan|${out.id}|${y.id}`));
+  const to = takers[0]; if (!to) return b;
+  b.players = b.players.filter((x) => x.id !== out.id);
+  b.loansOut = [...loansOut(b), { ...out, starting: false, loanListed: false, loanClub: to.id }];
+  note(b, `Board emergency: ${out.name} (£${out.wage}k/wk) loaned to ${to.name} until season end; they pay his wages.`);
+  b.headlines = [`🏦 Overdrawn: ${out.name} goes on an emergency loan to ${to.name}, saving £${out.wage}k/wk.`, ...b.headlines].slice(0, 6);
   return b;
 }
 /** Before each match: he picks the side. */

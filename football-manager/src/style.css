@@ -4357,3 +4357,10 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 .contract-left { font-weight: 700; }
 .contract-actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
 @media (min-width: 700px) { .contract-list li { grid-template-columns: minmax(0, 1fr) auto auto; } .contract-actions { grid-column: auto; } }
+.demand-box{margin:.6rem 0;padding:.6rem .7rem;border-radius:12px;background:rgba(127,127,127,.08)}
+.demand-bar{height:8px;border-radius:6px;background:rgba(127,127,127,.2);overflow:hidden;margin:.35rem 0}
+.demand-bar span{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#65a30d)}
+.demand-reasons{list-style:none;padding:0;margin:.3rem 0 0;display:flex;flex-wrap:wrap;gap:.3rem}
+.demand-reasons li{font-size:.75rem;padding:.15rem .45rem;border-radius:999px;background:rgba(127,127,127,.12)}
+.demand-reasons li.up b{color:#15803d}.demand-reasons li.down b{color:#b91c1c}
+.st-btn small.muted{display:block;opacity:.7;font-size:.68rem}

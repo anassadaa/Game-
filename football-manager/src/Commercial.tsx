@@ -1,20 +1,28 @@
 import type { GameState } from './game.ts';
-import { ST_DISCOUNTS, TICKET_LEVELS, attendance, canSellSeasonTickets, homeGate, seasonTicketQuote, sellSeasonTickets, setTicketPrice, ticketShare, tickets } from './tickets.ts';
+import { ST_DISCOUNTS, TICKET_LEVELS, canSellSeasonTickets, matchDemand, seasonTicketQuote, sellSeasonTickets, setAutoTickets, setTicketPrice, ticketShare, tickets } from './tickets.ts';
+import { homeFixture, opponent } from './game.ts';
 
 type Up = (s: GameState, m?: string) => void;
 export function TicketsCard({ state, onUpdate }: { state: GameState; onUpdate: Up }) {
   const t = tickets(state), block = canSellSeasonTickets(state), st = t.st?.season === state.season ? t.st : undefined;
-  const cur = TICKET_LEVELS[t.price - 1]!;
+  const d = matchDemand(state), cur = TICKET_LEVELS[d.price - 1]!, home = homeFixture(state), opp = opponent(state);
   return (
     <section className="card tickets-card">
       <span className="eyebrow">🎟️ MATCHDAY</span>
-      <h3>Ticket prices · {cur.label}</h3>
+      <h3>Ticket prices · {t.auto ? `Auto (${cur.label})` : cur.label}</h3>
       <div className="segmented big-seg" role="radiogroup" aria-label="Ticket price">
         {TICKET_LEVELS.map((l) => (
-          <button key={l.id} role="radio" aria-checked={t.price === l.id} className={t.price === l.id ? 'active' : ''} disabled={!!state.match} onClick={() => onUpdate(setTicketPrice(state, l.id), `Tickets: ${l.label}.`)}>{'£'.repeat(l.id)}</button>
+          <button key={l.id} role="radio" aria-checked={!t.auto && t.price === l.id} className={!t.auto && t.price === l.id ? 'active' : ''} disabled={!!state.match} onClick={() => onUpdate(setTicketPrice(state, l.id), `Tickets: ${l.label}.`)}>{'£'.repeat(l.id)}</button>
         ))}
+        <button role="radio" aria-checked={!!t.auto} className={t.auto ? 'active' : ''} disabled={!!state.match} onClick={() => onUpdate(setAutoTickets(state, true), 'Tickets: auto (dynamic) pricing.')}>Auto</button>
       </div>
-      <p className="muted small">Crowd ~{Math.round(attendance(state) * 100)}% full · home gate ~£{homeGate(state)}k · fans {cur.fans > 0 ? `+${cur.fans}` : cur.fans < 0 ? cur.fans : '±0'} per home game</p>
+      {t.auto && <p className="small">🤖 {d.by} set {cur.label} for this match.</p>}
+      <div className="demand-box" aria-label="Expected crowd">
+        <b>{home ? `Next home: vs ${opp.short}` : `Away at ${opp.short} — next home match not this week`}</b>
+        <div className="demand-bar"><span style={{ width: `${Math.round(d.fill * 100)}%` }} /></div>
+        <p className="small">👥 ~{d.crowd.toLocaleString()} / {d.capacity.toLocaleString()} ({Math.round(d.fill * 100)}%{d.soldOut ? ' · sold out' : ''}) · gate ~£{d.gate}k · fans {cur.fans > 0 ? `+${cur.fans}` : cur.fans < 0 ? cur.fans : '±0'}</p>
+        <ul className="demand-reasons">{d.reasons.map((r) => <li key={r.label} className={r.pct > 0 ? 'up' : 'down'}>{r.label} <b>{r.pct > 0 ? '+' : ''}{r.pct}%</b></li>)}</ul>
+      </div>
       <h4>Season tickets</h4>
       {st ? (
         <p className="small">✅ Sold at {st.discount}% off: {Math.round(st.share * 100)}% of seats, £{st.upfront}k banked. Home gates are smaller this season.</p>
@@ -24,7 +32,7 @@ export function TicketsCard({ state, onUpdate }: { state: GameState; onUpdate: U
         <div className="st-grid">
           {ST_DISCOUNTS.map((d) => { const q = seasonTicketQuote(state, d); return (
             <button key={d} className="secondary st-btn" onClick={() => onUpdate(sellSeasonTickets(state, d), `Season tickets on sale at ${d}% off.`)}>
-              <b>{d}% off</b><small>£{q.upfront}k now · {Math.round(q.share * 100)}% seats{q.fans ? ` · fans +${q.fans}` : ''}</small>
+              <b>{d}% off</b><small>£{q.upfront}k now · {Math.round(q.share * 100)}% seats{q.fans ? ` · fans +${q.fans}` : ''}</small><small className="muted">{q.reasons.slice(0, 3).join(' · ')}</small>
             </button>); })}
         </div>
       )}

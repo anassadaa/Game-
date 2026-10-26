@@ -13,7 +13,7 @@ import { INTAKE_WEEK, youthIntake } from './youth.ts';
 import { type Difficulty, isDifficulty, level, adaptive } from './difficulty.ts';
 import { sharpness, weeklyTraining } from './training.ts';
 import type { TrainingReport } from './training.ts';
-import { facilities, facilitiesWeek, stadiumBonus } from './facilities.ts';
+import { facilities, facilitiesWeek } from './facilities.ts';
 import type { Facilities } from './facilities.ts';
 import { dressingWeek } from './dressing.ts';
 import { addTrophy, seasonAwards } from './stats.ts';
@@ -1641,7 +1641,7 @@ export function advanceWeek(s: GameState): GameState {
     .reduce((sum, p) => sum + p.wage, 0);
   const mult = level(b).money,
     tv = Math.round((league(club(b).division).tier === 1 ? 130 : 90) * mult),
-    gate = (m.home ? homeGate(b) : Math.round(35 * mult)) + stadiumBonus(b, m.home),
+    gate = m.home ? homeGate(b, { oppId: opp.id }) : Math.round(35 * mult),
     sponsor = commercialWeekly(b),
     income = tv + gate + sponsor;
   b.budget += income - wages;

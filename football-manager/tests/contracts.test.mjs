@@ -47,3 +47,12 @@ test('3.8: renewContract (used by the delegated manager) pays the dynamic ask, n
   const old = newGame(5), q = pick(old, (x) => { x.age = 35; x.wage *= 3; });
   const rr = renewContract(old, q.id, 1); assert.ok(rr.players.find((x) => x.id === q.id).wage < q.wage);
 });
+import { renewalPlan, renewYears } from '../src/contracts.ts';
+test('3.8: auto-renewal plan — length by age, lets declining veterans go, always keeps protected talent', () => {
+  assert.equal(renewYears({ age: 20 }), 5); assert.equal(renewYears({ age: 34 }), 1);
+  const s = newGame(5), p = pick(s);
+  const vet = { ...p, age: 35, rating: p.rating - 8 }; const v = renewalPlan(s, vet);
+  assert.equal(v.renew, false); assert.match(v.why, /declin|below/);
+  const star = renewalPlan(s, p); assert.equal(star.renew, true); assert.equal(star.ask, wageDemand(s, p, star.years).ask); assert.match(star.why, /%/);
+  assert.equal(renewalPlan(s, { ...vet, wonderkid: true }, true).renew, true);
+});

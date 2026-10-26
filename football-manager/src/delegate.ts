@@ -1,4 +1,4 @@
-import { wageDemand } from './contracts.ts';
+import { renewalPlan, renewYears } from './contracts.ts';
 // 2.9: the hired manager runs the football (Director / Owner-Director / Chairman careers).
 // Everything is deterministic (hash-based), scaled by his rating and style.
 import type { GameState, Player } from './game.ts';
@@ -149,15 +149,16 @@ export function manageContracts(s: GameState): GameState {
   const p0 = plan(s); let b = s; const mean = avg(b), m = b.hiredManager!;
   for (const p of ours(b).filter((x) => (x.contract ?? 9) <= 1 && !(x as any).loan).sort((x, y) => y.rating - x.rating)) {
     const prot = isProtected(p);
-    const key = prot || (p.rating >= mean - 1 + (3 - m.rating) * 0.5 && p.age <= 31 + (p.rating >= mean + 5 ? 2 : 0));
+    const rp = renewalPlan(b, p, prot);
+    const key = prot || (rp.renew && p.rating >= mean - 1 + (3 - m.rating) * 0.5);
     if (!key) {
-      if (b.week === 16 && !(p as any).letGo) { (p as any).letGo = b.season; note(b, `Will let ${p.name} (${slotPeek(p)}, ${p.age}) leave when his contract ends.`); }
+      if (b.week === 16 && !(p as any).letGo) { (p as any).letGo = b.season; note(b, `Will let ${p.name} (${slotPeek(p)}, ${p.age}) leave when his contract ends: ${rp.renew ? 'not good enough for the squad' : rp.why}.`); }
       continue;
     }
-    const rise = wageDemand(b, p, 3).ask - p.wage;
-    if (prot && bill(b) + rise > Math.min(p0.wage, wageLimit(b))) { ask(b, { kind: 'renew', playerId: p.id, name: p.name, wage: p.wage + rise }); continue; }
-    if (bill(b) + rise > Math.min(p0.wage, wageLimit(b))) { if (!(p as any).letGo) { (p as any).letGo = b.season; note(b, `Couldn't fit ${p.name}'s new deal in the £${p0.wage}k/wk wage budget.`); } continue; }
-    { const n = renewContract(b, p.id, 3); if (n === b) continue; b = n; } note(b, `Renewed ${p.name} (${slotPeek(p)}) for 3 years.`);
+    const rise = rp.ask - p.wage;
+    if (prot && bill(b) + rise > Math.min(p0.wage, wageLimit(b))) { ask(b, { kind: 'renew', playerId: p.id, name: p.name, wage: rp.ask }); continue; }
+    if (bill(b) + rise > Math.min(p0.wage, wageLimit(b))) { if (!(p as any).letGo) { (p as any).letGo = b.season; note(b, `Couldn't fit ${p.name}'s new deal (£${rp.ask}k/wk) in the £${p0.wage}k/wk wage budget.`); } continue; }
+    { const n = renewContract(b, p.id, rp.years); if (n === b) continue; b = n; } note(b, `Renewed ${p.name} (${slotPeek(p)}) for ${rp.years} year${rp.years > 1 ? 's' : ''} at £${rp.ask}k/wk (was £${p.wage}k): ${rp.why}.`);
   }
   return b;
 }
@@ -181,7 +182,7 @@ export function answerAsk(s: GameState, playerId: string, kind: MgrAsk['kind'], 
     if (approve === 'other' && kind === 'sell') { const next = saleCandidates(b, a.by ?? 'board')[0]; if (next) b = fairSale(b, next, a.by ?? 'board'); }
     return b;
   }
-  if (kind === 'renew') { const n = renewContract(b, playerId, 3); if (n === b) { note(b, `${a.name} is no longer ours to renew.`); return b; } b = n; note(b, `Renewed ${a.name} for 3 years (you approved).`); return b; }
+  if (kind === 'renew') { const px = b.players.find((y) => y.id === playerId), yrs = px ? renewYears(px) : 3; const n = renewContract(b, playerId, yrs); if (n === b) { note(b, `${a.name} is no longer ours to renew.`); return b; } b = n; note(b, `Renewed ${a.name} for ${yrs} year${yrs > 1 ? 's' : ''} at £${b.players.find((y) => y.id === playerId)?.wage}k/wk (you approved).`); return b; }
   const x = b.players.find((y) => y.id === playerId), fee = x ? Math.max(a.fee ?? 0, minSaleFee(x)) : 0;
   const n = x ? sellPlayer(b, playerId, fee) : b; if (n === b) { note(b, `The sale of ${a.name} fell through.`); return b; }
   b = n; plan(b).sales++; const to = b.clubs.find((c) => c.id === a.buyer)?.name;

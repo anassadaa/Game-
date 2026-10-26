@@ -1,4 +1,4 @@
-import { offerRenewal, wageDemand } from './contracts.ts';
+import { offerRenewal, renewalPlan, wageDemand } from './contracts.ts';
 import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquads.ts';
 import { cornerConv } from './setpieces.ts';
 import { repairSlots, slotPeek } from './positions.ts';
@@ -1468,6 +1468,11 @@ function rollSeason(s: GameState) {
       return false;
     }
     p.contract = (p.contract ?? 1) - 1;
+    if (p.contract <= 0 && p.clubId !== s.clubId && p.clubId !== 'market' && s.clubs.some((c) => c.id === p.clubId)) {
+      // 3.8: AI clubs re-sign players with the same demand model (or let them go).
+      const rp = renewalPlan(s, p, !!p.wonderkid);
+      if (rp.renew) { p.wage = rp.ask; p.contract = rp.years; }
+    }
     if (p.contract <= 0) {
       leaving.push(`${p.name} (contract expired)`);
       freed.push(p);

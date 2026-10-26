@@ -17,13 +17,14 @@ export const agentOf = (s: GameState, p: Pick<Player, 'id'>) => AGENTS[hash(`${s
 const PERS: Record<string, [number, number]> = { Ambitious: [10, 0.04], Loyal: [-8, 0.14], Temperamental: [5, 0.05], Leader: [3, 0.08], Professional: [0, 0.09], 'Easy-going': [-4, 0.12] };
 /** Clubs above us that would take him this season (hash-based, 0-3). */
 export function rivals(s: GameState, p: Player) {
-  const mine = s.clubs.find((c) => c.id === s.clubId)?.rating ?? 60;
-  const strong = s.clubs.filter((c) => c.id !== s.clubId && c.rating >= Math.max(mine, p.rating - 4));
+  const mine = s.clubs.find((c) => c.id === p.clubId)?.rating ?? 60;
+  const strong = s.clubs.filter((c) => c.id !== p.clubId && c.rating >= Math.max(mine, p.rating - 4));
   return Math.min(3, strong.filter((c) => unit(`${s.seed}|rival|${p.id}|${s.season}|${c.id}`) < (p.age <= 29 ? 0.08 : 0.03)).length);
 }
 export function wageDemand(s: GameState, p: Player, years: number): Demand {
   const r: Reason[] = [], add = (label: string, pct: number) => r.push({ label, pct: Math.round(pct) });
-  const squad = s.players.filter((x) => x.clubId === s.clubId && !x.loan && x.id !== p.id);
+  const home = p.clubId && p.clubId !== 'market' ? p.clubId : s.clubId;
+  const squad = s.players.filter((x) => x.clubId === home && !x.loan && x.id !== p.id);
   const sw = squad.reduce((a, x) => a + x.wage, 0), sp = squad.reduce((a, x) => a + Math.max(1, x.price), 0);
   const avgR = squad.reduce((a, x) => a + x.rating, 0) / Math.max(1, squad.length), avgW = sw / Math.max(1, squad.length);
   const cur = Math.max(1, p.wage);
@@ -31,14 +32,14 @@ export function wageDemand(s: GameState, p: Player, years: number): Demand {
   const byValue = (p.price || 0) * (sw / Math.max(1, sp));
   add(`Market value £${((p.price || 0) / 1000).toFixed(1)}m vs current pay`, clamp((byValue / cur - 1) * 50, -25, 40));
   // Club wage structure: where his rating sits among team-mates (and the league tier).
-  const c = s.clubs.find((x) => x.id === s.clubId), lg = c ? league(c.division) : undefined;
+  const c = s.clubs.find((x) => x.id === home), lg = c ? league(c.division) : undefined;
   const struct = avgW * (1 + (p.rating - avgR) * 0.05);
   add(`Wage structure${lg ? ` (${lg.name})` : ''}: rating ${p.rating} vs squad ${Math.round(avgR)}`, clamp((struct / cur - 1) * 30, -15, 25));
   add(`Age ${p.age}${p.potential > p.rating && p.age < 24 ? `, potential ${p.potential}` : ''}`,
     p.age >= 30 ? -(p.age - 29) * 5 : p.age < 24 ? 3 + Math.min(12, Math.max(0, p.potential - p.rating) * 0.8) : 2);
   const apps = p.apps ?? 0, avg = apps ? (p.ratingSum ?? 0) / apps : 0;
   add(apps >= 3 ? `Form: average rating ${avg.toFixed(2)}` : 'Form: too few games to judge', apps >= 3 ? clamp((avg - 6.8) * 12, -12, 15) : 0);
-  const games = Math.max(1, ...s.players.filter((x) => x.clubId === s.clubId).map((x) => x.apps ?? 0));
+  const games = Math.max(1, ...s.players.filter((x) => x.clubId === home).map((x) => x.apps ?? 0));
   const share = apps / games;
   add(p.starting || share >= 0.6 ? 'Squad status: key starter' : share >= 0.3 ? 'Squad status: rotation' : 'Squad status: fringe (few apps)', p.starting || share >= 0.6 ? 6 : share >= 0.3 ? 0 : -8);
   add(`Position: ${p.position}`, p.position === 'FW' ? 5 : p.position === 'GK' ? -5 : 0);
@@ -75,4 +76,27 @@ export function offerRenewal(s: GameState, id: string, years: number, wage: numb
   }
   const b = copy(s), t = b.players.find((x) => x.id === id)!; t.morale = clamp(t.morale - (p.personality === 'Temperamental' ? 8 : 4));
   return { state: b, result: 'refused', message: `${p.name} is insulted by £${wage}k/wk and walks out of talks.`, demand: d };
+}
+
+/** Contract length a club offers: long for the young, short for veterans. */
+export const renewYears = (p: Pick<Player, 'age'>) => p.age <= 24 ? 5 : p.age <= 28 ? 4 : p.age <= 30 ? 3 : p.age <= 32 ? 2 : 1;
+export type RenewPlan = { renew: boolean; years: number; ask: number; why: string };
+/**
+ * 3.8: should the club (a delegated manager or an AI club) keep him, for how long and at what wage?
+ * Uses the same demand model as the negotiation screen; protected/wonderkid players are always kept.
+ */
+export function renewalPlan(s: GameState, p: Player, protectedPlayer = false): RenewPlan {
+  const years = renewYears(p), d = wageDemand(s, p, years);
+  const home = p.clubId && p.clubId !== 'market' ? p.clubId : s.clubId;
+  const sq = s.players.filter((x) => x.clubId === home && !x.loan);
+  const mean = sq.reduce((a, x) => a + x.rating, 0) / Math.max(1, sq.length);
+  const sw = sq.reduce((a, x) => a + x.wage, 0), sp = sq.reduce((a, x) => a + Math.max(1, x.price), 0);
+  const worth = Math.max(1, (p.price || 0) * (sw / Math.max(1, sp)));
+  const top = d.reasons.filter((r) => r.pct !== 0).sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 3).map((r) => `${r.label} ${r.pct > 0 ? '+' : ''}${r.pct}%`).join('; ');
+  const out = (renew: boolean, why: string): RenewPlan => ({ renew, years, ask: d.ask, why: `${why}${top ? ` (${top})` : ''}` });
+  if (protectedPlayer) return out(true, 'protected talent');
+  if (p.age >= 33 && p.rating < mean + 3) return out(false, `declining at ${p.age}`);
+  if (p.rating < mean - 4) return out(false, `below squad level (${p.rating} vs ${Math.round(mean)})`);
+  if (d.ask > worth * 1.6 && p.rating < mean + 5) return out(false, `asks £${d.ask}k/wk, worth about £${Math.round(worth)}k`);
+  return out(true, `ask £${d.ask}k/wk vs worth about £${Math.round(worth)}k`);
 }

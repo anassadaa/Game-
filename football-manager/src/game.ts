@@ -2,6 +2,8 @@ import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquad
 import { cornerConv } from './setpieces.ts';
 import { repairSlots, slotPeek } from './positions.ts';
 import { initValues, targetValue, valuesWeek } from './value.ts';
+import { aiLeagueMatch, archiveStats, ensureStats, ourLeagueMatch, squadsByClub } from './leaguestats.ts';
+import type { LeagueStats, StatArchive } from './leaguestats.ts';
 import type { Slot } from './positions.ts';
 import { passage, reason, segmentStats, shotStat } from './narrate.ts';
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
@@ -300,6 +302,10 @@ export type GameState = {
   loansOut?: Player[];
   /** 3.4: market-value model version; set once values are on the dynamic model. */
   valueModel?: number;
+  /** 3.5: this season's league stats for every player (AI games are simulated per player). */
+  lstats?: LeagueStats;
+  /** 3.5: top-20 leaderboards of the last 3 seasons. */
+  lstatsHist?: StatArchive[];
   lineup?: string[];
   bench?: string[];
   autoSubs?: boolean;
@@ -602,6 +608,7 @@ export function migrate(s: GameState): GameState {
   s.drills ??= [];
   facilities(s);
   if (!s.bench) topUpBench(s);
+  ensureStats(s);
   if (!s.valueModel) initValues(s); // 3.4: old saves move onto the dynamic value model once
   return s;
 }
@@ -1406,6 +1413,7 @@ function train(s: GameState) {
 /** Reserve sides can never go up. */
 const RESERVE_SIDES = new Set(['sociedadb', 'benficab', 'portob', 'sportingb']);
 function rollSeason(s: GameState) {
+  archiveStats(s); // 3.5: before season numbers are reset
   resetSquadRefs(s);
   const table = standings(s),
     pyr = pyramidOf(club(s).division),
@@ -1581,6 +1589,8 @@ export function advanceWeek(s: GameState): GameState {
   b.careerGames++;
   if (m.us > m.them) b.careerWins++;
   checkAchievements(b);
+  const squads = squadsByClub(b);
+  ourLeagueMatch(b, squads, m);
   for (const division of [...new Set(b.clubs.map((c) => c.division))]) {
     const pairs = roundPairs(
       b.clubs.filter((c) => c.division === division).map((c) => c.id),
@@ -1592,6 +1602,7 @@ export function advanceWeek(s: GameState): GameState {
         c = b.clubs.find((c) => c.id === bid)!;
       const [ga, gb] = simulateScore(b, squadClub(b, a), squadClub(b, c));
       result(a, c, ga, gb);
+      aiLeagueMatch(b, squads, a.id, c.id, ga, gb);
     }
   }
   const wages = b.players

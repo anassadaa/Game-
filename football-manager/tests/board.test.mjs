@@ -7,7 +7,7 @@ const play = (s) => { s = startMatch(s); while (!s.match.complete) s = advanceMa
 test('board sets an objective and sacks on collapse; job offers move you to a new club', () => {
   let s = newGame(21);
   assert.ok(s.board.objective.length > 5 && s.board.target >= 1);
-  s.trust = 5; s.week = 5;
+  s.trust = 1; s.week = 5; s.board.target = 1; // 3.7: a real collapse — trust gone and below target
   s = play(s);
   assert.equal(s.sacked, true);
   assert.ok(s.offers.length > 0);

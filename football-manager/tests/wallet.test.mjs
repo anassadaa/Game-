@@ -8,9 +8,9 @@ test('starting wallet and stake by mode', () => {
   assert.equal(myStake(g('chairman')), 100); assert.equal(myStake(g('owner')), 100);
   assert.ok(wallet(g('owner')).cash > wallet(g('director')).cash); assert.ok(wallet(g('director')).cash > wallet(newGame(3)).cash);
 });
-test('weekly salary paid from club to wallet (director > chairman)', () => {
+test('weekly salary paid from club to wallet (3.8: chairman out-earns director; both scale with the club)', () => {
   const pay = (m) => { const s = g(m); const w = wallet(s).cash, b = s.budget; walletWeek(s); assert.equal(s.budget, b - (wallet(s).cash - w)); return wallet(s).cash - w; };
-  const d = pay('director'), c = pay('chairman'), m = pay('manager'); assert.ok(d > c && c > 0 && m > 0);
+  const d = pay('director'), c = pay('chairman'), m = pay('manager'); assert.ok(c >= d && d > 0 && m > 0);
 });
 test('valuation positive; buy back investor shares lowers their stake', () => {
   const s = g('owner'); s.investor = { stakes: 30, raised: 500 }; wallet(s).cash = 1e7;

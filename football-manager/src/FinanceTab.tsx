@@ -5,7 +5,7 @@ import { rescueNeed, wageBill, wageLimit, weeksUntilBroke } from './budget.ts';
 import { autoBudget, budgetLeft, delegated, inRed, plan } from './delegate.ts';
 import { compensation, endOf } from './managers.ts';
 import { ledger } from './finance.ts';
-import { injectCash, myStake, weeklySalary } from './wallet.ts';
+import { injectCash, myStake, weeklySalary, execPay, PAYOUT } from './wallet.ts';
 
 type Up = (s: GameState, m?: string) => void;
 const m = (n: number) => (Math.abs(n) >= 1000 ? `£${(n / 1000).toFixed(1)}m` : `£${Math.round(n)}k`);
@@ -86,6 +86,11 @@ export function FinanceTab({ state, onUpdate }: { state: GameState; onUpdate: Up
             {w.owed ? <div><span>Pay deferred</span><b>{m(w.owed)}</b></div> : null}
             {w.loan ? <div><span>Loan to club</span><b>{m(w.loan)}</b></div> : null}
           </div>
+          {(() => { const p = execPay(state), prev = state.ledger?.prev, profit = prev ? prev.income - prev.costs : 0, est = Math.round(Math.max(0, profit) * PAYOUT[w.policy] * myStake(state) / 100); return <>
+            <details className="pay-why" open><summary>Pay target £{p.target}k/wk · reviewed every 4 weeks</summary><ul>{p.parts.map(x => <li key={x.label}><span>{x.label}</span><b className={x.value < 0 ? 'neg' : 'pos'}>{x.value >= 0 ? '+' : '−'}£{Math.abs(x.value).toFixed(1)}k</b></li>)}</ul><p className="muted small">Benchmarked on real boardroom pay (top directors take ~0.4–1.1% of revenue, 1–3% of the wage bill). Reviews close a third of the gap each time, plus a swing for results, profit and fans.</p></details>
+            <p className="pay-div">Dividend policy: <b>{PAYOUT[w.policy] * 100}% of profit</b>{prev ? <> · last season {profit >= 0 ? `£${profit}k profit` : `£${-profit}k loss`} → about <b>{m(est)}</b> to you</> : null}</p>
+            {!!w.log?.length && <ul className="pay-log">{w.log.slice(0, 5).map((e, i) => <li key={i}><small>S{e.season} W{e.week}</small> {e.reason}{e.amount ? <b className={e.amount < 0 ? 'neg' : 'pos'}> {e.amount > 0 ? '+' : ''}£{e.amount}k</b> : null}</li>)}</ul>}
+          </>; })()}
         </section>
       )}
     </div>

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, takeJob } from '../src/game.ts';
 import { setMode } from '../src/managers.ts';
-import { wallet, buyShares, sellShares, injectCash, repayLoan, dividendSeason, myStake, valuation, salaryReview } from '../src/wallet.ts';
+import { wallet, buyShares, sellShares, injectCash, repayLoan, dividendSeason, myStake, valuation, salaryReview, weeklySalary } from '../src/wallet.ts';
 import { investorWeek, acceptInvestment } from '../src/investors.ts';
 import { closeLedger, totalIn, totalOut } from '../src/finance.ts';
 import { encodeSave, decodeSave } from '../src/save.ts';
@@ -120,8 +120,8 @@ test('valid v2.3 wallet and missing-wallet saves still load', () => {
 
 test('season-end salary review retains completed season transfer profit', () => {
   const s = game('director'); wallet(s); s.ledger.inc.sales = 1000; s.ledger.out.signings = 100; s.budget += 900; s.ledger.last = s.budget;
-  const pay = s.wallet.cash; closeLedger(s);
+  const pay = s.wallet.cash; closeLedger(s); const base = weeklySalary(s);
   salaryReview(s, 10, { outcome: 'Stayed the course', trophies: 0 });
-  assert.equal(s.wallet.cash - pay, 36); // director base £9k x four weeks
+  assert.equal(s.wallet.cash - pay, base * 4); // profitable-sales bonus: four weeks of the pre-review base
   assert.ok(s.wallet.log.some(e => e.kind === 'bonus' && e.reason.includes('profitable sales')));
 });

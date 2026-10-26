@@ -4324,3 +4324,12 @@ tr.tappable:active td { background: rgba(255,255,255,.06); }
 .inv-drivers li span{min-width:0;overflow-wrap:anywhere}
 .inv-drivers li b{white-space:nowrap}
 .inv-drivers .inv-drv-sum{font-style:italic;border-bottom:0}
+.pay-why{margin:.6rem 0;font-size:.85rem}
+.pay-why summary{cursor:pointer;font-weight:600;padding:.3rem 0}
+.pay-why ul,.pay-log{list-style:none;margin:.3rem 0;padding:0}
+.pay-why li{display:flex;justify-content:space-between;gap:.75rem;padding:.25rem 0;border-bottom:1px solid rgba(127,127,127,.15)}
+.pay-why li span{min-width:0;overflow-wrap:anywhere}
+.pay-why li b{white-space:nowrap}
+.pay-log li{font-size:.8rem;padding:.25rem 0;border-bottom:1px solid rgba(127,127,127,.12);overflow-wrap:anywhere}
+.pay-log small{opacity:.7;margin-right:.3rem}
+.pay-div{font-size:.85rem;margin:.4rem 0}

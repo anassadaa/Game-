@@ -1,7 +1,9 @@
 // Personal finances: wallet, salary, dividends, shares and cash injections. Pure arithmetic, no randomness.
 import { clubEV } from './valuation.ts';
 import type { GameState } from './game.ts';
-import { clamp, club, copy } from './game.ts';
+import { clamp, club, copy, standings } from './game.ts';
+import { wageBill } from './budget.ts';
+import { league } from './world.ts';
 import { book, earnedIncome, earnedCosts } from './finance.ts';
 import { level } from './difficulty.ts';
 import { marketClubs, quoteTrade, executeTrade, fundClub, repayClubLoan, clubDecision } from './investments.ts';
@@ -9,7 +11,7 @@ import { marketClubs, quoteTrade, executeTrade, fundClub, repayClubLoan, clubDec
 export type Policy = 'none' | 'low' | 'high';
 export type WalletEntry = { season: number; week: number; kind: 'salary' | 'bonus' | 'dividend'; amount: number; reason: string };
 export type ClubHolding = { stake: number; loan: number; investorStakes: number; investorRaised: number };
-export type Wallet = { cash: number; stake: number; salary: number; dividends: number; loan: number; policy: Policy; base?: number; owed?: number; investorMood?: number; log?: WalletEntry[]; holdings?: Record<string, ClubHolding> };
+export type Wallet = { cash: number; stake: number; salary: number; dividends: number; loan: number; policy: Policy; base?: number; owed?: number; investorMood?: number; payV?: number; log?: WalletEntry[]; holdings?: Record<string, ClubHolding> };
 const hash = (str: string) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
 const note = (s: GameState, e: Omit<WalletEntry, 'season' | 'week'>) => { const w = wallet(s); w.log = [{ season: s.season, week: s.week, ...e }, ...(w.log ?? [])].slice(0, 12); };
 const mode = (s: GameState) => s.mode ?? 'manager';
@@ -20,14 +22,56 @@ export function wallet(s: GameState): Wallet {
   if (s.wallet) return s.wallet;
   const r = club(s).rating, m = mode(s);
   const cash = Math.round((m === 'manager' ? 1 : m === 'director' ? 4 : 20) * r * level(s).money);
-  return (s.wallet = { cash, stake: owns(s) ? 100 - (s.investor?.stakes ?? 0) : 0, salary: 0, dividends: 0, loan: 0, policy: 'low' });
+  return (s.wallet = { cash, stake: owns(s) ? 100 - (s.investor?.stakes ?? 0) : 0, salary: 0, dividends: 0, loan: 0, policy: 'low', payV: 1 });
 }
 /** Owners hold whatever investors don't; directors/managers hold what they bought. */
 export function myStake(s: GameState) { const w = wallet(s); return owns(s) ? Math.max(0, 100 - (s.investor?.stakes ?? 0)) : w.stake; }
-/** Stature base: what the role is worth at this club before any board review. */
-export function statureSalary(s: GameState) {
-  const r = club(s).rating, m = mode(s);
-  return Math.max(1, Math.round((m === 'director' ? r * 0.15 : m === 'manager' ? r * 0.12 : r * 0.06) * level(s).money));
+/**
+ * 3.8: executive pay, researched against real club accounts (2024/25): the top director takes ~0.4–1.1% of revenue
+ * and 1–3% of the wage bill at big clubs (Levy £5.8m at Spurs), a larger share of the wage bill at small clubs.
+ * Our target: a revenue share + a wage-bill share + club and squad value terms, scaled by role, league tier/strength,
+ * team quality, league position vs target, form and profit. £k per week.
+ */
+export type PayPart = { label: string; value: number };
+export function execPay(s: GameState, pos?: number): { target: number; parts: PayPart[] } {
+  const m = mode(s), c = club(s), lg = league(c.division), parts: PayPart[] = [];
+  const legacy = Math.max(1, Math.round((m === 'director' ? c.rating * 0.15 : m === 'manager' ? c.rating * 0.12 : c.rating * 0.06) * level(s).money));
+  if (m === 'manager') return { target: legacy, parts: [{ label: 'Stature of the club', value: legacy }] };
+  const l = s.ledger, seasonInc = l?.prev?.income ?? (l && s.week > 2 ? earnedIncome(l) / s.week * 18 : c.rating * 35 * 18 / 10);
+  const revWk = Math.max(0, seasonInc / 18), wages = wageBill(s);
+  let val = 0; try { val = valuation(s); } catch { val = 0; }
+  const mv = s.players.filter((p) => p.clubId === s.clubId).reduce((a, p) => a + (p.price || 0), 0);
+  const add = (label: string, v: number) => parts.push({ label, value: Math.round(v * 10) / 10 });
+  add(`Revenue share (£${Math.round(revWk)}k/wk revenue)`, revWk * 0.02);
+  add(`Wage bill share (£${Math.round(wages)}k/wk)`, wages * 0.03);
+  add(`Club value £${(val / 1000).toFixed(1)}m`, val * 0.0002);
+  add(`Squad value £${(mv / 1000).toFixed(1)}m`, mv * 0.0006);
+  const core = parts.reduce((a, p) => a + p.value, 0);
+  const div = s.clubs.filter((x) => x.division === c.division), avg = div.reduce((a, x) => a + x.rating, 0) / Math.max(1, div.length);
+  const table = standings(s).filter((x) => x.division === c.division);
+  const here = pos ?? (table.findIndex((x) => x.id === c.id) + 1 || Math.ceil(div.length / 2)), tgt = s.board?.target ?? here;
+  const f = c.form.slice(-5), fs = f.reduce((a, r) => a + (r === 'W' ? 1 : r === 'L' ? -1 : 0), 0);
+  const profit = l ? (l.prev ? l.prev.income - l.prev.costs : earnedIncome(l) - earnedCosts(l)) : 0;
+  const mults: [string, number][] = [
+    [m === 'owner' ? 'Role: owner & executive chair' : m === 'chairman' ? 'Role: chairman' : 'Role: director', m === 'owner' ? 1 : m === 'chairman' ? 0.9 : 0.8],
+    [`League: ${lg.name} (tier ${lg.tier}), strength ${Math.round(avg)}`, (lg.tier === 1 ? 1 : 0.8) * Math.max(0.8, Math.min(1.25, 0.85 + (avg - 60) / 80))],
+    [`Team quality ${c.rating} vs league ${Math.round(avg)}`, Math.max(0.85, Math.min(1.2, 1 + (c.rating - avg) / 100))],
+    [`League position ${here} vs target ${tgt}`, 1 + 0.04 * Math.max(-5, Math.min(5, tgt - here))],
+    [`Form ${f.join('') || '—'}`, 1 + fs * 0.02],
+    [profit >= 0 ? 'Club profit' : 'Club losses', profit > 0 ? 1.1 : profit < 0 ? 0.9 : 1],
+  ];
+  let t = core;
+  for (const [label, k] of mults) { const before = t; t *= k; add(label, t - before); }
+  return { target: Math.max(1, Math.round(t * level(s).money)), parts };
+}
+/** Pay target for the role (kept under its old name for callers). */
+export function statureSalary(s: GameState) { return execPay(s).target; }
+/** 3.8 save migration: owner/chairman/director pay is recalculated once from the new model. */
+export function migratePay(s: GameState) {
+  if (mode(s) === 'manager' || !s.wallet || s.wallet.payV === 1) return;
+  const w = s.wallet, old = weeklySalary(s), t = execPay(s).target;
+  w.payV = 1;
+  if (t > old) { w.base = t; note(s, { kind: 'salary', amount: t - old, reason: `Pay recalculated for 3.8: £${old}k → £${t}k/wk (revenue, wages, club & squad value, league, role, position)` }); }
 }
 export function weeklySalary(s: GameState) { return s.wallet?.base ?? statureSalary(s); }
 /**
@@ -36,7 +80,7 @@ export function weeklySalary(s: GameState) { return s.wallet?.base ?? statureSal
  */
 export function salaryReview(s: GameState, pos: number, end?: { outcome: string; trophies: number }) {
   if (mode(s) === 'manager') return;
-  const w = wallet(s), base = weeklySalary(s), stat = statureSalary(s), why: string[] = [];
+  const w = wallet(s), base = weeklySalary(s), stat = execPay(s, pos).target, why: string[] = [];
   const l = end ? s.ledger?.prev : s.ledger && { income: earnedIncome(s.ledger), costs: earnedCosts(s.ledger) };
   const profit = l ? l.income - l.costs : 0;
   const net = end ? (s.ledger?.prev?.transferNet ?? 0) : s.ledger ? s.ledger.inc.sales - s.ledger.out.signings : 0;
@@ -55,7 +99,10 @@ export function salaryReview(s: GameState, pos: number, end?: { outcome: string;
     if (net > 0 && profit > 0) { bonus += base * 4; why.push('profitable sales'); }
   }
   pct *= pct > 0 ? level(s).money : 2 - level(s).money;
-  const next = Math.max(Math.max(1, Math.round(stat * 0.5)), Math.min(Math.round(stat * 3), Math.round(base * (1 + pct / 100))));
+  // 3.8: close a third of the gap to the researched target each review, then apply the performance swing.
+  const drift = base + (stat - base) * 0.35;
+  if (Math.abs(stat - base) >= 1) why.unshift(`${stat > base ? 'toward' : 'back toward'} £${stat}k target (${execPay(s, pos).parts.slice(0, 2).map((p) => p.label.split(' (')[0].toLowerCase()).join(' + ')})`);
+  const next = Math.max(Math.max(1, Math.round(stat * 0.5)), Math.min(Math.round(stat * 1.6), Math.round(drift * (1 + pct / 100))));
   w.base = next;
   const reason = why.join(', ') || 'steady';
   if (next !== base) note(s, { kind: 'salary', amount: next - base, reason: `${end ? 'Season review' : 'Board review'}: £${base}k → £${next}k/wk (${reason})` });
@@ -185,6 +232,7 @@ export function validWallet(s: Pick<GameState, 'wallet'>): boolean {
   if (!w || !['cash', 'salary', 'dividends', 'loan'].every(k => money(w[k as keyof Wallet])) || !pct(w.stake) || !['none', 'low', 'high'].includes(w.policy)) return false;
   if (w.base !== undefined && (!money(w.base) || w.base < 1)) return false;
   if (w.investorMood !== undefined && !pct(w.investorMood)) return false;
+  if (w.payV !== undefined && w.payV !== 1) return false;
   if (w.owed !== undefined && (!Number.isFinite(w.owed) || w.owed < 0)) return false;
   if (w.log !== undefined && (!Array.isArray(w.log) || w.log.length > 12 || !w.log.every(e => e && Number.isInteger(e.season) && e.season >= 1 && e.season <= 1000 && Number.isInteger(e.week) && e.week >= 0 && e.week <= 18 && ['salary', 'bonus', 'dividend'].includes(e.kind) && Number.isFinite(e.amount) && Math.abs(e.amount) <= 1e9 && typeof e.reason === 'string' && e.reason.length <= 500))) return false;
   if (w.holdings !== undefined && (!w.holdings || typeof w.holdings !== 'object' || Array.isArray(w.holdings) || Object.keys(w.holdings).length > 300 || !Object.entries(w.holdings).every(([id, h]) => id.length > 0 && id.length < 100 && !['__proto__', 'constructor', 'prototype'].includes(id) && h && pct(h.stake) && money(h.loan) && pct(h.investorStakes) && h.stake + h.investorStakes <= 100 && money(h.investorRaised)))) return false;

@@ -29,7 +29,7 @@ import { judgeScenario } from './scenario.ts';
 import { managerWeek, voteRisk } from './managers.ts';
 import { delegateSelect, delegateWeek, delegated } from './delegate.ts';
 import { investorWeek } from './investors.ts';
-import { walletWeek, dividendSeason, salaryReview, moveWallet, myStake, sharePrice, wallet } from './wallet.ts';
+import { migratePay, walletWeek, dividendSeason, salaryReview, moveWallet, myStake, sharePrice, wallet } from './wallet.ts';
 import { investmentWeek, leaveInvestmentJob, joinInvestmentJob, investmentStrength, investmentTransferBlock, investmentTransferPayment, makeTransfer } from './investments.ts';
 import type { WageBudget } from './budget.ts';
 import { book, closeLedger, ledger, seasonPayout, sync, weekNet } from './finance.ts';
@@ -531,6 +531,7 @@ export function migrate(s: GameState): GameState {
   if (!s.rivals) makeRivals(s);
   s.board ??= boardTarget(s);
   migrateTrust(s);
+  migratePay(s);
   s.offers ??= [];
   s.sacked ??= false;
   if (!isDifficulty(s.difficulty)) s.difficulty = 'medium';

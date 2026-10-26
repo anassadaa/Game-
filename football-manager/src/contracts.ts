@@ -95,7 +95,12 @@ export function offerRenewal(s: GameState, id: string, years: number, wage: numb
   const live = old && !old.lockUntil ? old : undefined;
   const standing = live && live.years === years ? live.counter : undefined;
   const tm = temperament(s, p, live?.insults ?? 0), why = tm.reasons;
-  if (wage >= ask || (!locked && (wage >= floor || (standing !== undefined && wage >= standing)))) {
+  const lowball = wage < floor - ask * tm.zone;
+  // A counter must be a whole number strictly between the offer and the ask (and above 85% of the ask).
+  const counterLo = Math.max(Math.floor(wage) + 1, Math.floor(ask * 0.85) + 1);
+  const counterHi = ask - 1;
+  const noCounter = !lowball && counterLo > counterHi;
+  if (wage >= ask || (!locked && (wage >= floor || (standing !== undefined && wage >= standing) || noCounter))) {
     const b = copy(s), t = b.players.find((x) => x.id === id)!;
     t.wage = Math.round(wage); t.contract = years;
     if (withClause) t.clause = Math.max(Math.round(t.price * 1.2), Math.round(clause!));
@@ -105,7 +110,7 @@ export function offerRenewal(s: GameState, id: string, years: number, wage: numb
   }
   if (locked) return { state: s, result: 'refused', message: `${p.name} won't talk for another ${locked} week${locked > 1 ? 's' : ''} (only his full ask of £${ask}k/wk would do).`, demand: d, why };
   const b = copy(s), t = b.players.find((x) => x.id === id)!, rounds = (live?.rounds ?? 0) + 1;
-  const pers = p.personality ?? 'Professional', lowball = wage < floor - ask * tm.zone;
+  const pers = p.personality ?? 'Professional';
   const insults = (live?.insults ?? 0) + (lowball ? 1 : 0);
   const walk = rounds >= tm.rounds || (lowball && pers === 'Temperamental' && insults >= 2);
   if (walk) {
@@ -114,10 +119,12 @@ export function offerRenewal(s: GameState, id: string, years: number, wage: numb
     return { state: b, result: 'refused', walkedOut: true, message: `${p.name} walks out after ${rounds} round${rounds > 1 ? 's' : ''}. No talks for ${LOCK_WEEKS} weeks.`, demand: d, why };
   }
   if (!lowball) {
-    // Fixed counter between floor and ask; never rises, eases by his temperament each further round.
+    // Fixed counter between the offer and the ask; never rises, eases by his temperament each further round.
     const fresh = Math.max(Math.ceil(floor), Math.round(ask - (ask - floor) * 0.5));
     const prev = live?.counter;
-    const counter = prev !== undefined ? Math.max(Math.ceil(floor), Math.min(prev - (tm.soften > 0 ? 1 : 0), Math.round(prev * (1 - tm.soften)))) : fresh;
+    const raw = prev !== undefined ? Math.max(Math.ceil(floor), Math.min(prev - (tm.soften > 0 ? 1 : 0), Math.round(prev * (1 - tm.soften)))) : fresh;
+    const hi = prev !== undefined ? Math.min(counterHi, prev) : counterHi;
+    const counter = Math.max(counterLo, Math.min(hi, raw));
     setTalks(b, id, { years, rounds, counter, insults });
     const left = tm.rounds - rounds;
     return { state: b, result: 'countered', counter, message: `${p.name}'s agent counters at £${counter}k/wk${prev !== undefined ? (counter < prev ? ' (softened)' : ' (holding firm)') : ''}. ${left} round${left === 1 ? '' : 's'} of patience left.`, demand: d, why };

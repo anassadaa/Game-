@@ -81,7 +81,7 @@ export function PlayerModal({ state, id, onClose, onOffer }: { state: GameState;
         <div className="pp-body">
           <div className="pp-top">
             <span><small>Ability</small><b>{pr.ability}</b></span>
-            <span><small>Potential</small><b>{pr.potential}</b></span>
+            <span><small>Potential</small><b>{pr.potential}</b><small className="pp-conf">{pr.potentialConf}{pr.potentialTrend ? ' ' + pr.potentialTrend : ''}</small></span>
             {pr.fitness !== null && <span><small>Fitness</small><b>{pr.fitness}%</b></span>}
             {pr.morale !== null && <span><small>Morale</small><b>{pr.morale}</b></span>}
           </div>

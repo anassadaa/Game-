@@ -3,7 +3,7 @@ import { isProtected, PROTECTED_BADGE } from './protect.ts';
 import type { GameState, Player } from './game.ts';
 import { attributes } from './game.ts';
 const ATTR_LABEL: Record<string, string> = { pace: 'Pace', shooting: 'Shooting', passing: 'Passing', defending: 'Defending', stamina: 'Stamina', mental: 'Mental', goalkeeping: 'Goalkeeping' };
-import { abilityRange, potentialRange, rangeText, scouted } from './scoutrange.ts';
+import { abilityRange, potentialConfidence, potentialRange, rangeText, scouted } from './scoutrange.ts';
 import { ext, EXT_LABEL, slotOf, footOf, FOOT_LABEL } from './positions.ts';
 import { hidden, HIDDEN_LABEL, leadership, ppms, PPM_LABEL } from './traits.ts';
 import { injuryName } from './injuries.ts';
@@ -49,7 +49,7 @@ export function pidFromTexts(s: GameState, texts: string[]): string | null {
 
 export type Profile = {
   id: string; name: string; age: number; position: string; slot: string; foot: string; club: string; value: number; ours: boolean; scouted: boolean; protected: boolean;
-  ability: string; potential: string; personality: string; leadership: number | null;
+  ability: string; potential: string; potentialConf: string; potentialTrend: '▲' | '▼' | ''; personality: string; leadership: number | null;
   attrs: { label: string; value: string }[]; hidden: { label: string; value: number }[] | null;
   traits: string[]; contract: string; injury: string | null; status: string[];
   stats: { label: string; value: string }[]; fitness: number | null; morale: number | null;
@@ -92,6 +92,8 @@ export function playerProfile(s: GameState, id: string): Profile | null {
   return {
     id: p.id, name: p.name, age: p.age, position: p.position, slot: slotOf(p), foot: FOOT_LABEL[footOf(p)], club: clubName, value: p.price, ours, scouted: sc, protected: prot,
     ability: rangeText(ab), potential: rangeText(potentialRange(s, p)),
+    potentialConf: potentialConfidence(s, p),
+    potentialTrend: ours ? (p.potTrend === 1 ? '▲' : p.potTrend === -1 ? '▼' : '') : '',
     personality: ours || sc ? p.personality ?? 'Unknown' : 'Unknown — scout him', leadership: ours || sc ? leadership(p) : null,
     attrs, hidden: hid, traits: ppms(p).map((t) => PPM_LABEL[t]),
     contract: p.loan ? 'On loan' : p.clubId === 'market' ? `Free agent · asks £${p.wage}k/wk` : `${p.contract ?? '?'}y left · £${p.wage}k/wk${p.clause ? ` · clause £${p.clause}k` : ''}`,

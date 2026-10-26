@@ -2,6 +2,7 @@
 // Plus a seasonal board recruitment ask. Ranges use a hash, never the match RNG.
 import type { GameState, Player, Position } from './game.ts';
 import { clamp } from './game.ts';
+import { scoutEstimate } from './potential.ts';
 
 function h(str: string) {
   let x = 2166136261;
@@ -23,10 +24,30 @@ export function abilityRange(s: GameState, p: Player): [number, number] {
   if (r) return r.est;
   return band(p.rating, p.clubId === 'market' ? 4 : 8, `${p.id}|ab`);
 }
+function estimate(s: GameState, p: Player) {
+  const r = report(s, p);
+  const ours = isOurs(s, p);
+  const knowledge = ours ? 85 : r?.knowledge ?? 0;
+  const scoutId = ours ? 'staff' : r?.region ?? 'none';
+  const scoutSkill = ours || r ? 10 : 0;
+  return scoutEstimate({
+    playerId: p.id,
+    scoutId,
+    scoutSkill,
+    knowledge,
+    rating: p.rating,
+    age: p.age,
+    position: p.position,
+    apps: p.apps,
+    ratingSum: p.ratingSum,
+  });
+}
 export function potentialRange(s: GameState, p: Player): [number, number] {
-  const r = report(s, p), k = isOurs(s, p) ? 70 : r ? r.knowledge : 0;
-  const w = Math.round((100 - k) / 10) + (p.wonderkid || (p.age <= 20 && p.potential >= 80) ? 4 : 0);
-  return band(p.potential, w, `${p.id}|pot|${k}`);
+  const est = estimate(s, p);
+  return [est.lo, est.hi];
+}
+export function potentialConfidence(s: GameState, p: Player): 'Low' | 'Medium' | 'High' {
+  return estimate(s, p).confidence;
 }
 export const scouted = (s: GameState, p: Player) => isOurs(s, p) || !!report(s, p);
 export const rangeText = ([a, b]: [number, number]) => (a === b ? `${a}` : `${a}–${b}`);

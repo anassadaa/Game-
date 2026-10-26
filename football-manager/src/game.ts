@@ -240,6 +240,8 @@ export type GameState = {
   training: Training;
   budget: number;
   trust: number;
+  /** 3.2: absolute week of the last failed no-confidence motion (owner/chairman); motions cool down for 6 weeks. */
+  noConfAt?: number;
   fans: number;
   academy: number;
   scouting: number;
@@ -1922,7 +1924,7 @@ function makeOffers(s: GameState, better: boolean) {
   // Scaled by manager reputation; never leaves a sacked manager without a way back.
   s.offers = reputationOffers(s, better);
 }
-function boardWeek(s: GameState) {
+export function boardWeek(s: GameState) {
   if (s.sacked) return;
   const b = (s.board ??= boardTarget(s));
   const pos = leaguePos(s);
@@ -1957,7 +1959,10 @@ export function ownerVoteWeek(s: GameState) {
 function sack(s: GameState, why: string, forced = false) {
   if (!forced && (s.mode === 'chairman' || s.mode === 'owner')) {
     // An owner can't be sacked: the vote fails, but the pressure lands on the hired manager.
-    s.trust = 35;
+    // 3.2: a failed motion never *raises* trust (it used to reset to 35); instead motions cool down for 6 weeks.
+    const now = s.season * 18 + s.week;
+    if (s.noConfAt !== undefined && now - s.noConfAt < 6) return;
+    s.noConfAt = now;
     // 3.1: never dismiss the hired manager behind the owner's back; he stays until contractEnd unless the owner sacks him.
     const m = s.hiredManager;
     s.fans = clamp(s.fans - 5);

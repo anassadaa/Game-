@@ -242,7 +242,7 @@ export function MyFinancesCard({ state, onUpdate, onInvest }: { state: GameState
   );
 }
 
-import { answerRequest, budgetLeft, expectedPos, leaguePosition, plan, record, setPlan, setBudgetMod, MOD_MIN, MOD_MAX } from './delegate.ts';
+import { answerAsk, answerRequest, budgetLeft, expectedPos, leaguePosition, plan, record, setPlan, setBudgetMod, MOD_MIN, MOD_MAX } from './delegate.ts';
 export const MOD_CHIPS = [-20, -10, 0, 10, 20, 50];
 export function ModControl({ mod, disabled, onSet }: { mod: number; disabled?: boolean; onSet: (n: number) => void }) {
   const [custom, setCustom] = useState('');
@@ -292,6 +292,15 @@ function ManagerOffice({ state, onUpdate }: { state: GameState; onUpdate: Up }) 
           </div>
         </div>
       )}
+      {(p.asks ?? []).map((a) => (
+        <div className="mgr-request mgr-ask" key={a.kind + a.playerId}>
+          <p className="small">🛡️ {a.kind === 'renew' ? <>New deal for protected <b>{a.name}</b>: £{a.wage}k/wk (over his wage budget)</> : <>Sell protected <b>{a.name}</b>{a.fee ? <> for {k(a.fee)}</> : null}</>}</p>
+          <div className="pp-list">
+            <button className="primary big-btn" disabled={!!state.match} onClick={() => onUpdate(answerAsk(state, a.playerId, a.kind, true), a.kind === 'renew' ? 'Renewal approved.' : 'Sale approved.')}>Approve</button>
+            <button className="secondary big-btn" disabled={!!state.match} onClick={() => onUpdate(answerAsk(state, a.playerId, a.kind, false), a.kind === 'renew' ? 'Renewal refused.' : 'Sale blocked.')}>{a.kind === 'renew' ? 'Refuse' : 'Block'}</button>
+          </div>
+        </div>
+      ))}
       <details className="mgr-log" open>
         <summary>His decisions</summary>
         {p.log.length ? <ul>{p.log.slice(0, 12).map((x, i) => <li key={i} className="small">{x}</li>)}</ul> : <p className="small">Nothing yet. He acts after each match.</p>}

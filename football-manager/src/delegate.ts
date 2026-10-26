@@ -8,10 +8,12 @@ import { wageLimit } from './budget.ts';
 import { dofDiscount } from './staff.ts';
 import { suitability, slotsFor } from './lineup.ts';
 import { FORMATION_SLOTS, slotPeek, type Slot } from './positions.ts';
+import { isProtected } from './protect.ts';
 import { canHire as canHireStaff, hireStaff, renewStaff, sackStaff, staff, staffBudget, staffWages, roleLabel, type StaffRole } from './staff.ts';
 
 export type MgrRequest = { playerId: string; name: string; slot: Slot; fee: number; week: number; season: number };
-export type MgrPlan = { transfer: number; wage: number; approveOver: number; spent: number; season: number; log: string[]; request?: MgrRequest; signings: number; sales: number; mod?: number; auto?: { transfer: number; wage: number; at: string }; frozen?: boolean; staffAt?: string };
+export type MgrAsk = { kind: 'renew' | 'sell'; playerId: string; name: string; wage?: number; fee?: number; buyer?: string; week: number; season: number };
+export type MgrPlan = { asks?: MgrAsk[]; transfer: number; wage: number; approveOver: number; spent: number; season: number; log: string[]; request?: MgrRequest; signings: number; sales: number; mod?: number; auto?: { transfer: number; wage: number; at: string }; frozen?: boolean; staffAt?: string };
 const hash = (str: string) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); h ^= h >>> 15; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
 const roll = (s: GameState, tag: string) => hash(`${s.seed}|${s.clubId}|${s.season}|${s.week}|${s.hiredManager?.id}|${tag}`);
 const ours = (s: GameState) => s.players.filter((p) => p.clubId === s.clubId);
@@ -52,7 +54,7 @@ function applyAuto(s: GameState, p: MgrPlan) {
 export function plan(s: GameState): MgrPlan {
   if (!s.mgr || s.mgr.season !== s.season) {
     const prev = s.mgr;
-    s.mgr = { transfer: 0, wage: 0, approveOver: prev?.approveOver ?? 1000, spent: 0, season: s.season, log: prev?.log ?? [], signings: 0, sales: 0, mod: prev?.mod ?? 0 };
+    s.mgr = { transfer: 0, wage: 0, approveOver: prev?.approveOver ?? 1000, spent: 0, season: s.season, log: prev?.log ?? [], signings: 0, sales: 0, mod: prev?.mod ?? 0, ...(prev?.asks?.length ? { asks: prev.asks } : {}) };
   }
   if (s.mgr.auto?.at !== phase(s)) applyAuto(s, s.mgr);
   return s.mgr;
@@ -143,16 +145,38 @@ const avg = (s: GameState) => { const o = ours(s); return o.reduce((a, p) => a +
 export function manageContracts(s: GameState): GameState {
   const p0 = plan(s); let b = s; const mean = avg(b), m = b.hiredManager!;
   for (const p of ours(b).filter((x) => (x.contract ?? 9) <= 1 && !(x as any).loan).sort((x, y) => y.rating - x.rating)) {
-    const key = p.rating >= mean - 1 + (3 - m.rating) * 0.5 && p.age <= 31 + (p.rating >= mean + 5 ? 2 : 0);
+    const prot = isProtected(p);
+    const key = prot || (p.rating >= mean - 1 + (3 - m.rating) * 0.5 && p.age <= 31 + (p.rating >= mean + 5 ? 2 : 0));
     if (!key) {
       if (b.week === 16 && !(p as any).letGo) { (p as any).letGo = b.season; note(b, `Will let ${p.name} (${slotPeek(p)}, ${p.age}) leave when his contract ends.`); }
       continue;
     }
     const rise = Math.round(p.wage * 0.15) + 1;
+    if (prot && bill(b) + rise > Math.min(p0.wage, wageLimit(b))) { ask(b, { kind: 'renew', playerId: p.id, name: p.name, wage: p.wage + rise }); continue; }
     if (bill(b) + rise > Math.min(p0.wage, wageLimit(b))) { if (!(p as any).letGo) { (p as any).letGo = b.season; note(b, `Couldn't fit ${p.name}'s new deal in the £${p0.wage}k/wk wage budget.`); } continue; }
     { const n = renewContract(b, p.id, 3); if (n === b) continue; b = n; } note(b, `Renewed ${p.name} (${slotPeek(p)}) for 3 years.`);
   }
   return b;
+}
+
+/** 3.2: something only you can decide (protected renewals and sales). One open ask per player. */
+function ask(s: GameState, a: Omit<MgrAsk, 'week' | 'season'>) {
+  const p = plan(s); p.asks ??= [];
+  if (p.asks.some((x) => x.playerId === a.playerId && x.kind === a.kind)) return;
+  p.asks = [...p.asks, { ...a, week: s.week, season: s.season }].slice(-6);
+  const what = a.kind === 'renew' ? `a new deal for ${a.name} (£${a.wage}k/wk, over his wage budget)` : `to sell ${a.name}${a.fee ? ` for ${money(a.fee)}` : ''}`;
+  note(s, `Asked you to approve ${what}.`);
+  s.headlines = [`📨 ${s.hiredManager?.name ?? 'Your manager'} asks to approve ${what}. Club → Board.`, ...s.headlines].slice(0, 6);
+}
+/** You approve or refuse one of his asks. */
+export function answerAsk(s: GameState, playerId: string, kind: MgrAsk['kind'], approve: boolean): GameState {
+  const a = s.mgr?.asks?.find((x) => x.playerId === playerId && x.kind === kind); if (!a || s.match) return s;
+  let b = copy(s); const p = plan(b); p.asks = (p.asks ?? []).filter((x) => !(x.playerId === playerId && x.kind === kind));
+  if (!approve) { note(b, kind === 'renew' ? `You refused a new deal for ${a.name}.` : `You blocked the sale of ${a.name}.`); return b; }
+  if (kind === 'renew') { const n = renewContract(b, playerId, 3); if (n === b) { note(b, `${a.name} is no longer ours to renew.`); return b; } b = n; note(b, `Renewed ${a.name} for 3 years (you approved).`); return b; }
+  const fee = (() => { const x = b.players.find((y) => y.id === playerId); return x ? saleFee(b, x) : 0; })();
+  const n = sellPlayer(b, playerId); if (n === b) { note(b, `The sale of ${a.name} fell through.`); return b; }
+  b = n; plan(b).sales++; note(b, `Sold ${a.name} for ${money(fee)} (you approved).`); return b;
 }
 
 // ---------- 4. Transfers ----------
@@ -274,4 +298,4 @@ export function boardRescue(s: GameState): GameState {
 }
 /** Before each match: he picks the side. */
 export function delegateSelect(s: GameState) { if (delegated(s)) pickTeam(s); }
-export const validMgr = (s: GameState) => s.mgr === undefined || (!!s.mgr && [s.mgr.transfer, s.mgr.wage, s.mgr.approveOver, s.mgr.spent, s.mgr.season].every(Number.isFinite) && Array.isArray(s.mgr.log) && s.mgr.log.every((x) => typeof x === 'string') && (s.mgr.mod === undefined || (Number.isInteger(s.mgr.mod) && s.mgr.mod >= MOD_MIN && s.mgr.mod <= MOD_MAX)) && (s.mgr.auto === undefined || (!!s.mgr.auto && Number.isFinite(s.mgr.auto.transfer) && Number.isFinite(s.mgr.auto.wage) && typeof s.mgr.auto.at === 'string')));
+export const validMgr = (s: GameState) => s.mgr === undefined || (!!s.mgr && [s.mgr.transfer, s.mgr.wage, s.mgr.approveOver, s.mgr.spent, s.mgr.season].every(Number.isFinite) && Array.isArray(s.mgr.log) && s.mgr.log.every((x) => typeof x === 'string') && (s.mgr.mod === undefined || (Number.isInteger(s.mgr.mod) && s.mgr.mod >= MOD_MIN && s.mgr.mod <= MOD_MAX)) && (s.mgr.auto === undefined || (!!s.mgr.auto && Number.isFinite(s.mgr.auto.transfer) && Number.isFinite(s.mgr.auto.wage) && typeof s.mgr.auto.at === 'string')) && (s.mgr.asks === undefined || (Array.isArray(s.mgr.asks) && s.mgr.asks.length <= 6 && s.mgr.asks.every((a) => a && ['renew', 'sell'].includes(a.kind) && typeof a.playerId === 'string' && typeof a.name === 'string'))));

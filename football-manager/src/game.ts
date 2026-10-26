@@ -54,10 +54,11 @@ import { roomWeek } from './room.ts';
 import { familiarityWeek, rememberShape } from './familiarity.ts';
 import { abilityRange, askWeek, potentialRange } from './scoutrange.ts';
 import { migrateTrust, trustWeek } from './trust.ts';
+import { spawnPotential, weeklyGrowth, reviewCeiling, prospectBoost, migratePotential } from './potential.ts';
 import { adjustPlan, clubPlan, philosophyOf, planLine, planMatch } from './aitactics.ts';
 import { aiSubs, kickOff, oppFatigue, restoreXI } from './subs.ts';
 import { agentsWeek, release, signFreeAgent, type AgentMsg } from './agents.ts';
-import { dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
+import { coachBoost, dofDiscount, refreshStaffMarket, staffSeason, staffWeek } from './staff.ts';
 import type { Staff } from './staff.ts';
 import type { Scout, ScoutReport } from './scouts.ts';
 import { recordRatings } from './highlights.ts';
@@ -131,6 +132,10 @@ export type Player = {
   careerGoals?: number;
   careerApps?: number;
   known?: boolean;
+  peakAge?: number;
+  bloom?: number;
+  boosted?: boolean;
+  potTrend?: -1 | 0 | 1;
 };
 export type Instalment = { name: string; amount: number; weeks: number; clubId?: string; remaining?: number };
 export const ATTRS = ['pace', 'shooting', 'passing', 'defending', 'stamina', 'mental', 'goalkeeping'] as const;
@@ -502,13 +507,16 @@ export function makePlayer(
 ): Player {
   const rating = clamp(base + int(s, -9, 8), 35, 88),
     age = academyGraduate ? 17 + int(s, 0, 2) : 18 + int(s, 0, 15);
+  const id = `p${s.season}-${s.week}-${i}-${s.seed}`;
+  const clubRating = s.clubs.find((c) => c.id === clubId)?.rating ?? 70;
+  const leagueLevel = clamp(Math.round((88 - clubRating) / 8) + 1, 1, 5);
   const player: Player = {
-    id: `p${s.season}-${s.week}-${i}-${s.seed}`,
+    id,
     name: uniqueName(s, clubId, `p${s.season}-${s.week}-${i}-${s.seed}-${clubId}-${s.players.length + s.market.length + (s.rivals?.length ?? 0)}`),
     age,
     position,
     rating,
-    potential: clamp(rating + int(s, 3, academyGraduate ? 22 : 15), rating, 95),
+    potential: spawnPotential({ id, rating, age, position, academy: academyGraduate ? s.academy : 0, leagueLevel }),
     fitness: int(s, 78, 100),
     morale: int(s, 60, 85),
     wage: Math.max(2, Math.round(rating / 8)),
@@ -519,6 +527,7 @@ export function makePlayer(
     assists: 0,
     academyGraduate,
   };
+  Object.assign(player, migratePotential(player));
   ensureProfile(player);
   return player;
 }
@@ -536,6 +545,7 @@ export function migrate(s: GameState): GameState {
   s.bids ??= [];
   s.news ??= [];
   if (!s.rivals) makeRivals(s);
+  [...s.players, ...s.market, ...(s.rivals ?? []), ...(s.youth ?? [])].forEach((p) => Object.assign(p, migratePotential(p)));
   s.board ??= boardTarget(s);
   migrateTrust(s);
   migratePay(s);
@@ -843,7 +853,8 @@ export function chooseEvent(s: GameState, choice: 0 | 1): GameState {
           .filter((p) => p.age <= 23)
           .sort((x, y) => y.potential - x.potential)[0];
         if (p) {
-          p.rating = clamp(p.rating + 2, 0, p.potential);
+          p.rating = clamp(p.rating + prospectBoost(p), 0, p.potential);
+          p.boosted = true;
           p.morale = clamp(p.morale + 8);
         }
       } else b.trust = clamp(b.trust + 2);
@@ -1405,6 +1416,9 @@ function simulateScore(s: GameState, a: Club, b: Club): [number, number] {
   return [x, y];
 }
 function train(s: GameState) {
+  const clubRating = s.clubs.find((c) => c.id === s.clubId)?.rating ?? 70;
+  const leagueLevel = clamp(Math.round((88 - clubRating) / 8) + 1, 1, 5);
+  const facTraining = facilities(s).training;
   for (const p of s.players.filter((p) => p.clubId === s.clubId)) {
     const starter = p.starting;
     p.fitness = clamp(
@@ -1419,20 +1433,29 @@ function train(s: GameState) {
         (starter ? 0 : 4),
     );
     if (s.training === 'bonding') p.morale = clamp(p.morale + 3);
-    if (
-      (s.training === 'attack' && p.position === 'FW') ||
-      (s.training === 'defence' && p.position === 'DF')
-    ) {
-      if (next(s) < 0.28 && p.rating < p.potential) p.rating++;
-    } else if (
-      p.age < 24 &&
-      next(s) < (s.training === 'fitness' ? 0.02 : 0.06) + s.academy * 0.015 &&
-      p.rating < p.potential
-    )
-      p.rating++;
+    const focusBump =
+      (s.training === 'attack' && p.position === 'FW') || (s.training === 'defence' && p.position === 'DF') ? 4 : 0;
+    const salt = `${p.id}|${s.season}|${s.week}`;
+    const form = p.apps ? (p.ratingSum ?? 0) / p.apps : 0;
+    const ctx = {
+      minutes: p.starting ? 1 : p.apps ? 0.3 : 0.1,
+      coaching: (coachBoost(s, p) - 1) * 25 + focusBump,
+      facilities: facTraining,
+      professionalism: hidden(p).professionalism,
+      leagueLevel,
+      form,
+      injured: !!p.injured,
+      salt,
+    };
+    const d = weeklyGrowth(p, ctx);
+    p.rating = clamp(p.rating + d, 30, 99);
+    if (s.week % 8 === 0) {
+      const rev = reviewCeiling(p, ctx);
+      p.potential = rev.potential;
+      p.potTrend = rev.trend;
+    }
     if (p.personality === 'Temperamental') p.morale = clamp(p.morale + int(s, -4, 4));
     if (hidden(p).professionalism >= 14) p.fitness = clamp(p.fitness + 2);
-    if (p.personality === 'Professional' && p.age < 27 && p.rating < p.potential && next(s) < 0.04) p.rating++;
   }
   injuryWeek(s);
   oneKeeper(s);
@@ -2263,6 +2286,8 @@ export function priceFor(rating: number, age: number) {
 /** Give famous look-alike stars to their club's squad. */
 function applyStars(_s: GameState, c: Club, squad: Player[]) {
   const used = new Set<string>();
+  const clubRating = _s.clubs.find((x) => x.id === c.id)?.rating ?? 70;
+  const leagueLevel = clamp(Math.round((88 - clubRating) / 8) + 1, 1, 5);
   for (const st of starsFor(c.id)) {
     const p = squad.find((x) => x.position === st.position && !used.has(x.id)) ?? squad.find((x) => !used.has(x.id) && x.position !== 'GK');
     if (!p) continue;
@@ -2272,7 +2297,7 @@ function applyStars(_s: GameState, c: Club, squad: Player[]) {
       age: st.age,
       rating: st.rating,
       position: st.position,
-      potential: Math.min(97, st.rating + (st.age <= 21 ? 6 : st.age <= 24 ? 3 : 0)),
+      potential: spawnPotential({ id: p.id, rating: st.rating, age: st.age, position: st.position, academy: 0, leagueLevel }),
       price: priceFor(st.rating, st.age),
       wage: Math.max(2, Math.round(st.rating / 5)),
     });

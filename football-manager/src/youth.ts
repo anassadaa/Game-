@@ -1,6 +1,7 @@
 import { youthBonus } from './staff.ts';
 import type { GameState, Player, Position } from './game.ts';
 import { clamp, copy, int, makePlayer, next, pick } from './game.ts';
+import { spawnPotential } from './potential.ts';
 
 export const INTAKE_WEEK = 12;
 const POS: Position[] = ['GK', 'DF', 'DF', 'MF', 'MF', 'FW'];
@@ -18,7 +19,9 @@ export function youthIntake(s: GameState) {
     if (next(s) < 0.04 + s.academy * 0.03 + youthBonus(s) * 0.003) {
       p.wonderkid = true;
       p.rating = clamp(p.rating + int(s, 4, 9), 35, 75);
-      p.potential = clamp(86 + int(s, 0, 8), p.rating, 95);
+      const clubRating = s.clubs.find((c) => c.id === s.clubId)?.rating ?? 70;
+      const leagueLevel = clamp(Math.round((88 - clubRating) / 8) + 1, 1, 5);
+      p.potential = spawnPotential({ id: p.id, rating: p.rating, age: p.age, position: p.position, academy: s.academy, wonderkid: true, leagueLevel });
     }
     list.push(p);
   }

@@ -1,7 +1,9 @@
 import { targetValue } from './value.ts';
 import type { GameState, Player } from './game.ts';
-import { club, int, makePlayer, next, pick } from './game.ts';
+import { club, clamp, int, makePlayer, next, pick } from './game.ts';
 import { league } from './world.ts';
+import { spawnPotential, weeklyGrowth, reviewCeiling } from './potential.ts';
+import { hidden } from './traits.ts';
 
 export type Retiree = { name: string; position: Player['position']; peak: number; age: number; season: number; club: string; regenId?: string; ours?: boolean };
 /** Players retire between 33 and 38; better and fitter players last longer. */
@@ -21,7 +23,9 @@ export function spawnRegen(s: GameState, p: Player, ours = false) {
   r.id = `regen-${s.season}-${s.seed}-${(s.retired?.length ?? 0)}`;
   r.age = 16 + int(s, 0, 1);
   r.rating = Math.max(38, Math.min(62, 42 + int(s, 0, 14)));
-  r.potential = Math.min(95, Math.max(r.rating + 6, peak + int(s, -8, 6)));
+  const homeRating = home.rating ?? 70;
+  const leagueLevel = clamp(Math.round((88 - homeRating) / 8) + 1, 1, 5);
+  r.potential = spawnPotential({ id: r.id, rating: r.rating, age: r.age, position: r.position, academy: 0, leagueLevel, regenPeak: peak });
   r.personality = p.personality;
   r.starting = false;
   r.listed = false;
@@ -34,10 +38,35 @@ export function spawnRegen(s: GameState, p: Player, ours = false) {
 /** Rivals develop unevenly: late bloomers, early peaks and declines. */
 export function developRival(s: GameState, p: Player) {
   p.peak = Math.max(p.peak ?? 0, p.rating);
-  if (p.age <= 23 && p.rating < p.potential) p.rating = Math.min(p.potential, p.rating + int(s, 0, p.regenOf ? 6 : 4));
-  else if (p.age <= 27 && p.rating < p.potential && next(s) < 0.25) p.rating = Math.min(p.potential, p.rating + int(s, 1, 4));
-  else if (p.age >= 30) p.rating = Math.max(35, p.rating - int(s, 0, p.age >= 33 ? 4 : 2));
-  // 3.4: no reset here; the weekly value model moves p.price smoothly.
+  const clubRating = s.clubs.find((c) => c.id === p.clubId)?.rating ?? 70;
+  const leagueLevel = clamp(Math.round((88 - clubRating) / 8) + 1, 1, 5);
+  const minutes = p.rating >= clubRating ? 0.8 : 0.4;
+  for (let i = 0; i < 38; i++) {
+    const ctx = {
+      minutes,
+      coaching: 8,
+      facilities: 2,
+      professionalism: hidden(p).professionalism,
+      leagueLevel,
+      salt: `${p.id}|${s.season}|${i}`,
+    };
+    const d = weeklyGrowth(p, ctx);
+    p.rating = clamp(p.rating + d, 30, 99);
+  }
+  for (let i = 0; i < 4; i++) {
+    const ctx = {
+      minutes,
+      coaching: 8,
+      facilities: 2,
+      professionalism: hidden(p).professionalism,
+      leagueLevel,
+      salt: `${p.id}|${s.season}|review:${i}`,
+    };
+    const rev = reviewCeiling(p, ctx);
+    p.potential = rev.potential;
+    p.potTrend = rev.trend;
+  }
+  p.peak = Math.max(p.peak ?? 0, p.rating);
 }
 export const regens = (s: GameState) => (s.rivals ?? []).filter((p) => p.regenOf);
 export const validRegens = (s: GameState) =>

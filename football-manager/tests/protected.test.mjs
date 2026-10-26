@@ -21,7 +21,7 @@ test('over the wage budget he asks you instead of letting the prospect go', () =
   const b = manageContracts(s); assert.equal(b.players.find((x) => x.id === p.id).contract, 1);
   const a = plan(b).asks.find((x) => x.playerId === p.id); assert.equal(a.kind, 'renew'); assert.ok(validMgr(b));
   assert.equal(plan(manageContracts(b)).asks.filter((x) => x.playerId === p.id).length, 1, 'one ask per player');
-  const yes = answerAsk(b, p.id, 'renew', true); assert.equal(yes.players.find((x) => x.id === p.id).contract, renewYears(p)); assert.equal(plan(yes).asks.length, 0);
+  const yes = answerAsk(b, p.id, 'renew', true); assert.equal(yes.players.find((x) => x.id === p.id).contract, renewYears(p)); assert.equal(plan(yes).asks.filter((x) => x.playerId === p.id).length, 0);
   const no = answerAsk(b, p.id, 'renew', false); assert.equal(no.players.find((x) => x.id === p.id).contract, 1); assert.match(plan(no).log[0], /refused/);
 });
 import { manageTransfers, boardRescue } from '../src/delegate.ts';

@@ -6,7 +6,8 @@ import type { Line, Passing, Width } from './tactics.ts';
 export const PHILOSOPHIES = ['possession', 'counter', 'pressing', 'direct', 'pragmatic'] as const;
 export type Philosophy = (typeof PHILOSOPHIES)[number];
 /** Formations whose wide midfielders are LM/RM (the rest use LW/RW). */
-export const LMRM_SHAPES: string[] = ['4-4-2', '3-5-2', '4-1-4-1', '3-4-3', '5-3-2'];
+export const LMRM_SHAPES: string[] = ['4-4-2', '3-5-2', '4-1-4-1', '3-4-3'];
+const wideLabel = (f: string) => (LMRM_SHAPES.includes(f) ? 'LM/RM' : f === '5-3-2' ? 'wing-backs' : 'LW/RW');
 export type Plan = {
   formation: Formation; mentality: Mentality; press: Press; tempo: Tempo;
   width: Width; line: Line; passing: Passing; counter: boolean;
@@ -48,8 +49,8 @@ function pickFormation(c: PlanCtx, gap: number, why: string[]): Formation {
     return v;
   };
   const f = [...FORMS].sort((a, b) => score(b) - score(a))[0]!;
-  if (c.squad.length) why.push(`${f} suits the squad (${fw} forwards, ${mf} midfielders${fastWide >= 4 ? ', quick wide players' : ''}) — ${LMRM_SHAPES.includes(f) ? 'LM/RM' : 'LW/RW'} out wide`);
-  else why.push(`${f} with ${LMRM_SHAPES.includes(f) ? 'LM/RM' : 'LW/RW'} out wide`);
+  if (c.squad.length) why.push(`${f} suits the squad (${fw} forwards, ${mf} midfielders${fastWide >= 4 ? ', quick wide players' : ''}) — ${wideLabel(f)} out wide`);
+  else why.push(`${f} with ${wideLabel(f)} out wide`);
   return f;
 }
 

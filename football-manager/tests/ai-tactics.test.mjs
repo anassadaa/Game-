@@ -36,7 +36,7 @@ test('AI clubs vary formations across the league, using both LM/RM and LW/RW sha
   const s = newGame(7); const forms = new Set();
   for (const c of s.clubs.filter((c) => c.division === 1)) for (const o of s.clubs.filter((c) => c.division === 1).slice(0, 4)) if (o.id !== c.id) forms.add(clubPlan(s, c.id, o.id, true).formation);
   assert.ok(forms.size >= 4, [...forms].join());
-  assert.ok([...forms].some((f) => LMRM_SHAPES.includes(f))); assert.ok([...forms].some((f) => !LMRM_SHAPES.includes(f)));
+  assert.ok([...forms].some((f) => LMRM_SHAPES.includes(f))); assert.ok([...forms].some((f) => ['4-3-3', '4-2-3-1'].includes(f)));
   assert.ok(['possession', 'counter', 'pressing', 'direct', 'pragmatic'].includes(philosophyOf('abc')));
 });
 test('match stores the opponent plan with reasons, and a hired manager picks ours', () => {

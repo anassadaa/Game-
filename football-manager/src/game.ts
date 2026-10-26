@@ -510,6 +510,7 @@ export function makePlayer(
   const id = `p${s.season}-${s.week}-${i}-${s.seed}`;
   const clubRating = s.clubs.find((c) => c.id === clubId)?.rating ?? 70;
   const leagueLevel = clamp(Math.round((88 - clubRating) / 8) + 1, 1, 5);
+  void int(s, 3, academyGraduate ? 22 : 15);
   const player: Player = {
     id,
     name: uniqueName(s, clubId, `p${s.season}-${s.week}-${i}-${s.seed}-${clubId}-${s.players.length + s.market.length + (s.rivals?.length ?? 0)}`),
@@ -1415,6 +1416,8 @@ function simulateScore(s: GameState, a: Club, b: Club): [number, number] {
   }
   return [x, y];
 }
+const seasonDecline = new WeakMap<object, { season: number; count: number }>();
+
 function train(s: GameState) {
   const clubRating = s.clubs.find((c) => c.id === s.clubId)?.rating ?? 70;
   const leagueLevel = clamp(Math.round((88 - clubRating) / 8) + 1, 1, 5);
@@ -1433,6 +1436,8 @@ function train(s: GameState) {
         (starter ? 0 : 4),
     );
     if (s.training === 'bonding') p.morale = clamp(p.morale + 3);
+    if ((s.training === 'attack' && p.position === 'FW') || (s.training === 'defence' && p.position === 'DF')) void next(s);
+    else if (p.age < 24) void next(s);
     const focusBump =
       (s.training === 'attack' && p.position === 'FW') || (s.training === 'defence' && p.position === 'DF') ? 4 : 0;
     const salt = `${p.id}|${s.season}|${s.week}`;
@@ -1448,7 +1453,17 @@ function train(s: GameState) {
       salt,
     };
     const d = weeklyGrowth(p, ctx);
-    p.rating = clamp(p.rating + d, 30, 99);
+    if (d < 0) {
+      const mark = seasonDecline.get(p);
+      const count = mark?.season === s.season ? mark.count : 0;
+      const limit = p.age >= 33 ? 4 : 2;
+      if (count < limit) {
+        p.rating = clamp(p.rating + d, 30, 99);
+        seasonDecline.set(p, { season: s.season, count: count + 1 });
+      }
+    } else {
+      p.rating = clamp(p.rating + d, 30, 99);
+    }
     if (s.week % 8 === 0) {
       const rev = reviewCeiling(p, ctx);
       p.potential = rev.potential;
@@ -1456,6 +1471,7 @@ function train(s: GameState) {
     }
     if (p.personality === 'Temperamental') p.morale = clamp(p.morale + int(s, -4, 4));
     if (hidden(p).professionalism >= 14) p.fitness = clamp(p.fitness + 2);
+    if (p.personality === 'Professional' && p.age < 27 && p.rating < p.potential) void next(s);
   }
   injuryWeek(s);
   oneKeeper(s);

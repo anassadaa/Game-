@@ -176,9 +176,10 @@ export function weeklyGrowth(p: PotPlayer, ctx: GrowthCtx): number {
     return roll < chance ? 1 : 0;
   }
 
-  if (actualRating <= 31) return 0;
+  const declineAge = peak + 2;
+  if (actualRating <= 31 || age < declineAge) return 0;
 
-  const yearsPast = Math.max(0, age - peak);
+  const yearsPast = Math.max(0, age - declineAge);
   const posRate =
     p.position === 'GK'
       ? 0.006
@@ -189,7 +190,11 @@ export function weeklyGrowth(p: PotPlayer, ctx: GrowthCtx): number {
           : 0.014;
   const professionalism = clamp(finite(ctx.professionalism, 10), 1, 20);
   const profMod = clamp(1.25 - (professionalism / 20) * 0.5, 0.75, 1.25);
-  const declineChance = clamp(0.006 + yearsPast * posRate * profMod, 0, 0.35);
+  const declineChance = clamp(
+    0.001 + yearsPast * posRate * profMod * 0.2,
+    0,
+    0.02,
+  );
   const roll = hash01(
     p.id + ':decline:' + salt + ':' + rating + ':' + age,
   );

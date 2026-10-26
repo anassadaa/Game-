@@ -10,5 +10,5 @@ test('wage budget leaves room for the manager and staff salaries (no structural 
   while (s.season < start + 3) { s = advanceWeek(simToEnd(startMatch(s))); worst = Math.min(worst, s.budget); }
   assert.ok(worst > -3000, `bank fell to ${worst} with a hired manager at default budget`);
   const staffW = (s.staff ?? []).reduce((a, x) => a + (x.wage || 0), 0), inc = s.ledger.prev.income / 18;
-  assert.ok(autoBudget(structuredClone(s)).wage <= Math.max(1, Math.round(inc - s.hiredManager.wage - staffW)), 'player wage plan fits income after manager+staff wages');
+  assert.ok(autoBudget(structuredClone(s)).wage <= Math.max(1, Math.round(inc - (s.hiredManager?.wage ?? 0) - staffW)), 'player wage plan fits income after manager+staff wages');
 });

@@ -1,5 +1,5 @@
 import type { Club, GameState, Player, Instalment } from './game.ts';
-import { clamp, copy } from './game.ts';
+import { clamp, copy, windowOpen } from './game.ts';
 import { wallet, myStake } from './wallet.ts';
 import type { Policy } from './wallet.ts';
 import { earnedIncome, earnedCosts, sync, book, sellOnReceipt } from './finance.ts';
@@ -291,6 +291,7 @@ export function clubDecision(s: GameState, id: string, action: ClubAction, value
     if (id !== b.clubId || b.mode === 'manager') return s;
     const cost = rec.manager ? compensation(b, rec.manager) : 0; if (rec.cash < cost + 200) return s;
     const stake = owned(b, id); post(rec, 'wages', cost); wallet(b).stake = stake; b.mode = 'manager'; delete b.hiredManager; rec.manager = null;
+  } else if (action === 'approve' && (rec.request?.type === 'transfer' || rec.request?.type === 'sale') && !windowOpen(b)) { return s;
   } else if (action === 'approve' && rec.request?.type === 'transfer') {
     // Re-price at approval: the player's value may have moved since the request was raised.
     const now = b.rivals?.find(p => p.id === rec.request!.playerId)?.price ?? rec.request.cost;
@@ -379,7 +380,11 @@ export function investmentWeek(s: GameState) {
         if (b.strategy === 'youth') for (const p of ps) if (p.age < 23 && p.rating < p.potential && hash(`${p.id}|develop|${s.season}|${s.week}`) % 100 < b.academy * 12) p.rating++;
         if (b.request && (b.request.season !== s.season || s.week - b.request.week > 4)) delete b.request;
         if (b.cash < 500) b.request = { type: 'funding', cost: Math.max(500, 1000 - b.cash), message: 'Cash reserves are low. Consider a shareholder loan or equity funding.', season: s.season, week: s.week };
-        else if (!b.request && b.role) roleWeek(s, c, b, ps);
+      }
+      // 3.2: player deals (staff, auto and requests) happen only in transfer windows; unanswered deal requests lapse when it shuts.
+      if (!windowOpen(s) && (b.request?.type === 'sale' || b.request?.type === 'transfer')) { log(s, c.id, 'request', 0, `The window shut: ${b.request.message} — lapsed.`); delete b.request; }
+      if ((s.week === 2 || s.week === 10) && b.cash >= 500) {
+        if (!b.request && b.role) roleWeek(s, c, b, ps);
         else if (!b.request && b.strategy !== 'stability') {
           const candidate = (s.rivals ?? []).find(p => p.clubId !== c.id && p.clubId !== s.clubId && p.rating >= b.quality + 2 && p.price <= b.transferBudget && p.price < b.cash - 500 && p.wage < b.wageLimit * 0.15);
           if (candidate) {
@@ -501,8 +506,8 @@ function roleWeek(s: GameState, c: Club, b: Business, ps: Player[]) {
   const buyer = s.clubs.filter(x => x.id !== c.id && x.id !== s.clubId && owned(s, x.id) < 51 && (s.investments!.clubs[x.id]!.cash >= fee + 250)).sort((x, y) => hash(`${stamp}|${x.id}`) - hash(`${stamp}|${y.id}`))[0];
   if (!buyer) return;
   const brec = s.investments!.clubs[buyer.id]!; brec.transferBudget = Math.max(brec.transferBudget, fee);
-  if (fee >= limit) b.request = { type: 'sale', playerId: star.id, buyerId: buyer.id, cost: fee, message: `${buyer.name} bid £${fee}k for ${star.name} (${star.rating} rating).`, season: s.season, week: s.week };
-  else if (makeTransfer(s, buyer.id, star.id, fee)) log(s, c.id, 'sale', fee, `Your staff at ${c.name} sold ${star.name} to ${buyer.name} for £${fee}k.`);
+  // 3.2: the bid is always for a top-3 player, so it always needs your approval (no silent star sales).
+  b.request = { type: 'sale', playerId: star.id, buyerId: buyer.id, cost: fee, message: `${buyer.name} bid £${fee}k for ${star.name} (${star.rating} rating).`, season: s.season, week: s.week };
 }
 
 /** Every role you hold: the main club where you work hands-on, plus board roles at clubs you control. */

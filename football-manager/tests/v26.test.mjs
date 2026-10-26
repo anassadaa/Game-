@@ -100,12 +100,12 @@ test('2.6: side-role clubs: big deals wait for approval, block works, small deal
   s = buy(s, id, 60); s = cd2(s, id, 'role', 'chairman'); s = cd2(s, id, 'transfers', 20000);
   s.investments.clubs[id].cash = 50000; s.investments.clubs[id].wageLimit = 5000;
   let req, staff = 0;
-  for (let w = 1; w <= 60 && !req; w++) { const t = structuredClone(s); t.week = (w % 4) * 0 + 4 * (1 + w % 4); t.season = s.season + Math.floor(w / 4); t.investments.lastTick = ''; delete t.investments.clubs[id].request; t.investments.clubs[id].approveOver = 1; investmentWeek(t); req = t.investments.clubs[id].request; if (req) s = t; }
+  for (let w = 1; w <= 60 && !req; w++) { const t = structuredClone(s); t.week = w % 2 ? 2 : 10; t.season = s.season + Math.floor(w / 4); t.investments.lastTick = ''; delete t.investments.clubs[id].request; t.investments.clubs[id].approveOver = 1; investmentWeek(t); req = t.investments.clubs[id].request; if (req) s = t; }
   assert.ok(req && ['transfer', 'sale'].includes(req.type), 'big deal raised for approval');
   const blocked = cd2(s, id, 'decline'); assert.equal(blocked.investments.clubs[id].request, undefined);
   const p = req.playerId, ok = cd2(s, id, 'approve');
   if (ok !== s) { assert.equal(ok.investments.clubs[id].request, undefined); const pl = ok.rivals.find(x => x.id === p); assert.equal(pl.clubId, req.type === 'sale' ? req.buyerId : id); }
-  for (let w = 1; w <= 60 && !staff; w++) { const t = structuredClone(s); delete t.investments.clubs[id].request; t.week = 4 * (1 + w % 4); t.season = s.season + 1 + Math.floor(w / 4); t.investments.lastTick = ''; t.investments.clubs[id].approveOver = 100000; investmentWeek(t); staff = t.investments.log.filter(e => /Your staff at/.test(e.message)).length; assert.equal(t.investments.clubs[id].request, undefined); }
+  for (let w = 1; w <= 60 && !staff; w++) { const t = structuredClone(s); delete t.investments.clubs[id].request; t.week = w % 2 ? 2 : 10; t.season = s.season + 1 + Math.floor(w / 4); t.investments.lastTick = ''; t.investments.clubs[id].approveOver = 100000; investmentWeek(t); staff = t.investments.log.filter(e => /Your staff at/.test(e.message)).length; const r = t.investments.clubs[id].request; assert.ok(!r || r.type === 'sale', 'only star sales wait for you under a high line'); }
   assert.ok(staff > 0, 'staff completed a deal on your behalf');
 });
 test('2.6: losing control ends the side role; moving main club keeps a director role at the old club you control', () => {
@@ -206,4 +206,21 @@ test('short pitch names drop regen suffix and fit', async () => {
   const { surname } = await import('../src/names.ts');
   assert.equal(surname('Joe Worral 2'), 'Worral');
   assert.equal(surname('Nathan Broadhead'), 'Broadhe.');
+});
+
+test('3.2: boardroom deals only in windows; star sales always need approval; requests lapse when the window shuts', () => {
+  let s = setup('manager'); const id = ctrl(s);
+  s = buy(s, id, 60); s = cd2(s, id, 'role', 'chairman'); s = cd2(s, id, 'transfers', 20000);
+  s.investments.clubs[id].cash = 50000; s.investments.clubs[id].wageLimit = 5000;
+  for (let w = 1; w <= 40; w++) {
+    const t = structuredClone(s); t.week = [4, 6, 8, 12, 14, 16][w % 6]; t.season = s.season + Math.floor(w / 6); t.investments.lastTick = ''; t.investments.clubs[id].approveOver = 1;
+    const before = t.investments.log.length; investmentWeek(t);
+    assert.ok(!t.investments.log.slice(0, t.investments.log.length - before).some(e => e.clubId === id && /signed|sold/.test(e.message)), 'no deal outside a window');
+    assert.ok(!['sale', 'transfer'].includes(t.investments.clubs[id].request?.type));
+  }
+  let sale;
+  for (let w = 1; w <= 80 && !sale; w++) { const t = structuredClone(s); t.week = w % 2 ? 2 : 10; t.season = s.season + Math.floor(w / 2); t.investments.lastTick = ''; delete t.investments.clubs[id].request; t.investments.clubs[id].approveOver = 100000; t.investments.clubs[id].strategy = 'stability'; investmentWeek(t); if (t.investments.clubs[id].request?.type === 'sale') sale = t; }
+  assert.ok(sale, 'a star bid waits for approval even above the line');
+  const shut = structuredClone(sale); shut.week = 11; assert.equal(cd2(shut, id, 'approve'), shut, 'cannot approve outside the window');
+  shut.week = 12; shut.investments.lastTick = ''; investmentWeek(shut); assert.equal(shut.investments.clubs[id].request, undefined);
 });

@@ -1,3 +1,4 @@
+import { LOCK_WEEKS, dealLocked, dealOf, nextRound, nowWeek, sellerStance, setDeal, termsStance, towards } from './negotiation.ts';
 import { offerRenewal, renewalPlan, wageDemand } from './contracts.ts';
 import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquads.ts';
 import { cornerConv } from './setpieces.ts';
@@ -237,6 +238,8 @@ export type CareerRecord = {
   outcome: string;
 };
 export type GameState = {
+  /** 3.9: open transfer/terms/loan/sale talks (negotiation.ts). */
+  deals?: Record<string, import('./negotiation.ts').Deal>;
   /** 3.9: open contract renewal talks by player id. */
   renewTalks?: Record<string, import('./contracts.ts').Talks>;
   version: 2;
@@ -957,20 +960,47 @@ export function negotiate(s: GameState, id: string, o: Offer): [GameState, strin
     t = (fromRival ? b.rivals! : b.market).find((x) => x.id === id)!;
   const seller = b.clubs.find((c) => c.id === t.clubId);
   const base = askingPrice(t, s);
-  const ask = t.counter ?? base,
-    value = o.fee + (swap ? Math.round(swap.price * 0.8) : 0) - (o.instalments ? Math.round(o.fee * 0.05) : 0) + Math.round(o.fee * sellOnPct / 100 * 0.6);
+
+  const value = o.fee + (swap ? Math.round(swap.price * 0.8) : 0) - (o.instalments ? Math.round(o.fee * 0.05) : 0) + Math.round(o.fee * sellOnPct / 100 * 0.6);
   const clause = fromRival ? releaseClause(t) : undefined;
   const triggered = clause !== undefined && o.fee >= clause;
-  const wantWage = Math.round(t.wage * (t.personality === 'Ambitious' ? 1.15 : 1));
-  if (!triggered && value < ask * 0.75) {
-    t.counter = ask;
-    return [b, `Rejected. The club will not go below ${ask}k.`];
+  // 3.9: the selling club decides with its own stance; its counter is stored and only ever comes down.
+  const key = `buy:${t.id}`, st = sellerStance(b, t, seller, base, deadlineDay(b)), lockedFor = dealLocked(b, key);
+  let deal = dealOf(b, key);
+  const feeOk = triggered || (deal?.feeAgreed !== undefined && value >= deal.feeAgreed) || value >= st.ask || (!lockedFor && deal?.counter !== undefined && value >= deal.counter);
+  if (!feeOk) {
+    if (lockedFor) return [b, `${seller?.short ?? 'They'} walked away from talks — back in ${lockedFor} week${lockedFor > 1 ? 's' : ''}, or pay the full £${st.ask}k.`];
+    const lowball = value < st.floor * 0.75, r = nextRound(deal, st.rounds, lowball);
+    if (r.out) {
+      setDeal(b, key, { rounds: r.used, lockUntil: nowWeek(b) + LOCK_WEEKS, counter: deal?.counter, insults: r.insults });
+      delete t.counter;
+      return [b, `${seller?.short ?? 'The club'} end talks for ${t.name}. No new bids for ${LOCK_WEEKS} weeks. (${st.reasons.join(' · ')})`];
+    }
+    const prev = deal?.counter, fresh = prev === undefined ? Math.max(st.floor, Math.round(st.ask * (1 - st.soften))) : Math.max(st.floor, Math.min(prev - 1, Math.round(prev * (1 - st.soften))));
+    const counter = lowball ? prev ?? st.ask : towards(prev, fresh, 'down');
+    setDeal(b, key, { rounds: r.used, counter, insults: r.insults });
+    t.counter = counter;
+    const left = r.left;
+    return [b, `${lowball ? `Rejected — that bid is nowhere near. They stay at £${counter}k` : `Counter-offer: they want £${counter}k`}. ${left} round${left === 1 ? '' : 's'} left. (${st.reasons.join(' · ')})`];
   }
-  if (!triggered && value < ask * 0.97) {
-    t.counter = Math.max(Math.round((ask + value) / 2), Math.round(base * 0.85));
-    return [b, `Counter-offer: they want £${t.counter}k.`];
+  // Fee agreed: personal terms with the player, his own stance and stored counter.
+  if (!deal?.feeAgreed) { deal = { rounds: 0, feeAgreed: Math.min(value, deal?.counter ?? value) }; setDeal(b, key, deal); }
+  const tkey = `terms:${t.id}`, best = roster.filter((x) => x.position === t.position).sort((x, y) => y.rating - x.rating);
+  const wouldStart = best.filter((x) => x.starting).some((x) => x.rating < t.rating) || best.filter((x) => x.starting).length === 0;
+  const ts = termsStance(b, t, club(b), seller, wouldStart), tdeal = dealOf(b, tkey);
+  const wageOk = o.wage >= ts.ask || (tdeal?.counter !== undefined && !tdeal.lockUntil && o.wage >= tdeal.counter);
+  if (!wageOk) {
+    const tl = dealLocked(b, tkey);
+    if (tl) return [b, `Fee agreed, but ${t.name} won't discuss terms for ${tl} more week${tl > 1 ? 's' : ''} — only £${ts.ask}k/wk would do.`];
+    const lowball = o.wage < ts.floor * 0.8, r = nextRound(tdeal, ts.rounds, lowball);
+    if (r.out) { setDeal(b, tkey, { rounds: r.used, lockUntil: nowWeek(b) + LOCK_WEEKS }); return [b, `Fee agreed, but ${t.name} has walked out of talks. (${ts.reasons.join(' · ')})`]; }
+    const prev = tdeal?.counter, fresh = prev === undefined ? Math.max(ts.floor, Math.round(ts.ask * (1 - ts.soften))) : Math.max(ts.floor, Math.min(prev - 1, Math.round(prev * (1 - ts.soften))));
+    const counter = lowball ? prev ?? ts.ask : towards(prev, fresh, 'down');
+    setDeal(b, tkey, { rounds: r.used, counter, insults: r.insults });
+    const left = r.left;
+    return [b, `Fee agreed, but ${t.name} wants £${counter}k a week. ${left} round${left === 1 ? '' : 's'} left. (${ts.reasons.join(' · ')})`];
   }
-  if (o.wage < wantWage) return [b, `Fee agreed, but ${t.name} wants £${wantWage}k a week.`];
+  setDeal(b, key, undefined); setDeal(b, tkey, undefined);
   t.clubId = b.clubId;
   t.starting = false;
   t.listed = false;

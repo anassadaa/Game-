@@ -240,8 +240,17 @@ export function manageTransfers(s: GameState): GameState {
 function buy(s: GameState, id: string, slot: Slot): GameState {
   const p = s.market.find((x) => x.id === id) ?? s.rivals?.find((x) => x.id === id); if (!p) return s;
   if (dealCost(s, p) > budgetLeft(s) || wageAsk(p) > wageSpace(s)) return s;
-  const fee = p.clubId === 'market' ? 0 : askingPrice(p, s);
-  const [n] = negotiate(s, id, { fee, wage: wageAsk(p), years: 3 });
+  // 3.9: he negotiates like you do — opens a little under the ask, then meets the stored counters (fee, then wages).
+  const ask = p.clubId === 'market' ? 0 : askingPrice(p, s);
+  let n = s, fee = Math.round(ask * 0.92), wage = wageAsk(p);
+  for (let i = 0; i < 4; i++) {
+    const [m] = negotiate(n, id, { fee, wage, years: 3 }); n = m;
+    if (n.players.some((x) => x.id === id && x.clubId === s.clubId)) break;
+    const d = n.deals?.[`buy:${id}`], w = n.deals?.[`terms:${id}`];
+    if (d?.lockUntil || w?.lockUntil) break;
+    if (d?.counter !== undefined && !d.feeAgreed) fee = Math.min(ask, d.counter);
+    if (w?.counter !== undefined) { if (w.counter > wageSpace(s)) break; wage = w.counter; }
+  }
   if (!n.players.some((x) => x.id === id && x.clubId === s.clubId) || n.budget < 0 || bill(n) > wageLimit(s)) return s;
   const cost = dealCost(s, p);
   plan(n).spent += cost; plan(n).signings++;

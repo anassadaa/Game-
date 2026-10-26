@@ -2,7 +2,7 @@ import type { GameState } from './game.ts';
 import { cashLabel } from './BudgetLine.tsx';
 import { FinancePanel, IN_LABEL, LedgerCard, OUT_LABEL } from './Finance.tsx';
 import { rescueNeed, wageBill, wageLimit, weeksUntilBroke } from './budget.ts';
-import { autoBudget, delegated, inRed, plan } from './delegate.ts';
+import { autoBudget, budgetLeft, delegated, inRed, plan } from './delegate.ts';
 import { compensation, endOf } from './managers.ts';
 import { ledger } from './finance.ts';
 import { injectCash, myStake, weeklySalary } from './wallet.ts';
@@ -44,7 +44,7 @@ export function FinanceTab({ state, onUpdate }: { state: GameState; onUpdate: Up
         <div className="fin-grid">
           <div><span>Bank</span><b className={state.budget < 0 ? 'neg' : ''}>{cashLabel(state.budget)}</b></div>
           <div><span>Wage bill / wk</span><b className={bill > wl ? 'neg' : ''}>£{bill}k / £{wl}k</b></div>
-          {p && <div><span>Manager transfer budget</span><b>{m(Math.max(0, p.transfer - p.spent))} left</b></div>}
+          {p && <div><span>Manager transfer budget</span><b className={inRed(state) ? 'neg' : ''}>{m(budgetLeft(state))} left{inRed(state) ? ' (frozen)' : ''}</b></div>}
         </div>
         {inRed(state) && <p className="neg small">In the red: the board has frozen signings and will sell players until the bank and wage bill recover.</p>}
         <p className={`small fin-runway ${broke < 8 ? 'neg' : 'muted'}`}>{broke === 0 ? '⚠️ Overdrawn now.' : broke === Infinity ? 'Cash flow positive: not burning cash.' : `⏳ ${broke} week${broke === 1 ? '' : 's'} until broke at the current burn.`}</p>

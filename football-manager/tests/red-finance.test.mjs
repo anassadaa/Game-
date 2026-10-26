@@ -42,3 +42,9 @@ test('rescue loan clears the overdraft from the wallet in one tap', () => {
   wallet(s).cash = need + 10; const b = injectCash(s, need, 'loan');
   assert.ok(b.budget > 0); assert.equal(wallet(b).loan, need); assert.equal(wallet(b).cash, 10);
 });
+import { budgetLeft } from '../src/delegate.ts';
+import { readFileSync } from 'node:fs';
+test('3.2: Finance tab shows budgetLeft (0 in the red)', () => {
+  let s = own(); s = hireManager(s, managerCandidates(s)[0].id); s.budget = -50; assert.equal(budgetLeft(s), 0);
+  const src = readFileSync(new URL('../src/FinanceTab.tsx', import.meta.url), 'utf8'); assert.match(src, /budgetLeft\(state\)/); assert.doesNotMatch(src, /p\.transfer - p\.spent/);
+});

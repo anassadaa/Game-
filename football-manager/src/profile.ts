@@ -48,7 +48,7 @@ export function pidFromTexts(s: GameState, texts: string[]): string | null {
 }
 
 export type Profile = {
-  id: string; name: string; age: number; position: string; slot: string; foot: string; club: string; ours: boolean; scouted: boolean; protected: boolean;
+  id: string; name: string; age: number; position: string; slot: string; foot: string; club: string; value: number; ours: boolean; scouted: boolean; protected: boolean;
   ability: string; potential: string; personality: string; leadership: number | null;
   attrs: { label: string; value: string }[]; hidden: { label: string; value: number }[] | null;
   traits: string[]; contract: string; injury: string | null; status: string[];
@@ -90,7 +90,7 @@ export function playerProfile(s: GameState, id: string): Profile | null {
   if (p.wonderkid) status.push('Wonderkid');
   if (p.academyGraduate) status.push('Academy graduate');
   return {
-    id: p.id, name: p.name, age: p.age, position: p.position, slot: slotOf(p), foot: FOOT_LABEL[footOf(p)], club: clubName, ours, scouted: sc, protected: prot,
+    id: p.id, name: p.name, age: p.age, position: p.position, slot: slotOf(p), foot: FOOT_LABEL[footOf(p)], club: clubName, value: p.price, ours, scouted: sc, protected: prot,
     ability: rangeText(ab), potential: rangeText(potentialRange(s, p)),
     personality: ours || sc ? p.personality ?? 'Unknown' : 'Unknown — scout him', leadership: ours || sc ? leadership(p) : null,
     attrs, hidden: hid, traits: ppms(p).map((t) => PPM_LABEL[t]),

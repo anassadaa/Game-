@@ -73,7 +73,7 @@ export function PlayerModal({ state, id, onClose }: { state: GameState; id: stri
         <header className="pp-head">
           <div>
             <h2>{pr.name}</h2>
-            <p>{pr.age} · {pr.position} ({pr.slot}) · {pr.foot} · {pr.club}</p>
+            <p>{pr.age} · {pr.position} ({pr.slot}) · {pr.foot} · {pr.club} · <b className="mv">MV {pr.value >= 1000 ? `£${(pr.value / 1000).toFixed(2)}m` : `£${pr.value}k`}</b></p>
           </div>
           <button ref={close} type="button" className="pp-close" aria-label="Close" onClick={onClose}>✕</button>
         </header>

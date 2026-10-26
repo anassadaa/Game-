@@ -207,11 +207,11 @@ function ClubSquadModal({ state, clubId, onClose, onOffer }: { state: GameState;
             return (
               <li key={p.id} className={open ? 'open' : ''}>
                 <button className="squad-row" onClick={() => setPick(open ? null : p.id)}>
-                  <b className="sq-pos">{slotPeek(p)}</b><span className="sq-name">{p.name}</span><small>{p.age}y</small><b className="sq-rt">{p.rating}</b><small className="sq-val">{money(p.price)}</small>
+                  <b className="sq-pos">{slotPeek(p)}</b><span className="sq-name">{p.name}</span><small>{p.age}y</small><b className="sq-rt">{p.rating}</b><small className="sq-val" title="Market value">MV {money(p.price)}</small>
                 </button>
                 {open && !mine && (
                   <div className="squad-act">
-                    <small>Wage {money(p.wage)}/wk · contract {p.contract}y · potential {p.potential}</small>
+                    <small>Wage {money(p.wage)}/wk · MV {money(p.price)} · contract {p.contract}y · potential {p.potential}</small>
                     <button className="primary" disabled={!!why} onClick={() => onOffer(p)}>Make transfer offer</button>
                     {why && <small className="neg">{why}</small>}
                   </div>
@@ -361,10 +361,11 @@ function PlayerCard({
         </h3>
         {isProtected(player) && <span className="prot-badge" title="Protected: never sold or let go without your approval">{PROTECTED_BADGE}</span>}
         <p>
-          {player.age} years · {slotOf(player)} · {FOOT_LABEL[footOf(player)]} · {money(player.wage)}/wk
+          {player.age} years · {slotOf(player)} · {FOOT_LABEL[footOf(player)]}
           {player.injured ? ` · 🚑 ${injuryName(player.injury?.type)} ${player.injured}w` : ''}
           {player.suspended ? ` · 🟥 Banned ${player.suspended}` : player.yellows ? ` · 🟨${player.yellows}` : ''}
         </p>
+        <p className="pc-money">{money(player.wage)}/wk · <b title="Market value, updated weekly">MV {money(player.price)}</b></p>
         <p>
           {player.personality} · <Stars p={player} /> ·{' '}
           {player.loan ? 'On loan' : `Contract ${player.contract ?? '?'}y`}

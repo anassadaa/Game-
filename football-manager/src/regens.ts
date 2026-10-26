@@ -1,5 +1,6 @@
+import { targetValue } from './value.ts';
 import type { GameState, Player } from './game.ts';
-import { club, int, makePlayer, next, pick, priceFor } from './game.ts';
+import { club, int, makePlayer, next, pick } from './game.ts';
 import { league } from './world.ts';
 
 export type Retiree = { name: string; position: Player['position']; peak: number; age: number; season: number; club: string; regenId?: string; ours?: boolean };
@@ -25,7 +26,7 @@ export function spawnRegen(s: GameState, p: Player, ours = false) {
   r.starting = false;
   r.listed = false;
   r.regenOf = p.name;
-  r.price = priceFor(r.rating, r.age);
+  r.price = targetValue(s, r);
   (s.rivals ??= []).push(r);
   s.retired = [{ name: p.name, position: p.position, peak, age: p.age, season: s.season, club: fromClub?.short ?? '—', regenId: r.id, ...(ours ? { ours: true } : {}) }, ...(s.retired ?? [])].slice(0, 40);
   return r;
@@ -36,7 +37,7 @@ export function developRival(s: GameState, p: Player) {
   if (p.age <= 23 && p.rating < p.potential) p.rating = Math.min(p.potential, p.rating + int(s, 0, p.regenOf ? 6 : 4));
   else if (p.age <= 27 && p.rating < p.potential && next(s) < 0.25) p.rating = Math.min(p.potential, p.rating + int(s, 1, 4));
   else if (p.age >= 30) p.rating = Math.max(35, p.rating - int(s, 0, p.age >= 33 ? 4 : 2));
-  p.price = priceFor(p.rating, p.age);
+  // 3.4: no reset here; the weekly value model moves p.price smoothly.
 }
 export const regens = (s: GameState) => (s.rivals ?? []).filter((p) => p.regenOf);
 export const validRegens = (s: GameState) =>

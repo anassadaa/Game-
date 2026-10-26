@@ -1,6 +1,7 @@
 import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquads.ts';
 import { cornerConv } from './setpieces.ts';
 import { repairSlots, slotPeek } from './positions.ts';
+import { initValues, targetValue, valuesWeek } from './value.ts';
 import type { Slot } from './positions.ts';
 import { passage, reason, segmentStats, shotStat } from './narrate.ts';
 import { INTAKE_WEEK, youthIntake } from './youth.ts';
@@ -601,6 +602,7 @@ export function migrate(s: GameState): GameState {
   s.drills ??= [];
   facilities(s);
   if (!s.bench) topUpBench(s);
+  if (!s.valueModel) initValues(s); // 3.4: old saves move onto the dynamic value model once
   return s;
 }
 function story(s: GameState): Story {
@@ -630,7 +632,8 @@ function refreshMarket(s: GameState) {
     );
   s.market.forEach((p) => {
     p.starting = false;
-    p.price = Math.max(65, Math.round(p.price * (0.8 + next(s) * 0.6)));
+    next(s); // keep the RNG stream stable; the asking value now comes from the value model
+    p.price = targetValue(s, p);
   });
   s.market.push(...kept);
 }
@@ -722,6 +725,7 @@ export function newGame(
   topUpBench(s);
   ledger(s);
   refreshWageBudget(s);
+  initValues(s);
   const wb = s.wageBudget!.limit, bill = s.players.filter((p) => p.clubId === s.clubId).reduce((a, p) => a + (p.wage || 0), 0);
   s.headlines = [`📋 Board: your wage budget is £${wb}k/week (current bill £${bill}k). We honour the squad you inherited this season; from next season it follows the club's profit and loss.`, ...s.headlines].slice(0, 6);
   return s;
@@ -1628,6 +1632,7 @@ export function advanceWeek(s: GameState): GameState {
   scoutsWeek(b);
   aiInjuriesWeek(b);
   revealWeek(b);
+  valuesWeek(b);
   recordTrend(b);
   captainWeek(b);
   roomWeek(b);

@@ -37,3 +37,20 @@ test('values are deterministic (hash-based demand, no Math.random)', () => {
   const a = newGame(9), b = newGame(9); valuesWeek(a); valuesWeek(b);
   assert.deepEqual(a.players.map(p => p.price), b.players.map(p => p.price));
 });
+
+test('weekly hook moves our own players and old saves migrate onto the model', async () => {
+  const g = await import('../src/game.ts');
+  const s = g.newGame(11);
+  assert.equal(s.valueModel, 1);
+  const old = structuredClone(s); delete old.valueModel; for (const p of old.players) p.price = 999999;
+  const m = g.migrate(old);
+  assert.equal(m.valueModel, 1);
+  assert.ok(m.players.every((p) => p.price < 999999));
+  const p0 = s.players.find((p) => !p.starting); p0.apps = 10; p0.ratingSum = 85; p0.goals = 8; p0.assists = 5;
+  const before = p0.price;
+  let m2 = g.startMatch(s); while (!m2.match.complete) m2 = g.advanceMatch(m2);
+  const n = g.advanceWeek(m2);
+  assert.equal(n.week, s.week + 1);
+  const after = n.players.find((p) => p.id === p0.id).price;
+  assert.ok(after > before && after <= Math.round(before * 1.08) + 1, `${before} -> ${after}`);
+});

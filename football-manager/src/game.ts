@@ -1062,13 +1062,21 @@ export function saleFee(s: Pick<GameState, 'season' | 'week'>, p: Player) {
   const base = Math.round(p.price * 0.68), b = p.boughtAt;
   return b && (s.season * 18 + s.week) - (b.s * 18 + b.w) < 18 ? Math.min(base, b.paid) : base;
 }
-export function sellPlayer(s: GameState, id: string): GameState {
+/** 3.3: forced/manager sales never go below full value or what we paid. */
+export const minSaleFee = (p: Pick<Player, 'price' | 'boughtAt'>) => Math.max(p.price, p.boughtAt?.paid ?? 0);
+/** 3.3: a club willing to pay `fee` for him this week (hash-based), or null. Interest falls fast above his value and for veterans. */
+export function findBuyer(s: GameState, p: Player, fee: number): Club | null {
+  const ratio = p.price / Math.max(1, fee), chance = 0.12 * ratio * ratio * (p.age >= 33 ? 0.3 : 1);
+  return s.clubs.filter((c) => c.id !== s.clubId && c.rating >= p.rating - 12)
+    .find((c) => hash(`${s.seed}|buyer|${p.id}|${s.season}|${s.week}|${c.id}`) / 4294967296 < chance) ?? null;
+}
+export function sellPlayer(s: GameState, id: string, feeOverride?: number): GameState {
   if (s.match) return s;
   const team = s.players.filter((p) => p.clubId === s.clubId);
   const p = team.find((p) => p.id === id && !p.starting && !p.loan);
   if (!p || team.length <= 14) return s;
   const b = copy(s);
-  const fee = saleFee(s, p);
+  const fee = feeOverride ?? saleFee(s, p);
   // 3.2: book the sale explicitly (it used to fall into 'other' via the weekly sync).
   sync(b, 'running'); const got = saleIncome(b, b.players.find((x) => x.id === id)!, fee); b.budget += got; book(b, 'sales', got);
   b.players = b.players.filter((x) => x.id !== id);

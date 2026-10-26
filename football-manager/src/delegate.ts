@@ -1,7 +1,7 @@
 // 2.9: the hired manager runs the football (Director / Owner-Director / Chairman careers).
 // Everything is deterministic (hash-based), scaled by his rating and style.
 import type { GameState, Player } from './game.ts';
-import { askingPrice, club, copy, negotiate, renewContract, saleFee, sellPlayer, standings, windowOpen } from './game.ts';
+import { askingPrice, club, copy, findBuyer, minSaleFee, negotiate, renewContract, saleFee, sellPlayer, standings, windowOpen } from './game.ts';
 import { BENCH } from './lineup.ts';
 import { agentFee } from './finance.ts';
 import { wageLimit, weeksUntilBroke } from './budget.ts';
@@ -206,8 +206,7 @@ export function manageTransfers(s: GameState): GameState {
   if (mine.length > 20) {
     const out = mine.filter((p) => !p.starting && !(p as any).loan && !isProtected(p) && (p.age >= 31 || p.rating < mean - 6 + m.rating * 0.4)).sort((x, y) => x.rating - y.rating)[0];
     if (out && roll(b, 'sell') < 0.4 + m.rating * 0.08) {
-      const fee = saleFee(b, out), n = sellPlayer(b, out.id);
-      if (n !== b) { b = n; plan(b).sales++; note(b, `Sold ${out.name} (${slotPeek(out)}, ${out.age}) for ${money(fee)}.`); }
+      b = fairSale(b, out, 'manager');
     }
   }
   if (inRed(b)) return b; // board freeze: no signings while in the red
@@ -295,9 +294,29 @@ export function boardRescue(s: GameState): GameState {
   const xi = new Set(ours(b).filter((x) => x.starting).map((x) => x.id));
   const out = ours(b).filter((x) => !xi.has(x.id) && !(x as any).loan && !isProtected(x)).sort((x, y) => y.wage - x.wage || x.id.localeCompare(y.id))[0];
   if (!out) return b;
-  const n = sellPlayer(b, out.id);
-  if (n !== b) { b = n; plan(b).sales++; note(b, `Board-forced sale: ${out.name} (£${out.wage}k/wk) to balance the books.`); b.headlines = [`🏦 Board-forced sale: ${out.name} leaves to balance the books.`, ...b.headlines].slice(0, 6); }
-  return b;
+  return fairSale(b, out, 'board');
+}
+/** 3.3: sell at full value (or what we paid) to a club that will pay it; nobody will -> loan him out (the taker pays his wages). */
+function fairSale(b: GameState, out: Player, by: 'board' | 'manager'): GameState {
+  const fee = minSaleFee(out), buyer = findBuyer(b, out, fee);
+  if (!buyer) { const n = loanAway(b, out, by === 'board' ? 'Board' : 'No buyer at his value'); return n; }
+  const n = sellPlayer(b, out.id, fee); if (n === b) return b;
+  plan(n).sales++;
+  note(n, by === 'board' ? `Board-forced sale: ${out.name} (£${out.wage}k/wk) to balance the books.` : `Sold ${out.name} (${slotPeek(out)}, ${out.age}) for ${money(fee)}.`);
+  if (by === 'board') n.headlines = [`🏦 Board-forced sale: ${out.name} leaves to balance the books.`, ...n.headlines].slice(0, 6);
+  return n;
+}
+/** Send him on loan to a hash-picked club until season end; they pay his wages. */
+function loanAway(b: GameState, out: Player, why: string): GameState {
+  if (loansOut(b).length >= 10) return b;
+  const takers = b.clubs.filter((c) => c.id !== b.clubId).sort((x, y) => hash(`${b.seed}|eloan|${out.id}|${x.id}`) - hash(`${b.seed}|eloan|${out.id}|${y.id}`));
+  const to = takers[0]; if (!to) return b;
+  const n = copy(b);
+  n.players = n.players.filter((x) => x.id !== out.id);
+  n.loansOut = [...loansOut(n), { ...out, starting: false, loanListed: false, loanClub: to.id }];
+  note(n, `${why}: ${out.name} (£${out.wage}k/wk) loaned to ${to.name} until season end; they pay his wages.`);
+  n.headlines = [`🏦 ${why}: ${out.name} goes on loan to ${to.name}, saving £${out.wage}k/wk.`, ...n.headlines].slice(0, 6);
+  return n;
 }
 /** 3.2: overdrawn outside a window: send the top unprotected earner off the first team on loan (the taker pays his wages). */
 function emergencyLoan(b: GameState): GameState {
@@ -305,13 +324,7 @@ function emergencyLoan(b: GameState): GameState {
   const xi = new Set(ours(b).filter((x) => x.starting).map((x) => x.id)), top = [...ours(b)].sort((x, y) => y.wage - x.wage).slice(0, 6).map((x) => x.id);
   const out = ours(b).filter((x) => top.includes(x.id) && !xi.has(x.id) && !(x as any).loan && !isProtected(x)).sort((x, y) => y.wage - x.wage || x.id.localeCompare(y.id))[0];
   if (!out) return b;
-  const takers = b.clubs.filter((c) => c.id !== b.clubId).sort((x, y) => hash(`${b.seed}|eloan|${out.id}|${x.id}`) - hash(`${b.seed}|eloan|${out.id}|${y.id}`));
-  const to = takers[0]; if (!to) return b;
-  b.players = b.players.filter((x) => x.id !== out.id);
-  b.loansOut = [...loansOut(b), { ...out, starting: false, loanListed: false, loanClub: to.id }];
-  note(b, `Board emergency: ${out.name} (£${out.wage}k/wk) loaned to ${to.name} until season end; they pay his wages.`);
-  b.headlines = [`🏦 Overdrawn: ${out.name} goes on an emergency loan to ${to.name}, saving £${out.wage}k/wk.`, ...b.headlines].slice(0, 6);
-  return b;
+  return loanAway(b, out, 'Board emergency');
 }
 /** Before each match: he picks the side. */
 export function delegateSelect(s: GameState) { if (delegated(s)) pickTeam(s); }

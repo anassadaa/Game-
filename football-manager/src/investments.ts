@@ -104,6 +104,8 @@ function commitActive(s: GameState, id: string) {
   wallet(s).policy = b.policy;
 }
 function edit(s: GameState) { const b = copy(s); ensure(b); activeSnapshot(b); return b; }
+/** 3.2: overdraft interest, ~8% a year (18-week season) instead of 1% a week (~68%). */
+export const OVERDRAFT_WEEKLY = 0.08 / 18;
 function post(b: Business, kind: InKind | OutKind, amount: number) {
   const incoming = ['gate', 'tv', 'sponsor', 'prize', 'sales', 'other', 'funding'].includes(kind);
   const ledger = incoming ? b.ledger.inc : b.ledger.out;
@@ -371,7 +373,8 @@ export function investmentWeek(s: GameState) {
         else if (ev.kind === 'leave') { const by = poacher(s, c.id, m.id), why = ev.reason === 'poached' ? `${by} poached ${m.name} from ${c.name} and paid a £${ev.penalty}k release fee.` : `${m.name} quit ${c.name} after a poor run and paid a £${ev.penalty}k exit penalty.`; post(b, 'other', ev.penalty!); b.manager = null; log(s, c.id, 'manager', ev.penalty!, `${why} A caretaker is in charge.`); s.headlines = [`✈️ ${why}`, ...s.headlines].slice(0, 6); }
         else if (ev.kind === 'alert') { m.alerted = true; log(s, c.id, 'manager', 0, `${m.name}'s contract ends after season ${endOf(s, m)}. Offer a renewal or let him go.`); }
       }
-      post(b, 'running', Math.round(12 + (b.academy + b.scouting + b.stadium + b.facilities.training + b.facilities.medical - 5) * 4 + b.debt * 0.003 + Math.max(0, -b.cash) * 0.01));
+      post(b, 'running', Math.round(12 + (b.academy + b.scouting + b.stadium + b.facilities.training + b.facilities.medical - 5) * 4 + b.debt * 0.003 + Math.max(0, -b.cash) * OVERDRAFT_WEEKLY));
+      if (before >= 0 && b.cash < 0 && owned(s, c.id) > 0) { log(s, c.id, 'warning', b.cash, `${c.name} is overdrawn (£${-Math.round(b.cash)}k): overdraft interest ~8% a year applies. Fund the club or cut costs.`); s.headlines = [`⚠️ ${c.name} has gone overdrawn. Consider a shareholder loan.`, ...s.headlines].slice(0, 6); }
       if (b.strategy === 'stability' && b.debt > 0 && b.cash > 1500) { const principal = Math.min(b.debt, 50); b.debt -= principal; post(b, 'capital', principal); }
       b.fans = clamp(b.fans + (last === 'W' ? 2 : last === 'L' ? -2 : 0) + (b.ticket <= 2 ? 1 : b.ticket === 5 ? -1 : 0));
       b.ledger.weeks = [...b.ledger.weeks, { w: s.week, net: b.cash - before }].slice(-18);

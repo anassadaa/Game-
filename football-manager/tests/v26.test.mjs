@@ -224,3 +224,14 @@ test('3.2: boardroom deals only in windows; star sales always need approval; req
   const shut = structuredClone(sale); shut.week = 11; assert.equal(cd2(shut, id, 'approve'), shut, 'cannot approve outside the window');
   shut.week = 12; shut.investments.lastTick = ''; investmentWeek(shut); assert.equal(shut.investments.clubs[id].request, undefined);
 });
+import { OVERDRAFT_WEEKLY } from '../src/investments.ts';
+test('3.2: overdrawn owned clubs pay ~8%/yr interest and you get a warning', () => {
+  assert.ok(OVERDRAFT_WEEKLY * 18 > 0.07 && OVERDRAFT_WEEKLY * 18 < 0.09);
+  let s = setup('manager'); const id = ctrl(s); s = buy(s, id, 60);
+  s.investments.clubs[id].cash = 1; s.investments.clubs[id].debt = 0; s.week = 5; s.investments.lastTick = '';
+  const out0 = s.investments.clubs[id].ledger.out.running ?? 0; investmentWeek(s);
+  const b = s.investments.clubs[id];
+  if (b.cash < 0) assert.ok(s.investments.log.some(e => e.clubId === id && e.kind === 'warning'));
+  b.cash = -10000; const r0 = b.ledger.out.running; s.week = 7; s.investments.lastTick = ''; investmentWeek(s);
+  assert.ok(b.ledger.out.running - r0 < 12 + 25 * 4 + 10000 * 0.006, 'interest is small'); void out0;
+});

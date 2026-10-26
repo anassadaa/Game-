@@ -22,3 +22,11 @@ test('five bookings bring a one-match ban; saves validate', () => {
   if (!(m.match.cards.find((x) => x.id === p.id)?.red)) { assert.equal(q.suspended, 1); assert.equal(q.yellows, 0); }
   assert.ok(decodeSave(JSON.stringify(m)));
 });
+test('only keeper banned with no cover: an emergency keeper is signed and starts', async () => {
+  const { newGame } = await import('../src/game.ts'); const { dropSuspended } = await import('../src/cards.ts');
+  const s = newGame(1); const gks = s.players.filter((p) => p.clubId === s.clubId && p.position === 'GK');
+  const first = gks.find((p) => p.starting); s.players = s.players.filter((p) => p.position !== 'GK' || p === first || p.clubId !== s.clubId);
+  first.suspended = 1; dropSuspended(s);
+  const st = s.players.filter((p) => p.clubId === s.clubId && p.starting);
+  assert.equal(st.filter((p) => p.position === 'GK').length, 1); assert.ok(!st.includes(first)); assert.ok(st.length <= 11);
+});

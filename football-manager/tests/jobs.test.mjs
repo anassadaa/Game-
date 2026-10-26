@@ -18,7 +18,8 @@ test('vacancies open, applications decided by weighted chance, resign works', ()
   assert.ok(moved, 'reputation moves with results');
   const big = [...s.clubs].sort((a, b) => stature(b) - stature(a))[0];
   const small = [...s.clubs].filter((c) => c.id !== s.clubId).sort((a, b) => stature(a) - stature(b))[0];
-  assert.ok(jobChance(s, big.id).chance < jobChance(s, small.id).chance);
+  const rep = (id) => jobChance(s, id).factors.find((f) => f.label === 'Reputation vs club stature').value;
+  assert.ok(jobChance(s, big.id).chance <= jobChance(s, small.id).chance); assert.ok(rep(big.id) < rep(small.id)); // both may hit the 2% floor
   const v = s.vacancies[0];
   const [a, res] = applyJob(s, v.clubId);
   assert.ok(res.interview && res.chance > 0);

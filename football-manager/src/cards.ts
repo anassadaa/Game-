@@ -1,6 +1,6 @@
 // Discipline: yellow and red cards in matches, accumulation and suspensions.
 import type { GameState, Player } from './game.ts';
-import { next } from './game.ts';
+import { club, makePlayer, next } from './game.ts';
 import { shoutEffect } from './shouts.ts';
 import { playerCardMul } from './traits.ts';
 
@@ -86,6 +86,19 @@ export function dropSuspended(s: GameState) {
   for (const p of s.players.filter((x) => x.clubId === s.clubId && x.suspended)) {
     sendOff(s, p);
     if (s.bench) s.bench = s.bench.filter((id) => id !== p.id);
+  }
+  // Only keeper banned and no cover: sign an emergency free-agent keeper rather than play without one.
+  const own = s.players.filter((x) => x.clubId === s.clubId);
+  if (own.length && !own.some((x) => x.starting && x.position === 'GK')) {
+    let gk = own.filter((x) => x.position === 'GK' && !x.suspended && !x.injury).sort((a, b) => b.rating - a.rating)[0];
+    if (!gk) {
+      gk = makePlayer(s, s.clubId, 900 + s.players.length, 'GK', club(s).rating - 12);
+      gk.wage = 1; gk.contract = 1; s.players.push(gk);
+      news(s, `🧤 Emergency signing: ${gk.name} joins on a short deal as cover in goal.`);
+    }
+    const out = own.filter((x) => x.starting).sort((a, b) => a.rating - b.rating)[0];
+    if (out && own.filter((x) => x.starting).length >= 11) out.starting = false;
+    gk.starting = true;
   }
 }
 export const suspended = (p: Player) => !!p.suspended;

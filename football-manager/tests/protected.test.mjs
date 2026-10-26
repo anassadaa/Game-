@@ -23,3 +23,12 @@ test('over the wage budget he asks you instead of letting the prospect go', () =
   const yes = answerAsk(b, p.id, 'renew', true); assert.equal(yes.players.find((x) => x.id === p.id).contract, 3); assert.equal(plan(yes).asks.length, 0);
   const no = answerAsk(b, p.id, 'renew', false); assert.equal(no.players.find((x) => x.id === p.id).contract, 1); assert.match(plan(no).log[0], /refused/);
 });
+import { manageTransfers, boardRescue } from '../src/delegate.ts';
+test('neither the manager nor a board-forced sale ever sells a protected player', () => {
+  for (let seed = 1; seed <= 6; seed++) {
+    const s = owner(seed); s.week = 2; const mine = s.players.filter((x) => x.clubId === s.clubId && !x.starting);
+    for (const p of mine) { p.age = 19; p.potential = p.rating + 15; p.wage = 99; }
+    let b = manageTransfers(s); b.budget = -5000; b = boardRescue(b);
+    for (const p of mine) assert.ok(b.players.some((x) => x.id === p.id && x.clubId === s.clubId), `${p.name} kept (seed ${seed})`);
+  }
+});

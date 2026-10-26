@@ -202,7 +202,7 @@ export function manageTransfers(s: GameState): GameState {
   // Sell: one surplus, older or weak non-starter per week when the squad is big.
   const mine = ours(b), mean = avg(b);
   if (mine.length > 20) {
-    const out = mine.filter((p) => !p.starting && !(p as any).loan && (p.age >= 31 || p.rating < mean - 6 + m.rating * 0.4)).sort((x, y) => x.rating - y.rating)[0];
+    const out = mine.filter((p) => !p.starting && !(p as any).loan && !isProtected(p) && (p.age >= 31 || p.rating < mean - 6 + m.rating * 0.4)).sort((x, y) => x.rating - y.rating)[0];
     if (out && roll(b, 'sell') < 0.4 + m.rating * 0.08) {
       const fee = saleFee(b, out), n = sellPlayer(b, out.id);
       if (n !== b) { b = n; plan(b).sales++; note(b, `Sold ${out.name} (${slotPeek(out)}, ${out.age}) for ${money(fee)}.`); }
@@ -290,7 +290,7 @@ export function boardRescue(s: GameState): GameState {
   if (!p.frozen) { p.frozen = true; note(b, `Board freeze: no signings while ${b.budget < 0 ? `the bank is overspent by £${-b.budget}k` : `wages are £${bill(b) - wageLimit(b)}k/wk over the limit`}.`); b.headlines = [`🧊 The board freezes signings: ${b.budget < 0 ? `overspent £${-b.budget}k` : 'wages over the limit'}. Sales will be forced until the books balance.`, ...b.headlines].slice(0, 6); }
   if (!windowOpen(b) || ours(b).length <= 16) return b;
   const xi = new Set(ours(b).filter((x) => x.starting).map((x) => x.id));
-  const out = ours(b).filter((x) => !xi.has(x.id) && !(x as any).loan).sort((x, y) => y.wage - x.wage || x.id.localeCompare(y.id))[0];
+  const out = ours(b).filter((x) => !xi.has(x.id) && !(x as any).loan && !isProtected(x)).sort((x, y) => y.wage - x.wage || x.id.localeCompare(y.id))[0];
   if (!out) return b;
   const n = sellPlayer(b, out.id);
   if (n !== b) { b = n; plan(b).sales++; note(b, `Board-forced sale: ${out.name} (£${out.wage}k/wk) to balance the books.`); b.headlines = [`🏦 Board-forced sale: ${out.name} leaves to balance the books.`, ...b.headlines].slice(0, 6); }

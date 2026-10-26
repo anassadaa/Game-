@@ -358,8 +358,8 @@ function PlayerCard({
         <h3>
           {player.name}
           {player.academyGraduate && <Sprout size={14} />}
-          {isProtected(player) && <span className="prot-badge" title="Protected: never sold or let go without your approval">{PROTECTED_BADGE}</span>}
         </h3>
+        {isProtected(player) && <span className="prot-badge" title="Protected: never sold or let go without your approval">{PROTECTED_BADGE}</span>}
         <p>
           {player.age} years · {slotOf(player)} · {FOOT_LABEL[footOf(player)]} · {money(player.wage)}/wk
           {player.injured ? ` · 🚑 ${injuryName(player.injury?.type)} ${player.injured}w` : ''}

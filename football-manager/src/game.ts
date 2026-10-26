@@ -297,6 +297,8 @@ export type GameState = {
   reputation?: number;
   agentMsgs?: AgentMsg[];
   loansOut?: Player[];
+  /** 3.4: market-value model version; set once values are on the dynamic model. */
+  valueModel?: number;
   lineup?: string[];
   bench?: string[];
   autoSubs?: boolean;

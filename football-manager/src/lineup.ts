@@ -10,8 +10,8 @@ export const BENCH = 7;
 
 const DF_LABELS: Record<number, string[]> = { 3: ['CB', 'CB', 'CB'], 4: ['LB', 'CB', 'CB', 'RB'], 5: ['LWB', 'CB', 'CB', 'CB', 'RWB'] };
 const MF_LABELS: Record<string, string[]> = {
-  '4-3-3': ['CM', 'CM', 'CM'], '4-2-3-1': ['DM', 'DM', 'LM', 'AM', 'RM'], '4-4-2': ['LM', 'CM', 'CM', 'RM'], '3-5-2': ['LWB', 'CM', 'DM', 'CM', 'RWB'],
-  '5-3-2': ['CM', 'CM', 'CM'], '4-1-4-1': ['DM', 'LM', 'CM', 'CM', 'RM'], '3-4-3': ['LM', 'CM', 'CM', 'RM'],
+  '4-3-3': ['CM', 'CM', 'CM'], '4-2-3-1': ['DM', 'DM', 'LW', 'AM', 'RW'], '4-4-2': ['LW', 'CM', 'CM', 'RW'], '3-5-2': ['LWB', 'CM', 'DM', 'CM', 'RWB'],
+  '5-3-2': ['CM', 'CM', 'CM'], '4-1-4-1': ['DM', 'LW', 'CM', 'CM', 'RW'], '3-4-3': ['LWB', 'CM', 'CM', 'RWB'],
 };
 const FW_LABELS: Record<number, string[]> = { 1: ['ST'], 2: ['ST', 'ST'], 3: ['LW', 'ST', 'RW'] };
 const row = (n: number, y: number, pos: Position, labels: string[]): Slot[] =>
@@ -21,8 +21,8 @@ export function slotsFor(formation: string): Slot[] {
   const [d, m, f] = SHAPES[formation] ?? [4, 4, 2];
   const mf = MF_LABELS[formation] ?? Array(m).fill('CM');
   // 4-2-3-1 / 4-1-4-1 have two midfield bands; draw them on two rows.
-  const mid = formation === '4-2-3-1' ? [...row(2, 45, 'MF', ['DM', 'DM']), ...row(3, 64, 'MF', ['LM', 'AM', 'RM'])]
-    : formation === '4-1-4-1' ? [...row(1, 40, 'MF', ['DM']), ...row(4, 60, 'MF', ['LM', 'CM', 'CM', 'RM'])]
+  const mid = formation === '4-2-3-1' ? [...row(2, 45, 'MF', ['DM', 'DM']), ...row(3, 64, 'MF', ['LW', 'AM', 'RW'])]
+    : formation === '4-1-4-1' ? [...row(1, 40, 'MF', ['DM']), ...row(4, 60, 'MF', ['LW', 'CM', 'CM', 'RW'])]
     : row(m, 52, 'MF', mf);
   return [{ pos: 'GK', label: 'GK', x: 50, y: 6 }, ...row(d, 26, 'DF', DF_LABELS[d] ?? []), ...mid, ...row(f, 84, 'FW', FW_LABELS[f] ?? [])];
 }

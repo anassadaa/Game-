@@ -77,6 +77,7 @@ export function FinanceTab({ state, onUpdate }: { state: GameState; onUpdate: Up
             <div><span>Salary earned</span><b>{m(w.salary)}</b></div>
             <div><span>Dividends</span><b>{m(w.dividends)}</b></div>
             <div><span>Your stake</span><b>{myStake(state)}%</b></div>
+            {w.owed ? <div><span>Pay deferred</span><b>{m(w.owed)}</b></div> : null}
             {w.loan ? <div><span>Loan to club</span><b>{m(w.loan)}</b></div> : null}
           </div>
         </section>

@@ -8,7 +8,7 @@ import { marketClubs, quoteTrade, executeTrade, fundClub, repayClubLoan, clubDec
 export type Policy = 'none' | 'low' | 'high';
 export type WalletEntry = { season: number; week: number; kind: 'salary' | 'bonus' | 'dividend'; amount: number; reason: string };
 export type ClubHolding = { stake: number; loan: number; investorStakes: number; investorRaised: number };
-export type Wallet = { cash: number; stake: number; salary: number; dividends: number; loan: number; policy: Policy; base?: number; investorMood?: number; log?: WalletEntry[]; holdings?: Record<string, ClubHolding> };
+export type Wallet = { cash: number; stake: number; salary: number; dividends: number; loan: number; policy: Policy; base?: number; owed?: number; investorMood?: number; log?: WalletEntry[]; holdings?: Record<string, ClubHolding> };
 const hash = (str: string) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
 const note = (s: GameState, e: Omit<WalletEntry, 'season' | 'week'>) => { const w = wallet(s); w.log = [{ season: s.season, week: s.week, ...e }, ...(w.log ?? [])].slice(0, 12); };
 const mode = (s: GameState) => s.mode ?? 'manager';
@@ -58,11 +58,19 @@ export function salaryReview(s: GameState, pos: number, end?: { outcome: string;
   w.base = next;
   const reason = why.join(', ') || 'steady';
   if (next !== base) note(s, { kind: 'salary', amount: next - base, reason: `${end ? 'Season review' : 'Board review'}: £${base}k → £${next}k/wk (${reason})` });
-  if (bonus > 0) { s.budget -= bonus; book(s, 'wages', bonus); w.cash += bonus; w.salary += bonus; note(s, { kind: 'bonus', amount: bonus, reason: `Bonus: ${reason}` }); }
+  if (bonus > 0) { if (payMe(s, bonus)) note(s, { kind: 'bonus', amount: bonus, reason: `Bonus: ${reason}` }); else note(s, { kind: 'bonus', amount: 0, reason: `Bonus of £${bonus}k deferred: the club is in the red` }); }
+}
+/** 3.2: you never draw pay from an overdrawn club. If paying would take the bank negative it is deferred (owed) instead. */
+function payMe(s: GameState, amount: number) {
+  const w = wallet(s); if (amount <= 0) return true;
+  if (s.budget - amount < 0) { w.owed = (w.owed ?? 0) + amount; return false; }
+  w.cash += amount; w.salary += amount; s.budget -= amount; book(s, 'wages', amount); return true;
 }
 export function walletWeek(s: GameState) {
   const w = wallet(s), pay = weeklySalary(s);
-  w.cash += pay; w.salary += pay; s.budget -= pay; book(s, 'wages', pay);
+  if (!payMe(s, pay)) return;
+  // Back pay once the club has recovered: at most half the cash in the bank each week.
+  if (w.owed && s.budget > 0) { const back = Math.min(w.owed, Math.floor(s.budget / 2)); if (back > 0) { w.owed -= back; w.cash += back; w.salary += back; s.budget -= back; book(s, 'wages', back); if (!w.owed) { delete w.owed; note(s, { kind: 'salary', amount: back, reason: 'Deferred pay cleared: the club is back in the black' }); } } }
 }
 /** Club value: ~1.5x last season's income (or a stature estimate) plus a stature premium; top tier is worth more. */
 export function valuation(s: GameState) {
@@ -174,6 +182,7 @@ export function validWallet(s: Pick<GameState, 'wallet'>): boolean {
   if (!w || !['cash', 'salary', 'dividends', 'loan'].every(k => money(w[k as keyof Wallet])) || !pct(w.stake) || !['none', 'low', 'high'].includes(w.policy)) return false;
   if (w.base !== undefined && (!money(w.base) || w.base < 1)) return false;
   if (w.investorMood !== undefined && !pct(w.investorMood)) return false;
+  if (w.owed !== undefined && (!Number.isFinite(w.owed) || w.owed < 0)) return false;
   if (w.log !== undefined && (!Array.isArray(w.log) || w.log.length > 12 || !w.log.every(e => e && Number.isInteger(e.season) && e.season >= 1 && e.season <= 1000 && Number.isInteger(e.week) && e.week >= 0 && e.week <= 18 && ['salary', 'bonus', 'dividend'].includes(e.kind) && Number.isFinite(e.amount) && Math.abs(e.amount) <= 1e9 && typeof e.reason === 'string' && e.reason.length <= 500))) return false;
   if (w.holdings !== undefined && (!w.holdings || typeof w.holdings !== 'object' || Array.isArray(w.holdings) || Object.keys(w.holdings).length > 300 || !Object.entries(w.holdings).every(([id, h]) => id.length > 0 && id.length < 100 && !['__proto__', 'constructor', 'prototype'].includes(id) && h && pct(h.stake) && money(h.loan) && pct(h.investorStakes) && h.stake + h.investorStakes <= 100 && money(h.investorRaised)))) return false;
   return true;

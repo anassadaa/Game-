@@ -207,7 +207,7 @@ export function MyFinancesCard({ state, onUpdate, onInvest }: { state: GameState
       {onInvest && <button className="secondary" onClick={onInvest}>Explore club investments →</button>}
       <div className="wallet-grid">
         <div><small>Wallet</small><b>£{w.cash.toLocaleString()}k</b></div>
-        <div><small>Salary</small><b>£{weeklySalary(s)}k/wk</b></div>
+        <div><small>Salary</small><b>£{weeklySalary(s)}k/wk{w.owed ? <small> (£{w.owed}k deferred)</small> : null}</b></div>
         <div><small>Earned</small><b>£{w.salary.toLocaleString()}k</b></div>
         <div><small>Dividends</small><b>£{w.dividends.toLocaleString()}k</b></div>
       </div>

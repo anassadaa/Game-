@@ -3,7 +3,7 @@ import { newGame, startMatch, advanceMatch } from '../src/game.ts';
 import { shout, activeShout, shoutEffect } from '../src/shouts.ts';
 import { cardRisk } from '../src/cards.ts';
 import { decodeSave } from '../src/save.ts';
-const goals = (id, n = 60) => { let us = 0, them = 0; for (let i = 0; i < n; i++) { let m = startMatch(newGame(700 + i)); if (id) m = shout(m, id); while (!m.match.complete) { m = advanceMatch(m); if (id && m.match.minute % 30 === 0 && !m.match.complete) m = shout(m, id); } const c = (side) => m.match.timeline.filter((x) => x.side === side && (x.kind === 'goal' || x.kind === 'chance')).length; us += c('us'); them += c('them'); } return { us, them }; };
+const goals = (id, n = 120) => { let us = 0, them = 0; for (let i = 0; i < n; i++) { let m = startMatch(newGame(700 + i)); if (id) m = shout(m, id); while (!m.match.complete) { m = advanceMatch(m); if (id && m.match.minute % 30 === 0 && !m.match.complete) m = shout(m, id); } const c = (side) => m.match.timeline.filter((x) => x.side === side && (x.kind === 'goal' || x.kind === 'chance')).length; us += c('us'); them += c('them'); } return { us, them }; };
 test('a shout lasts 30 minutes and is logged', () => {
   let m = shout(startMatch(newGame(1)), 'focus');
   assert.equal(activeShout(m).id, 'focus'); assert.ok(m.match.timeline.some((t) => t.text.includes('Concentrate')));

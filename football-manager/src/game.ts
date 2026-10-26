@@ -733,6 +733,7 @@ export function newGame(
   ledger(s);
   refreshWageBudget(s);
   initValues(s);
+  ensureStats(s);
   const wb = s.wageBudget!.limit, bill = s.players.filter((p) => p.clubId === s.clubId).reduce((a, p) => a + (p.wage || 0), 0);
   s.headlines = [`📋 Board: your wage budget is £${wb}k/week (current bill £${bill}k). We honour the squad you inherited this season; from next season it follows the club's profit and loss.`, ...s.headlines].slice(0, 6);
   return s;

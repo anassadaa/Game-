@@ -4,6 +4,7 @@ import { simToEnd } from '../src/highlights.ts';
 import { setMode, managerCandidates, hireManager } from '../src/managers.ts';
 import { plan } from '../src/delegate.ts';
 import { isProtected } from '../src/protect.ts';
+import { stepValue } from '../src/value.ts';
 test('3.3 sim: a club deep in the red for a whole season never sells below value and never sells a protected player', () => {
   for (const [seed, mode] of [[12, 'chairman'], [7, 'owner'], [21, 'director']]) {
     let s = setMode(newGame(seed), mode); s = hireManager(s, managerCandidates(s).find(m => m.rating >= 3).id, 3);
@@ -21,7 +22,9 @@ test('3.3 sim: a club deep in the red for a whole season never sells below value
         const h = n.headlines.find(x => x.startsWith(`${p.name} departs for £`)); if (!h) continue; // released / retired, not a sale
         sales++; const fee = Number(h.match(/£(\d+)k/)[1]);
         assert.ok(!isProtected(p), `seed ${seed} W${s.week}: protected ${p.name} sold`);
-        assert.ok(fee >= minSaleFee(p), `seed ${seed} W${s.week}: ${p.name} sold for ${fee} < ${minSaleFee(p)}`);
+        // 3.4: values move weekly (≤8%) before sales run, so compare with the lowest value he could have had at sale time; never below what we paid.
+        const floor = minSaleFee({ ...p, price: stepValue(p.price, 0) });
+        assert.ok(fee >= floor, `seed ${seed} W${s.week}: ${p.name} sold for ${fee} < ${floor}`);
       }
       s = n;
     }

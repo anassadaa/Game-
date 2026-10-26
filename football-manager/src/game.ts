@@ -1,4 +1,4 @@
-import { LOCK_WEEKS, dealLocked, dealOf, nextRound, nowWeek, sellerStance, setDeal, termsStance, towards } from './negotiation.ts';
+import { LOCK_WEEKS, ROLE_RANK, loanStance, type LoanOffer, buyerStance, dealLocked, dealOf, nextRound, nowWeek, sellerStance, setDeal, termsStance, towards } from './negotiation.ts';
 import { offerRenewal, renewalPlan, wageDemand } from './contracts.ts';
 import { aiInjuriesWeek, resetSquadRefs, squadClub, squadDelta } from './aisquads.ts';
 import { cornerConv } from './setpieces.ts';
@@ -1043,6 +1043,26 @@ export function loanIn(s: GameState, id: string): GameState {
   b.headlines = [`${t.name} arrives on a season-long loan.`, ...b.headlines].slice(0, 6);
   return b;
 }
+/** 3.9: negotiate a loan with the parent club — wage share and the playing role you expect to give him.
+ *  The parent's demands are stored and never rise; a few rounds, then they stop taking calls for a few weeks. */
+export function loanOffer(s: GameState, id: string, o: LoanOffer): [GameState, string] {
+  const p = s.market.find((x) => x.id === id);
+  if (s.match || !p || !(o.wageShare >= 0 && o.wageShare <= 1) || !(o.role in ROLE_RANK)) return [s, 'That loan is not available.'];
+  const st = loanStance(s, p, club(s)), key = `loan:${id}`, deal = dealOf(s, key), lockedFor = dealLocked(s, key);
+  const need = deal?.counter !== undefined ? deal.counter / 100 : st.needShare, why = `(${st.reasons.join(' · ')})`;
+  const roleOk = ROLE_RANK[o.role] >= ROLE_RANK[st.needRole];
+  if (!lockedFor && roleOk && o.wageShare >= need - 1e-9) {
+    const n = loanIn(s, id); if (n === s) return [s, 'You cannot afford the loan fee or have no squad space.'];
+    const b = copy(n), t = b.players.find((x) => x.id === id)!; t.wage = Math.max(1, Math.round(t.wage * o.wageShare)); setDeal(b, key, undefined);
+    return [b, `${t.name} joins on loan: you pay ${Math.round(o.wageShare * 100)}% of his wage (£${t.wage}k/wk), loan fee £${st.fee}k.`];
+  }
+  if (lockedFor) return [s, `${p.name}'s club won't discuss a loan for ${lockedFor} more week${lockedFor > 1 ? 's' : ''}.`];
+  const b = copy(s), lowball = o.wageShare < need - 0.3, r = nextRound(deal, st.rounds, lowball);
+  if (r.out) { setDeal(b, key, { rounds: r.used, lockUntil: nowWeek(b) + LOCK_WEEKS }); return [b, `${p.name}'s club end loan talks. ${why}`]; }
+  const eased = Math.round(towards(deal?.counter, Math.max(Math.round(st.needShare * 100) - 15, Math.round(need * 100) - (lowball ? 0 : 5)), 'down'));
+  setDeal(b, key, { rounds: r.used, counter: eased, insults: r.insults });
+  return [b, `${roleOk ? '' : `They want him as a ${st.needRole}. `}They'd accept ${eased}% of his wage. ${r.left} round${r.left === 1 ? '' : 's'} left. ${why}`];
+}
 /** 3.8: renew at his dynamic demand (see contracts.ts); used by quick-renew buttons and the delegated manager. */
 export function renewContract(s: GameState, id: string, years: number, clause?: number): GameState {
   const p = s.players.find((x) => x.id === id && x.clubId === s.clubId && !x.loan);
@@ -1856,6 +1876,25 @@ export function rejectBid(s: GameState, bidId: string): GameState {
   if (p && !p.listed && p.personality === 'Ambitious' && bid.fee > p.price * 1.1) p.morale = clamp(p.morale - 8);
   return b;
 }
+/** 3.9: counter an incoming bid. The buying club answers with its own stance (need, budget, alternatives, deadline);
+ *  its bid only ever rises (no random 'meet halfway'), it has limited patience, and a figure inside its ceiling is agreed. */
+export function counterBid(s: GameState, bidId: string, ask: number): [GameState, string] {
+  const bid = s.bids?.find((x) => x.id === bidId);
+  const p = bid && s.players.find((x) => x.id === bid.playerId && x.clubId === s.clubId);
+  const buyer = bid && s.clubs.find((c) => c.id === bid.clubId);
+  if (s.match || !bid || !p || !buyer || !Number.isFinite(ask)) return [s, 'That bid has expired.'];
+  if (ask <= bid.fee) return [s, 'Counter higher than their bid, or just accept it.'];
+  const st = buyerStance(s, p, buyer, bid.fee, deadlineDay(s)), key = `sell:${bidId}`, deal = dealOf(s, key);
+  st.floor = Math.max(st.floor, Math.round(bid.fee * 1.05)); // a club that bid X will always stretch ~5%
+  const b = copy(s), nb = b.bids!.find((x) => x.id === bidId)!;
+  const why = `(${st.reasons.join(' · ')})`;
+  if (ask <= st.floor) { nb.fee = Math.round(ask); setDeal(b, key, undefined); return [b, `${buyer.short} agree to £${nb.fee}k. Accept to complete the sale.`]; }
+  const r = nextRound(deal, st.rounds, ask > st.floor * 1.5);
+  if (r.out || ask > st.floor * 2) { b.bids = b.bids!.filter((x) => x.id !== bidId); setDeal(b, key, undefined); return [b, `${buyer.short} pull out of the deal for ${p.name}. ${why}`]; }
+  const raised = towards(bid.fee, Math.min(st.floor, Math.max(bid.fee + 1, Math.round(bid.fee + (ask - bid.fee) * st.soften))), 'up');
+  nb.fee = raised; setDeal(b, key, { rounds: r.used, counter: raised, insults: r.insults });
+  return [b, `${buyer.short} ${raised > bid.fee ? `improve their bid to £${raised}k` : `stay at £${raised}k`}. ${r.left} round${r.left === 1 ? '' : 's'} left. ${why}`];
+}
 function transferWeek(b: GameState) {
   b.bids = [];
   const rivals = (b.rivals ??= []);
@@ -1892,7 +1931,11 @@ function transferWeek(b: GameState) {
     const from = b.clubs.find((c) => c.id === p.clubId)!;
     if (rivals.filter((x) => x.clubId === from.id).length <= 13) continue;
     const to = pick(b, b.clubs.filter((c) => c.id !== b.clubId && c.id !== from.id));
-    const fee = Math.round(p.price * (0.9 + next(b) * 0.5));
+    const draw = Math.round(p.price * (0.9 + next(b) * 0.5));
+    // 3.9: AI clubs bargain with the same stances you face — no deal when the buyer's ceiling is below the seller's floor.
+    const sFloor = sellerStance(b, p, from, askingPrice(p, b), deadlineDay(b)).floor, bMax = buyerStance(b, p, to, draw, deadlineDay(b)).floor;
+    if (bMax < sFloor) continue;
+    const fee = Math.min(bMax, Math.max(sFloor, draw));
     if (b.investments) { if (!makeTransfer(b, to.id, p.id, fee, false)) continue; }
     if (!b.investments) sellOnReceipt(b, p, fee);
     p.clubId = to.id;

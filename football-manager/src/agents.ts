@@ -84,20 +84,8 @@ export function signFreeAgent(s: GameState, id: string, o: FreeOffer): [GameStat
   b.headlines = [msg, ...b.headlines].slice(0, 6);
   return [b, msg];
 }
-/** Counter an AI bid. Close to the bid: they agree. A stretch: they may meet halfway. Too far: they walk. */
-export function counterBid(s: GameState, bidId: string, fee: number): [GameState, string] {
-  const bid = s.bids?.find((x) => x.id === bidId);
-  if (!bid || s.match) return [s, 'That bid has expired.'];
-  const b = copy(s);
-  const x = b.bids!.find((y) => y.id === bidId)!;
-  const who = b.clubs.find((c) => c.id === x.clubId)?.short ?? 'They';
-  const r = fee / x.fee;
-  if (r <= 1) return [s, 'Counter higher than their bid, or just accept it.'];
-  if (r <= 1.1) { x.fee = Math.round(fee); return [b, `${who} agree to £${x.fee}k. Accept to complete the sale.`]; }
-  if (r <= 1.35 && next(b) < (1.35 - r) / 0.25 + 0.2) { x.fee = Math.round((fee + x.fee) / 2); return [b, `${who} meet you halfway: £${x.fee}k.`]; }
-  b.bids = b.bids!.filter((y) => y.id !== bidId);
-  return [b, `${who} walk away from the deal.`];
-}
+/** 3.9: moved to game.ts — the buying club's own stance, stored bid and limited rounds (negotiation.ts). */
+export { counterBid } from './game.ts';
 /** Released players join the free-agent pool (kept across market refreshes). */
 export function release(s: GameState, p: Player) {
   const f: Player = { ...p, clubId: 'market', starting: false, listed: false, released: true, contract: 0, goals: 0, assists: 0 };

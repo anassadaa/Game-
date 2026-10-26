@@ -51,3 +51,21 @@ test('3.9: each deal type has its own stance and reasons', () => {
   const short = { ...t, contract: 1 }, long = { ...t, contract: 5 };
   assert.ok(sellerStance(s, short, c, base, false).floor < sellerStance(s, long, c, base, false).floor, 'contract running down weakens the seller');
 });
+
+import { counterBid, loanOffer } from '../src/game.ts';
+test('3.9: selling — the buyer’s bid only rises, limited rounds, then it pulls out', () => {
+  const s = newGame(5); s.week = 2; const p = s.players.find((x) => x.clubId === s.clubId);
+  s.bids = [{ id: 'b1', playerId: p.id, clubId: s.clubs.find((c) => c.id !== s.clubId).id, fee: Math.round(p.price * 0.7) }];
+  let st = s, msg = '', last = s.bids[0].fee;
+  for (let i = 0; i < 5 && st.bids.length; i++) { [st, msg] = counterBid(st, 'b1', Math.round(p.price * 1.9)); if (st.bids[0]) { assert.ok(st.bids[0].fee >= last); last = st.bids[0].fee; } }
+  assert.equal(st.bids.length, 0, msg); assert.match(msg, /pull out/);
+});
+test('3.9: loans — parent club wants a wage share and role; its demand eases but never rises', () => {
+  const s = newGame(5); s.week = 2; s.budget = 1e6; const p = s.market[0];
+  let [st, msg] = loanOffer(s, p.id, { wageShare: 0.3, role: 'starter' });
+  const c1 = st.deals?.[`loan:${p.id}`]?.counter; assert.ok(c1, msg);
+  [st, msg] = loanOffer(st, p.id, { wageShare: 0, role: 'starter' });
+  const c2 = st.deals?.[`loan:${p.id}`]?.counter; if (c2 !== undefined) assert.ok(c2 <= c1);
+  const [done, m2] = loanOffer(s, p.id, { wageShare: 1, role: 'starter' });
+  assert.ok(done.players.some((x) => x.id === p.id && x.loan), m2);
+});
